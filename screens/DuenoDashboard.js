@@ -38,7 +38,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const cargar = useCallback(async () => {
     const { data: mesasData } = await supabase
       .from('mesas')
-      .select('id, numero')
+      .select('id, numero, sesion_actual')
       .eq('bar_id', usuario.bar_id)
       .order('numero')
 
@@ -83,23 +83,41 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   }
 
   async function abrirDetalle(mesa) {
-    if (!mesa.pedido) return
     setCargandoDetalle(true)
-    const { data: items } = await supabase
-      .from('pedido_items')
-      .select('id, cantidad, precio_unitario, productos(nombre)')
-      .eq('pedido_id', mesa.pedido.id)
-    setDetalle({ mesa, pedido: mesa.pedido, items: items || [] })
+    const { data: historial } = await supabase
+      .from('pedidos')
+      .select('id, estado, total, created_at')
+      .eq('mesa_id', mesa.id)
+      .eq('sesion_id', mesa.sesion_actual)
+      .neq('estado', 'cancelado')
+      .order('created_at', { ascending: true })
+
+    let items = []
+    if (mesa.pedido) {
+      const { data: itemsData } = await supabase
+        .from('pedido_items')
+        .select('id, cantidad, precio_unitario, productos(nombre)')
+        .eq('pedido_id', mesa.pedido.id)
+      items = itemsData || []
+    }
+    setDetalle({ mesa, pedido: mesa.pedido || null, items, historial: historial || [] })
     setCargandoDetalle(false)
   }
 
-  async function avanzarDesdeDetalle() {
+  async function cerrarMesa() {
     if (!detalle) return
+    await supabase.rpc('cerrar_mesa', { p_mesa_id: detalle.mesa.id })
+    setDetalle(null)
+    cargar()
+  }
+
+  async function avanzarDesdeDetalle() {
+    if (!detalle || !detalle.pedido) return
     const paso = SIGUIENTE_ESTADO[detalle.pedido.estado]
     if (!paso) return
     await supabase.from('pedidos').update({ estado: paso.siguiente, updated_at: new Date().toISOString() }).eq('id', detalle.pedido.id)
     if (paso.siguiente === 'entregado') {
-      setDetalle(null)
+      setDetalle({ ...detalle, pedido: null })
     } else {
       setDetalle({ ...detalle, pedido: { ...detalle.pedido, estado: paso.siguiente } })
     }
@@ -143,7 +161,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
               { borderColor: item.pedido ? colorPorAntiguedad(item.pedido.created_at) : '#2a2a3a' },
             ]}
             onPress={() => abrirDetalle(item)}
-            activeOpacity={item.pedido ? 0.6 : 1}
+            activeOpacity={0.6}
           >
             <Text style={styles.mesaNumero}>Mesa {item.numero}</Text>
             <Text style={styles.mesaEstado}>
@@ -159,24 +177,48 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
             {detalle && (
               <>
                 <Text style={styles.modalTitulo}>Mesa {detalle.mesa.numero}</Text>
-                <Text style={styles.modalEstado}>{ESTADO_LABEL[detalle.pedido.estado] || detalle.pedido.estado}</Text>
-                <ScrollView style={{ maxHeight: 260, marginVertical: 14 }}>
-                  {detalle.items.map((it) => (
-                    <View key={it.id} style={styles.itemFila}>
-                      <Text style={styles.itemTexto}>{it.cantidad}x {it.productos?.nombre}</Text>
-                      <Text style={styles.itemTexto}>{money(it.precio_unitario * it.cantidad)}</Text>
+                <Text style={styles.modalEstado}>
+                  {detalle.pedido ? (ESTADO_LABEL[detalle.pedido.estado] || detalle.pedido.estado) : 'Sin pedido activo'}
+                </Text>
+
+                {detalle.pedido && (
+                  <>
+                    <Text style={styles.subtitulo}>Pedido actual</Text>
+                    {detalle.items.map((it) => (
+                      <View key={it.id} style={styles.itemFila}>
+                        <Text style={styles.itemTexto}>{it.cantidad}x {it.productos?.nombre}</Text>
+                        <Text style={styles.itemTexto}>{money(it.precio_unitario * it.cantidad)}</Text>
+                      </View>
+                    ))}
+                    {SIGUIENTE_ESTADO[detalle.pedido.estado] && (
+                      <TouchableOpacity style={styles.boton} onPress={avanzarDesdeDetalle}>
+                        <Text style={styles.botonTexto}>{SIGUIENTE_ESTADO[detalle.pedido.estado].boton}</Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )}
+
+                <Text style={styles.subtitulo}>Cuenta de esta visita</Text>
+                <ScrollView style={{ maxHeight: 180 }}>
+                  {detalle.historial.map((h, i) => (
+                    <View key={h.id} style={styles.itemFila}>
+                      <Text style={styles.itemTexto}>Ronda {i + 1} — {ESTADO_LABEL[h.estado] || h.estado}</Text>
+                      <Text style={styles.itemTexto}>{money(h.total)}</Text>
                     </View>
                   ))}
+                  {detalle.historial.length === 0 && <Text style={styles.itemTexto}>Sin pedidos todavía.</Text>}
                 </ScrollView>
                 <View style={styles.itemFila}>
-                  <Text style={styles.totalTexto}>Total</Text>
-                  <Text style={styles.totalTexto}>{money(detalle.pedido.total)}</Text>
+                  <Text style={styles.totalTexto}>Total de la visita</Text>
+                  <Text style={styles.totalTexto}>{money(detalle.historial.reduce((s, h) => s + Number(h.total), 0))}</Text>
                 </View>
-                {SIGUIENTE_ESTADO[detalle.pedido.estado] && (
-                  <TouchableOpacity style={styles.boton} onPress={avanzarDesdeDetalle}>
-                    <Text style={styles.botonTexto}>{SIGUIENTE_ESTADO[detalle.pedido.estado].boton}</Text>
+
+                {!detalle.pedido && (
+                  <TouchableOpacity style={styles.botonCerrarMesa} onPress={cerrarMesa}>
+                    <Text style={styles.botonTexto}>🧾 Cerrar mesa (cuenta pagada)</Text>
                   </TouchableOpacity>
                 )}
+
                 <TouchableOpacity style={styles.cerrarModal} onPress={() => setDetalle(null)}>
                   <Text style={styles.cerrarModalTexto}>Cerrar</Text>
                 </TouchableOpacity>
@@ -219,10 +261,12 @@ const styles = StyleSheet.create({
   modalDetalle: { backgroundColor: '#1e1e2e', borderRadius: 20, padding: 20, paddingBottom: 34 },
   modalTitulo: { color: '#f2f2f2', fontSize: 22, fontWeight: '800' },
   modalEstado: { color: '#d4a338', fontSize: 15, marginTop: 4 },
+  subtitulo: { color: '#a0a0b0', fontSize: 13, fontWeight: '700', marginTop: 16, marginBottom: 6, textTransform: 'uppercase' },
   itemFila: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#2a2a3a' },
   itemTexto: { color: '#f2f2f2', fontSize: 15 },
   totalTexto: { color: '#f2f2f2', fontSize: 17, fontWeight: '700' },
   boton: { backgroundColor: '#d4a338', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 16 },
+  botonCerrarMesa: { backgroundColor: '#3ecf8e', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 16 },
   botonTexto: { color: '#14141f', fontSize: 16, fontWeight: '700' },
   cerrarModal: { padding: 14, alignItems: 'center', marginTop: 6 },
   cerrarModalTexto: { color: '#a0a0b0', fontSize: 15 },
