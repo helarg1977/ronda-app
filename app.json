@@ -15,6 +15,9 @@
         "backgroundColor": "#14141f"
       }
     },
+    "web": {
+      "bundler": "metro"
+    },
     "extra": {
       "eas": {}
     }
