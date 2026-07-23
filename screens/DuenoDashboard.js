@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native'
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, Modal, ScrollView } from 'react-native'
 import { supabase, cerrarSesion } from '../lib/supabase'
 
 const ESTADO_LABEL = {
@@ -7,6 +7,17 @@ const ESTADO_LABEL = {
   confirmado: 'Confirmado',
   preparando: 'Preparando',
   en_camino: 'En camino',
+}
+
+const SIGUIENTE_ESTADO = {
+  pendiente: { siguiente: 'confirmado', boton: '✅ Confirmar pedido' },
+  confirmado: { siguiente: 'preparando', boton: '🍸 Marcar preparando' },
+  preparando: { siguiente: 'en_camino', boton: '🚶 Llevar a la mesa' },
+  en_camino: { siguiente: 'entregado', boton: '📬 Marcar entregado' },
+}
+
+function money(n) {
+  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n || 0)
 }
 
 function colorPorAntiguedad(createdAt) {
@@ -21,6 +32,8 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [pedidos, setPedidos] = useState([])
   const [solicitudes, setSolicitudes] = useState([])
   const [refrescando, setRefrescando] = useState(false)
+  const [detalle, setDetalle] = useState(null) // { mesa, pedido, items }
+  const [cargandoDetalle, setCargandoDetalle] = useState(false)
 
   const cargar = useCallback(async () => {
     const { data: mesasData } = await supabase
@@ -69,6 +82,30 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     await supabase.from('solicitudes').update({ atendida: true }).eq('id', id)
   }
 
+  async function abrirDetalle(mesa) {
+    if (!mesa.pedido) return
+    setCargandoDetalle(true)
+    const { data: items } = await supabase
+      .from('pedido_items')
+      .select('id, cantidad, precio_unitario, productos(nombre)')
+      .eq('pedido_id', mesa.pedido.id)
+    setDetalle({ mesa, pedido: mesa.pedido, items: items || [] })
+    setCargandoDetalle(false)
+  }
+
+  async function avanzarDesdeDetalle() {
+    if (!detalle) return
+    const paso = SIGUIENTE_ESTADO[detalle.pedido.estado]
+    if (!paso) return
+    await supabase.from('pedidos').update({ estado: paso.siguiente, updated_at: new Date().toISOString() }).eq('id', detalle.pedido.id)
+    if (paso.siguiente === 'entregado') {
+      setDetalle(null)
+    } else {
+      setDetalle({ ...detalle, pedido: { ...detalle.pedido, estado: paso.siguiente } })
+    }
+    cargar()
+  }
+
   const mesasConEstado = mesas.map((m) => {
     const pedido = pedidos.find((p) => p.mesa_id === m.id)
     return { ...m, pedido }
@@ -100,19 +137,54 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
         refreshControl={<RefreshControl refreshing={refrescando} onRefresh={async () => { setRefrescando(true); await cargar(); setRefrescando(false) }} />}
         contentContainerStyle={{ padding: 10 }}
         renderItem={({ item }) => (
-          <View
+          <TouchableOpacity
             style={[
               styles.mesaCard,
               { borderColor: item.pedido ? colorPorAntiguedad(item.pedido.created_at) : '#2a2a3a' },
             ]}
+            onPress={() => abrirDetalle(item)}
+            activeOpacity={item.pedido ? 0.6 : 1}
           >
             <Text style={styles.mesaNumero}>Mesa {item.numero}</Text>
             <Text style={styles.mesaEstado}>
               {item.pedido ? ESTADO_LABEL[item.pedido.estado] || item.pedido.estado : 'Libre'}
             </Text>
-          </View>
+          </TouchableOpacity>
         )}
       />
+
+      <Modal visible={!!detalle} transparent animationType="slide" onRequestClose={() => setDetalle(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalDetalle}>
+            {detalle && (
+              <>
+                <Text style={styles.modalTitulo}>Mesa {detalle.mesa.numero}</Text>
+                <Text style={styles.modalEstado}>{ESTADO_LABEL[detalle.pedido.estado] || detalle.pedido.estado}</Text>
+                <ScrollView style={{ maxHeight: 260, marginVertical: 14 }}>
+                  {detalle.items.map((it) => (
+                    <View key={it.id} style={styles.itemFila}>
+                      <Text style={styles.itemTexto}>{it.cantidad}x {it.productos?.nombre}</Text>
+                      <Text style={styles.itemTexto}>{money(it.precio_unitario * it.cantidad)}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+                <View style={styles.itemFila}>
+                  <Text style={styles.totalTexto}>Total</Text>
+                  <Text style={styles.totalTexto}>{money(detalle.pedido.total)}</Text>
+                </View>
+                {SIGUIENTE_ESTADO[detalle.pedido.estado] && (
+                  <TouchableOpacity style={styles.boton} onPress={avanzarDesdeDetalle}>
+                    <Text style={styles.botonTexto}>{SIGUIENTE_ESTADO[detalle.pedido.estado].boton}</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={styles.cerrarModal} onPress={() => setDetalle(null)}>
+                  <Text style={styles.cerrarModalTexto}>Cerrar</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       <View style={styles.footer}>
         <TouchableOpacity style={styles.footerBoton} onPress={onIrMenu}>
@@ -143,4 +215,15 @@ const styles = StyleSheet.create({
   footer: { flexDirection: 'row', padding: 14, gap: 10, borderTopWidth: 1, borderTopColor: '#2a2a3a' },
   footerBoton: { flex: 1, backgroundColor: '#1e1e2e', borderRadius: 14, padding: 16, alignItems: 'center' },
   footerBotonTexto: { color: '#f2f2f2', fontSize: 16, fontWeight: '600' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalDetalle: { backgroundColor: '#1e1e2e', borderRadius: 20, padding: 20, paddingBottom: 34 },
+  modalTitulo: { color: '#f2f2f2', fontSize: 22, fontWeight: '800' },
+  modalEstado: { color: '#d4a338', fontSize: 15, marginTop: 4 },
+  itemFila: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#2a2a3a' },
+  itemTexto: { color: '#f2f2f2', fontSize: 15 },
+  totalTexto: { color: '#f2f2f2', fontSize: 17, fontWeight: '700' },
+  boton: { backgroundColor: '#d4a338', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 16 },
+  botonTexto: { color: '#14141f', fontSize: 16, fontWeight: '700' },
+  cerrarModal: { padding: 14, alignItems: 'center', marginTop: 6 },
+  cerrarModalTexto: { color: '#a0a0b0', fontSize: 15 },
 })
