@@ -10,6 +10,7 @@ export default function MenuScreen({ usuario, onVolver }) {
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState(null)
   const [nombreProducto, setNombreProducto] = useState('')
   const [precioProducto, setPrecioProducto] = useState('')
+  const [fotoProducto, setFotoProducto] = useState('')
 
   const cargar = useCallback(async () => {
     const { data: cats } = await supabase
@@ -50,12 +51,14 @@ export default function MenuScreen({ usuario, onVolver }) {
       categoria_id: categoriaSeleccionada,
       nombre: nombreProducto.trim(),
       precio: Number(precioProducto),
+      foto_url: fotoProducto.trim() || null,
       disponible: true,
       orden: productos.length,
     })
     if (error) { Alert.alert('Error', 'No se pudo crear el producto.'); return }
     setNombreProducto('')
     setPrecioProducto('')
+    setFotoProducto('')
     cargar()
   }
 
@@ -97,6 +100,8 @@ export default function MenuScreen({ usuario, onVolver }) {
       </Text>
       <TextInput style={styles.input} value={nombreProducto} onChangeText={setNombreProducto} placeholder="Nombre del producto" placeholderTextColor="#6a6a80" />
       <TextInput style={styles.input} value={precioProducto} onChangeText={setPrecioProducto} placeholder="Precio, ej: 12000" keyboardType="numeric" placeholderTextColor="#6a6a80" />
+      <TextInput style={styles.input} value={fotoProducto} onChangeText={setFotoProducto} placeholder="Link de una foto (opcional)" placeholderTextColor="#6a6a80" autoCapitalize="none" />
+      <Text style={styles.ayuda}>Tip: busca la foto en Google Imágenes, ábrela, click derecho → "Copiar dirección de la imagen", y pégala aquí</Text>
       <TouchableOpacity style={styles.boton} onPress={agregarProducto}>
         <Text style={styles.botonTexto}>+ Agregar producto</Text>
       </TouchableOpacity>
