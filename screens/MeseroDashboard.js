@@ -1,6 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, ScrollView } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, ScrollView, Modal } from 'react-native'
 import { supabase, cerrarSesion } from '../lib/supabase'
+
+const AYUDA_MESERO = [
+  { titulo: '🔔 ¿Cómo sé si hay un pedido nuevo?', texto: 'Aparece en "Pedidos activos" arriba. Toca "✅ Confirmar pedido" cuando lo veas, y ve avanzando el botón según lo vayas preparando y llevando a la mesa.' },
+  { titulo: '✋ ¿Qué son los avisos naranjas?', texto: 'Son solicitudes de la mesa (hielo, servilletas, la cuenta, etc). Tócalas para marcarlas como atendidas una vez las resuelvas.' },
+  { titulo: '💰 ¿Cómo veo mis propinas?', texto: 'Arriba en las tarjetas ves el total de propinas del día. Se registran solas cuando el cliente deja propina después de que entregas su pedido.' },
+]
 
 const SIGUIENTE_ESTADO = {
   pendiente: { siguiente: 'confirmado', boton: '✅ Confirmar pedido' },
@@ -26,6 +32,7 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
   const [refrescando, setRefrescando] = useState(false)
   const [historialHoy, setHistorialHoy] = useState([])
   const [propinasHoy, setPropinasHoy] = useState(0)
+  const [mostrarAyuda, setMostrarAyuda] = useState(false)
 
   const cargar = useCallback(async () => {
     const { data: pedidosData } = await supabase
@@ -148,6 +155,29 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
           </View>
         ))}
       </ScrollView>
+
+      <TouchableOpacity style={styles.botonAyudaFlotante} onPress={() => setMostrarAyuda(true)}>
+        <Text style={styles.botonAyudaFlotanteTexto}>❓ Ayuda</Text>
+      </TouchableOpacity>
+
+      <Modal visible={mostrarAyuda} transparent animationType="slide" onRequestClose={() => setMostrarAyuda(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalDetalle}>
+            <Text style={styles.modalTitulo}>❓ Ayuda</Text>
+            <ScrollView style={{ maxHeight: 400, marginTop: 10 }}>
+              {AYUDA_MESERO.map((s, i) => (
+                <View key={i} style={styles.ayudaItem}>
+                  <Text style={styles.ayudaItemTitulo}>{s.titulo}</Text>
+                  <Text style={styles.ayudaItemTexto}>{s.texto}</Text>
+                </View>
+              ))}
+            </ScrollView>
+            <TouchableOpacity style={styles.cerrarModal} onPress={() => setMostrarAyuda(false)}>
+              <Text style={styles.cerrarModalTexto}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   )
 }
@@ -182,4 +212,20 @@ const styles = StyleSheet.create({
   historialMesa: { color: '#f2f2f2', fontSize: 15, fontWeight: '700' },
   historialMonto: { color: '#3ecf8e', fontSize: 15, fontWeight: '700' },
   historialItems: { color: '#a0a0b0', fontSize: 13, marginTop: 4 },
+
+  botonAyudaFlotante: {
+    position: 'absolute', bottom: 20, right: 16,
+    backgroundColor: '#1e1e2e', borderWidth: 1, borderColor: '#d4a338',
+    borderRadius: 999, paddingVertical: 12, paddingHorizontal: 18,
+    shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 8, elevation: 6,
+  },
+  botonAyudaFlotanteTexto: { color: '#f2f2f2', fontSize: 14, fontWeight: '700' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalDetalle: { backgroundColor: '#1e1e2e', borderRadius: 20, padding: 20, paddingBottom: 34, maxHeight: '80%' },
+  modalTitulo: { color: '#f2f2f2', fontSize: 22, fontWeight: '800' },
+  ayudaItem: { marginBottom: 18 },
+  ayudaItemTitulo: { color: '#d4a338', fontSize: 15, fontWeight: '700', marginBottom: 6 },
+  ayudaItemTexto: { color: '#c0c0cc', fontSize: 14, lineHeight: 20 },
+  cerrarModal: { padding: 14, alignItems: 'center', marginTop: 6 },
+  cerrarModalTexto: { color: '#a0a0b0', fontSize: 15 },
 })
