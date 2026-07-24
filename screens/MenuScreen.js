@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform, Image, ActivityIndicator } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform, Image, ActivityIndicator, Modal } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { decode } from 'base64-arraybuffer'
 import { supabase } from '../lib/supabase'
@@ -44,6 +44,7 @@ export default function MenuScreen({ usuario, onVolver }) {
   const [precioProducto, setPrecioProducto] = useState('')
   const [fotoProducto, setFotoProducto] = useState('')
   const [subiendoFoto, setSubiendoFoto] = useState(false)
+  const [fotoAmpliada, setFotoAmpliada] = useState(null)
 
   const cargar = useCallback(async () => {
     const { data: cats } = await supabase.from('categorias').select('id, nombre, icono').eq('bar_id', usuario.bar_id).order('orden')
@@ -87,7 +88,11 @@ export default function MenuScreen({ usuario, onVolver }) {
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Borrar', style: 'destructive', onPress: async () => {
-          await supabase.from('productos').delete().eq('categoria_id', cat.id)
+          const { error: errorProductos } = await supabase.from('productos').delete().eq('categoria_id', cat.id)
+          if (errorProductos) {
+            Alert.alert('No se pudo borrar', 'Uno o más productos de esta categoría ya tienen pedidos registrados. Oculta esos productos manualmente primero (tocándolos) en vez de borrar la categoría completa.')
+            return
+          }
           await supabase.from('categorias').delete().eq('id', cat.id)
           if (categoriaSeleccionada === cat.id) setCategoriaSeleccionada(null)
           cargar()
@@ -148,7 +153,19 @@ export default function MenuScreen({ usuario, onVolver }) {
   async function borrarProducto(producto) {
     Alert.alert('Borrar producto', `¿Borrar "${producto.nombre}"?`, [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Borrar', style: 'destructive', onPress: async () => { await supabase.from('productos').delete().eq('id', producto.id); cargar() } },
+      {
+        text: 'Borrar', style: 'destructive', onPress: async () => {
+          const { error } = await supabase.from('productos').delete().eq('id', producto.id)
+          if (error) {
+            Alert.alert(
+              'No se pudo borrar',
+              'Este producto ya tiene pedidos registrados, así que no se puede eliminar del todo (para no dañar el historial de ventas). Mejor tócalo para "ocultarlo" — deja de aparecer en el menú del cliente pero conserva el historial.'
+            )
+            return
+          }
+          cargar()
+        },
+      },
     ])
   }
 
@@ -241,7 +258,9 @@ export default function MenuScreen({ usuario, onVolver }) {
         <Text style={styles.label}>Foto del producto (opcional)</Text>
         {fotoProducto ? (
           <View style={styles.previewFotoBox}>
-            <Image source={{ uri: fotoProducto }} style={styles.previewFoto} />
+            <TouchableOpacity onPress={() => setFotoAmpliada(fotoProducto)}>
+              <Image source={{ uri: fotoProducto }} style={styles.previewFoto} />
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => setFotoProducto('')}><Text style={styles.quitarFotoTexto}>Quitar foto</Text></TouchableOpacity>
           </View>
         ) : (
@@ -263,7 +282,11 @@ export default function MenuScreen({ usuario, onVolver }) {
         <Text style={styles.seccion}>Productos de esta categoría</Text>
         {productos.filter((p) => p.categoria_id === categoriaSeleccionada).map((p) => (
           <View key={p.id} style={styles.productoItem}>
-            {p.foto_url && <Image source={{ uri: p.foto_url }} style={styles.productoFotoChica} />}
+            {p.foto_url && (
+              <TouchableOpacity onPress={() => setFotoAmpliada(p.foto_url)}>
+                <Image source={{ uri: p.foto_url }} style={styles.productoFotoChica} />
+              </TouchableOpacity>
+            )}
             <TouchableOpacity style={{ flex: 1 }} onPress={() => toggleDisponible(p)}>
               <Text style={[styles.productoNombre, !p.disponible && styles.productoOculto]}>{p.nombre} — {formatearPrecio(String(p.precio))}</Text>
               <Text style={styles.productoEstado}>{p.disponible ? 'Disponible (toca para ocultar)' : 'Oculto (toca para activar)'}</Text>
@@ -272,6 +295,12 @@ export default function MenuScreen({ usuario, onVolver }) {
           </View>
         ))}
       </ScrollView>
+
+      <Modal visible={!!fotoAmpliada} transparent animationType="fade" onRequestClose={() => setFotoAmpliada(null)}>
+        <TouchableOpacity style={styles.lightboxFondo} activeOpacity={1} onPress={() => setFotoAmpliada(null)}>
+          <Image source={{ uri: fotoAmpliada }} style={styles.lightboxImagen} resizeMode="contain" />
+        </TouchableOpacity>
+      </Modal>
     </KeyboardAvoidingView>
   )
 }
@@ -315,4 +344,6 @@ const styles = StyleSheet.create({
   productoOculto: { color: '#6a6a80', textDecorationLine: 'line-through' },
   productoEstado: { color: '#6a6a80', fontSize: 13, marginTop: 4 },
   borrarTexto: { fontSize: 20, paddingLeft: 10 },
+  lightboxFondo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center', alignItems: 'center' },
+  lightboxImagen: { width: '92%', height: '80%' },
 })
