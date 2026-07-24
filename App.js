@@ -8,6 +8,7 @@ import MeseroDashboard from './screens/MeseroDashboard'
 import MenuScreen from './screens/MenuScreen'
 import ComisionScreen from './screens/ComisionScreen'
 import ConfiguracionScreen from './screens/ConfiguracionScreen'
+import ReportesScreen from './screens/ReportesScreen'
 
 const ROLES_PANEL_DUENO = ['dueno', 'administrador']
 
@@ -57,10 +58,14 @@ export default function App() {
           onIrMenu={() => setPantalla('menu')}
           onIrComision={() => setPantalla('comision')}
           onIrConfiguracion={() => setPantalla('configuracion')}
+          onIrReportes={() => setPantalla('reportes')}
         />
       )}
       {puedeVerPanelDueno && pantalla === 'menu' && (
         <MenuScreen usuario={usuario} onVolver={() => setPantalla('dashboard')} />
+      )}
+      {puedeVerPanelDueno && pantalla === 'reportes' && (
+        <ReportesScreen usuario={usuario} onVolver={() => setPantalla('dashboard')} />
       )}
       {usuario.rol === 'dueno' && pantalla === 'comision' && (
         <ComisionScreen usuario={usuario} onVolver={() => setPantalla('dashboard')} />
