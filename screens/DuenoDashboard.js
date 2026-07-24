@@ -57,6 +57,8 @@ function minutosTexto(createdAt) {
   return `+${minutos} min sin novedad`
 }
 
+const URL_MINI_WEB_CLIENTE = 'https://ronda-web.vercel.app' // actualiza esto cuando despliegues ronda-web a producción
+
 const ONBOARDING_PASOS = [
   {
     titulo: '¡Bienvenido a Ronda! 🍻',
@@ -98,6 +100,7 @@ const AYUDA_SECCIONES = [
 export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, onIrMenu, onIrConfiguracion }) {
   const [bar, setBar] = useState(null)
   const [mesas, setMesas] = useState([])
+  const [meserosLista, setMeserosLista] = useState([])
   const [pedidos, setPedidos] = useState([])
   const [solicitudes, setSolicitudes] = useState([])
   const [refrescando, setRefrescando] = useState(false)
@@ -117,6 +120,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [canalesConNuevos, setCanalesConNuevos] = useState({})
   const [mostrarOnboarding, setMostrarOnboarding] = useState(false)
   const [pasoOnboarding, setPasoOnboarding] = useState(0)
+  const [mostrarQr, setMostrarQr] = useState(false)
   const [ranking, setRanking] = useState([])
   const [productoEstrella, setProductoEstrella] = useState(null)
   const [horaPico, setHoraPico] = useState(null)
@@ -130,7 +134,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     const { data: barData } = await supabase.from('bares').select('nombre, comision_pct').eq('id', usuario.bar_id).maybeSingle()
     setBar(barData)
 
-    const { data: mesasData } = await supabase.from('mesas').select('id, numero, sesion_actual').eq('bar_id', usuario.bar_id).eq('activa', true).order('numero')
+    const { data: mesasData } = await supabase.from('mesas').select('id, numero, sesion_actual, mesero_asignado_id, qr_code').eq('bar_id', usuario.bar_id).eq('activa', true).order('numero')
     const { data: pedidosData } = await supabase
       .from('pedidos').select('id, mesa_id, estado, total, created_at')
       .eq('bar_id', usuario.bar_id).not('estado', 'in', '(entregado,cancelado)')
@@ -172,6 +176,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
 
     // --- Ranking de meseros ---
     const { data: meseros } = await supabase.from('usuarios_bar').select('id, nombre').eq('bar_id', usuario.bar_id).eq('rol', 'mesero').eq('activo', true)
+    setMeserosLista(meseros || [])
     const rankingCalculado = await Promise.all(
       (meseros || []).map(async (m) => {
         const { data: suyos } = await supabase.from('pedidos').select('total, estado').eq('mesero_id', m.id)
@@ -361,6 +366,12 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   async function confirmarPago(pagoId) {
     await supabase.from('pagos').update({ confirmado: true }).eq('id', pagoId)
     if (detalle?.pago?.id === pagoId) setDetalle({ ...detalle, pago: { ...detalle.pago, confirmado: true } })
+    cargar()
+  }
+
+  async function asignarMesero(mesaId, meseroId) {
+    await supabase.from('mesas').update({ mesero_asignado_id: meseroId }).eq('id', mesaId)
+    setDetalle((d) => (d ? { ...d, mesa: { ...d.mesa, mesero_asignado_id: meseroId } } : d))
     cargar()
   }
 
@@ -571,6 +582,30 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
             {detalle && (
               <>
                 <Text style={styles.modalTitulo}>Mesa {detalle.mesa.numero}</Text>
+
+                <Text style={styles.subtitulo}>Mesero asignado</Text>
+                <View style={styles.filaMeseroChips}>
+                  <TouchableOpacity
+                    style={[styles.meseroChip, !detalle.mesa.mesero_asignado_id && styles.meseroChipActivo]}
+                    onPress={() => asignarMesero(detalle.mesa.id, null)}
+                  >
+                    <Text style={[styles.meseroChipTexto, !detalle.mesa.mesero_asignado_id && styles.meseroChipTextoActivo]}>Cualquiera</Text>
+                  </TouchableOpacity>
+                  {meserosLista.map((m) => (
+                    <TouchableOpacity
+                      key={m.id}
+                      style={[styles.meseroChip, detalle.mesa.mesero_asignado_id === m.id && styles.meseroChipActivo]}
+                      onPress={() => asignarMesero(detalle.mesa.id, m.id)}
+                    >
+                      <Text style={[styles.meseroChipTexto, detalle.mesa.mesero_asignado_id === m.id && styles.meseroChipTextoActivo]}>{m.nombre}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <TouchableOpacity style={styles.botonVerQr} onPress={() => setMostrarQr(true)}>
+                  <Text style={styles.botonChatDetalleTexto}>🔳 Ver código QR de esta mesa</Text>
+                </TouchableOpacity>
+
                 <Text style={styles.modalEstado}>
                   {detalle.pedido ? (ESTADO_LABEL[detalle.pedido.estado] || detalle.pedido.estado) : 'Sin pedido activo'}
                 </Text>
@@ -744,6 +779,27 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
         </View>
       </Modal>
 
+      <Modal visible={mostrarQr && !!detalle} transparent animationType="fade" onRequestClose={() => setMostrarQr(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalDetalle, { alignItems: 'center' }]}>
+            {detalle && (
+              <>
+                <Text style={styles.modalTitulo}>QR — Mesa {detalle.mesa.numero}</Text>
+                <Text style={styles.ayudaQr}>Imprime esto y pégalo en la mesa. El cliente lo escanea con la cámara de su celular.</Text>
+                <Image
+                  source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(`${URL_MINI_WEB_CLIENTE}/?m=${detalle.mesa.qr_code}`)}` }}
+                  style={styles.qrImagen}
+                />
+                <Text style={styles.qrEnlaceTexto}>{URL_MINI_WEB_CLIENTE}/?m={detalle.mesa.qr_code}</Text>
+                <TouchableOpacity style={styles.cerrarModal} onPress={() => setMostrarQr(false)}>
+                  <Text style={styles.cerrarModalTexto}>Cerrar</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={!!chatCanal} transparent animationType="slide" onRequestClose={() => setChatCanal(null)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
           <View style={styles.modalOverlay}>
@@ -912,6 +968,15 @@ const styles = StyleSheet.create({
   boton: { backgroundColor: '#d4a338', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 16 },
   botonCerrarMesa: { backgroundColor: '#3ecf8e', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 16 },
   botonChatDetalle: { backgroundColor: '#26263a', borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 14, borderWidth: 1, borderColor: '#3a3a4a' },
+  filaMeseroChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
+  meseroChip: { backgroundColor: '#26263a', borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: '#3a3a4a' },
+  meseroChipActivo: { backgroundColor: '#d4a338', borderColor: '#d4a338' },
+  meseroChipTexto: { color: '#f2f2f2', fontSize: 13, fontWeight: '600' },
+  meseroChipTextoActivo: { color: '#14141f', fontWeight: '800' },
+  botonVerQr: { backgroundColor: '#26263a', borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 14, borderWidth: 1, borderColor: '#d4a338' },
+  ayudaQr: { color: '#a0a0b0', fontSize: 13, textAlign: 'center', marginVertical: 10, paddingHorizontal: 10 },
+  qrImagen: { width: 220, height: 220, backgroundColor: '#fff', borderRadius: 12, marginVertical: 10 },
+  qrEnlaceTexto: { color: '#6a6a80', fontSize: 11, textAlign: 'center', marginBottom: 10 },
   botonChatDetalleTexto: { color: '#f2f2f2', fontSize: 14, fontWeight: '700' },
 
   chatMensajes: { maxHeight: 300, marginVertical: 10 },
