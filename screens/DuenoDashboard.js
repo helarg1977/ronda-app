@@ -103,6 +103,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [horaPico, setHoraPico] = useState(null)
   const [pedidosRecientes, setPedidosRecientes] = useState([])
   const [mostrarTodosPedidos, setMostrarTodosPedidos] = useState(false)
+  const [pedidosVisible, setPedidosVisible] = useState(true)
   const [modoSeleccion, setModoSeleccion] = useState(false)
   const [seleccionados, setSeleccionados] = useState([])
 
@@ -110,7 +111,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     const { data: barData } = await supabase.from('bares').select('nombre, comision_pct').eq('id', usuario.bar_id).maybeSingle()
     setBar(barData)
 
-    const { data: mesasData } = await supabase.from('mesas').select('id, numero, sesion_actual').eq('bar_id', usuario.bar_id).order('numero')
+    const { data: mesasData } = await supabase.from('mesas').select('id, numero, sesion_actual').eq('bar_id', usuario.bar_id).eq('activa', true).order('numero')
     const { data: pedidosData } = await supabase
       .from('pedidos').select('id, mesa_id, estado, total, created_at')
       .eq('bar_id', usuario.bar_id).not('estado', 'in', '(entregado,cancelado)')
@@ -241,6 +242,17 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           cargar()
         },
       },
+    ])
+  }
+
+  async function quitarMesa(item) {
+    if (item.pedido) {
+      Alert.alert('No se puede quitar', 'Esta mesa tiene un pedido activo. Espera a que se entregue antes de quitarla.')
+      return
+    }
+    Alert.alert('Quitar mesa', `¿Quitar la Mesa ${item.numero}? Su historial se conserva, pero dejará de aparecer en el mapa.`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Quitar', style: 'destructive', onPress: async () => { await supabase.from('mesas').update({ activa: false }).eq('id', item.id); cargar() } },
     ])
   }
 
@@ -376,6 +388,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
               key={item.id}
               style={[styles.mesaCard, { borderColor: item.pedido ? colorPorAntiguedad(item.pedido.created_at) : '#2a2a3a' }]}
               onPress={() => abrirDetalle(item)}
+              onLongPress={() => quitarMesa(item)}
               activeOpacity={0.6}
             >
               <Text style={styles.mesaNumero}>Mesa {item.numero}</Text>
@@ -386,6 +399,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
             </TouchableOpacity>
           ))}
         </View>
+        <Text style={styles.ayudaChica}>Mantén presionada una mesa libre para quitarla del mapa</Text>
 
         {ranking.length > 0 && (
           <>
@@ -438,11 +452,19 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
         </View>
 
         <View style={styles.seccionHeaderFila}>
-          <Text style={[styles.seccionTitulo, { marginTop: 0, marginBottom: 0, paddingHorizontal: 0 }]}>Pedidos recientes</Text>
-          <TouchableOpacity onPress={() => { setModoSeleccion(!modoSeleccion); setSeleccionados([]) }}>
-            <Text style={styles.botonSeleccionarTexto}>{modoSeleccion ? 'Cancelar' : 'Seleccionar'}</Text>
+          <TouchableOpacity onPress={() => setPedidosVisible(!pedidosVisible)} style={{ flex: 1 }}>
+            <Text style={[styles.seccionTitulo, { marginTop: 0, marginBottom: 0, paddingHorizontal: 0 }]}>
+              {pedidosVisible ? '▾' : '▸'} Pedidos recientes ({pedidosRecientes.length})
+            </Text>
           </TouchableOpacity>
+          {pedidosVisible && (
+            <TouchableOpacity onPress={() => { setModoSeleccion(!modoSeleccion); setSeleccionados([]) }}>
+              <Text style={styles.botonSeleccionarTexto}>{modoSeleccion ? 'Cancelar' : 'Seleccionar'}</Text>
+            </TouchableOpacity>
+          )}
         </View>
+        {pedidosVisible && (
+        <>
         {(mostrarTodosPedidos ? pedidosRecientes : pedidosRecientes.slice(0, 5)).map((p) => (
           <TouchableOpacity
             key={p.id}
@@ -482,6 +504,8 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           <TouchableOpacity style={styles.botonBorrarSeleccion} onPress={borrarSeleccionados}>
             <Text style={styles.botonTexto}>🗑️ Borrar {seleccionados.length} seleccionado(s)</Text>
           </TouchableOpacity>
+        )}
+        </>
         )}
       </ScrollView>
 
@@ -752,6 +776,7 @@ const styles = StyleSheet.create({
   rankingNombre: { color: '#f2f2f2', fontSize: 14, flex: 1, paddingRight: 8 },
   rankingValor: { color: '#a0a0b0', fontSize: 13, fontWeight: '600' },
   vacioTexto: { color: '#6a6a80', fontSize: 14 },
+  ayudaChica: { color: '#6a6a80', fontSize: 12, paddingHorizontal: 16, marginTop: -4, marginBottom: 10 },
 
   pagoPendienteFila: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#2a2a3a' },
   botonConfirmarChico: { backgroundColor: '#3ecf8e', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14 },
