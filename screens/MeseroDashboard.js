@@ -55,12 +55,16 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
   const [mostrarHistorial, setMostrarHistorial] = useState(false)
 
   const cargar = useCallback(async () => {
+    const { data: mesasData } = await supabase.from('mesas').select('id, numero, mesero_asignado_id').eq('bar_id', usuario.bar_id)
+    const mesasPermitidas = new Set(
+      (mesasData || []).filter((m) => !m.mesero_asignado_id || m.mesero_asignado_id === usuario.id).map((m) => m.id)
+    )
+
     const { data: pedidosData } = await supabase
       .from('pedidos').select('id, mesa_id, estado, total, created_at')
       .eq('bar_id', usuario.bar_id).not('estado', 'in', '(entregado,cancelado)')
       .order('created_at', { ascending: true })
 
-    const { data: mesasData } = await supabase.from('mesas').select('id, numero').eq('bar_id', usuario.bar_id)
     const { data: solicitudesData } = await supabase
       .from('solicitudes').select('id, mesa_id, tipo, created_at')
       .eq('bar_id', usuario.bar_id).eq('atendida', false)
@@ -68,9 +72,9 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
     const mesasMap = {}
     ;(mesasData || []).forEach((m) => { mesasMap[m.id] = m.numero })
 
-    setPedidos(pedidosData || [])
+    setPedidos((pedidosData || []).filter((p) => mesasPermitidas.has(p.mesa_id)))
     setMesas(mesasMap)
-    setSolicitudes(solicitudesData || [])
+    setSolicitudes((solicitudesData || []).filter((s) => mesasPermitidas.has(s.mesa_id)))
 
     const { data: entregadosHoy } = await supabase
       .from('pedidos').select('id, mesa_id, total, created_at, pedido_items(cantidad, productos(nombre))')
