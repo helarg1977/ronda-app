@@ -594,12 +594,16 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
         <TouchableOpacity style={styles.footerBoton} onPress={onIrMenu}>
           <Text style={styles.footerBotonTexto}>📋 Menú</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.footerBoton} onPress={onIrComision}>
-          <Text style={styles.footerBotonTexto}>💳 Pagar a Ronda</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.footerBoton} onPress={onIrConfiguracion}>
-          <Text style={styles.footerBotonTexto}>⚙️ Config</Text>
-        </TouchableOpacity>
+        {usuario.rol === 'dueno' && (
+          <TouchableOpacity style={styles.footerBoton} onPress={onIrComision}>
+            <Text style={styles.footerBotonTexto}>💳 Pagar a Ronda</Text>
+          </TouchableOpacity>
+        )}
+        {usuario.rol === 'dueno' && (
+          <TouchableOpacity style={styles.footerBoton} onPress={onIrConfiguracion}>
+            <Text style={styles.footerBotonTexto}>⚙️ Config</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <TouchableOpacity style={styles.botonAyudaFlotante} onPress={() => setMostrarAyuda(true)}>
