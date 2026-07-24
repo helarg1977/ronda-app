@@ -7,6 +7,7 @@ import DuenoDashboard from './screens/DuenoDashboard'
 import MeseroDashboard from './screens/MeseroDashboard'
 import MenuScreen from './screens/MenuScreen'
 import ComisionScreen from './screens/ComisionScreen'
+import ConfiguracionScreen from './screens/ConfiguracionScreen'
 
 export default function App() {
   const [cargando, setCargando] = useState(true)
@@ -51,6 +52,7 @@ export default function App() {
           onCerrarSesion={cerrarSesionYVolver}
           onIrMenu={() => setPantalla('menu')}
           onIrComision={() => setPantalla('comision')}
+          onIrConfiguracion={() => setPantalla('configuracion')}
         />
       )}
       {usuario.rol === 'dueno' && pantalla === 'menu' && (
@@ -58,6 +60,9 @@ export default function App() {
       )}
       {usuario.rol === 'dueno' && pantalla === 'comision' && (
         <ComisionScreen usuario={usuario} onVolver={() => setPantalla('dashboard')} />
+      )}
+      {usuario.rol === 'dueno' && pantalla === 'configuracion' && (
+        <ConfiguracionScreen usuario={usuario} onVolver={() => setPantalla('dashboard')} />
       )}
       {usuario.rol === 'mesero' && (
         <MeseroDashboard usuario={usuario} onCerrarSesion={cerrarSesionYVolver} />
