@@ -9,10 +9,12 @@ import MenuScreen from './screens/MenuScreen'
 import ComisionScreen from './screens/ComisionScreen'
 import ConfiguracionScreen from './screens/ConfiguracionScreen'
 
+const ROLES_PANEL_DUENO = ['dueno', 'administrador']
+
 export default function App() {
   const [cargando, setCargando] = useState(true)
   const [usuario, setUsuario] = useState(null)
-  const [pantalla, setPantalla] = useState('dashboard') // dashboard | menu | comision
+  const [pantalla, setPantalla] = useState('dashboard') // dashboard | menu | comision | configuracion
 
   useEffect(() => {
     leerSesion().then((u) => {
@@ -43,10 +45,12 @@ export default function App() {
     setPantalla('dashboard')
   }
 
+  const puedeVerPanelDueno = ROLES_PANEL_DUENO.includes(usuario.rol)
+
   return (
     <>
       <StatusBar style="light" />
-      {usuario.rol === 'dueno' && pantalla === 'dashboard' && (
+      {puedeVerPanelDueno && pantalla === 'dashboard' && (
         <DuenoDashboard
           usuario={usuario}
           onCerrarSesion={cerrarSesionYVolver}
@@ -55,7 +59,7 @@ export default function App() {
           onIrConfiguracion={() => setPantalla('configuracion')}
         />
       )}
-      {usuario.rol === 'dueno' && pantalla === 'menu' && (
+      {puedeVerPanelDueno && pantalla === 'menu' && (
         <MenuScreen usuario={usuario} onVolver={() => setPantalla('dashboard')} />
       )}
       {usuario.rol === 'dueno' && pantalla === 'comision' && (
