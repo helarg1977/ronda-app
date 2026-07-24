@@ -971,9 +971,9 @@ const styles = StyleSheet.create({
   pedidoMonto: { color: '#f2f2f2', fontSize: 15, fontWeight: '700' },
   pedidoMetodo: { color: '#d4a338', fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
 
-  footer: { flexDirection: 'row', padding: 14, gap: 10, borderTopWidth: 1, borderTopColor: '#2a2a3a' },
-  footerBoton: { flex: 1, backgroundColor: '#1e1e2e', borderRadius: 14, padding: 16, alignItems: 'center' },
-  footerBotonTexto: { color: '#f2f2f2', fontSize: 15, fontWeight: '600' },
+  footer: { flexDirection: 'row', flexWrap: 'wrap', padding: 10, gap: 8, borderTopWidth: 1, borderTopColor: '#2a2a3a' },
+  footerBoton: { flexBasis: '47%', flexGrow: 1, backgroundColor: '#1e1e2e', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  footerBotonTexto: { color: '#f2f2f2', fontSize: 14, fontWeight: '600' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalDetalle: { backgroundColor: '#1e1e2e', borderRadius: 20, padding: 20, paddingBottom: 34, maxHeight: '85%' },
