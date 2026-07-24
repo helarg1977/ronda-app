@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, Modal, ScrollView, Image, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, Modal, ScrollView, Image, Alert, TextInput, KeyboardAvoidingView, Platform } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Audio } from 'expo-av'
 import { supabase, cerrarSesion } from '../lib/supabase'
@@ -111,6 +111,10 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [pagosPendientes, setPagosPendientes] = useState([])
   const [detalleStat, setDetalleStat] = useState(null) // 'ventas' | 'comision' | 'propinas' | 'pagos'
   const [mostrarAyuda, setMostrarAyuda] = useState(false)
+  const [chatCanal, setChatCanal] = useState(null)
+  const [mensajesChat, setMensajesChat] = useState([])
+  const [textoChat, setTextoChat] = useState('')
+  const [canalesConNuevos, setCanalesConNuevos] = useState({})
   const [mostrarOnboarding, setMostrarOnboarding] = useState(false)
   const [pasoOnboarding, setPasoOnboarding] = useState(0)
   const [ranking, setRanking] = useState([])
@@ -174,6 +178,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
         const { data: props } = await supabase.from('propinas').select('monto').eq('mesero_id', m.id)
         const entregados = (suyos || []).filter((p) => p.estado === 'entregado')
         return {
+          id: m.id,
           nombre: m.nombre,
           ventas: entregados.reduce((s, p) => s + Number(p.total), 0),
           entregados: entregados.length,
@@ -230,16 +235,43 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
       .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitudes', filter: `bar_id=eq.${usuario.bar_id}` }, cargar)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'solicitudes', filter: `bar_id=eq.${usuario.bar_id}` }, reproducirSonido)
       .subscribe()
+    const canalChat = supabase
+      .channel(`dueno-chat-${usuario.bar_id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes_chat', filter: `bar_id=eq.${usuario.bar_id}` }, (payload) => {
+        if (payload.new.de === 'dueno') return
+        if (chatCanal && payload.new.canal === chatCanal.canal) {
+          setMensajesChat((m) => [...m, payload.new])
+        } else {
+          setCanalesConNuevos((c) => ({ ...c, [payload.new.canal]: true }))
+          reproducirSonido()
+        }
+      })
+      .subscribe()
     const intervalo = setInterval(cargar, 30000)
     return () => {
       supabase.removeChannel(canalPedidos)
       supabase.removeChannel(canalSolicitudes)
+      supabase.removeChannel(canalChat)
       clearInterval(intervalo)
     }
-  }, [cargar, usuario.bar_id])
+  }, [cargar, usuario.bar_id, chatCanal])
 
   async function atenderSolicitud(id) {
     await supabase.from('solicitudes').update({ atendida: true }).eq('id', id)
+  }
+
+  async function abrirChat(canal, titulo) {
+    setChatCanal({ canal, titulo })
+    setCanalesConNuevos((c) => ({ ...c, [canal]: false }))
+    const { data } = await supabase.from('mensajes_chat').select('id, de, nombre, texto, created_at').eq('canal', canal).order('created_at', { ascending: true })
+    setMensajesChat(data || [])
+  }
+
+  async function enviarMensajeChat() {
+    if (!textoChat.trim() || !chatCanal) return
+    const texto = textoChat.trim()
+    setTextoChat('')
+    await supabase.from('mensajes_chat').insert({ bar_id: usuario.bar_id, canal: chatCanal.canal, de: 'dueno', nombre: 'Dueño', texto })
   }
 
   async function terminarOnboarding() {
@@ -424,8 +456,13 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
             <View style={styles.card}>
               {ranking.map((r, i) => (
                 <View key={i} style={styles.rankingFila}>
-                  <Text style={styles.rankingNombre}>{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'} {r.nombre} · {r.entregados} entregados</Text>
-                  <Text style={styles.rankingValor}>{money(r.ventas)} · 💰{money(r.propinas)}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rankingNombre}>{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'} {r.nombre} · {r.entregados} entregados</Text>
+                    <Text style={styles.rankingValor}>{money(r.ventas)} · 💰{money(r.propinas)}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => abrirChat(`dueno-${r.id}`, `💬 ${r.nombre}`)}>
+                    <Text style={{ fontSize: 20 }}>💬{canalesConNuevos[`dueno-${r.id}`] ? ' 🔴' : ''}</Text>
+                  </TouchableOpacity>
                 </View>
               ))}
             </View>
@@ -592,6 +629,13 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                   <Text style={styles.totalTexto}>{money(detalle.historial.reduce((s, h) => s + Number(h.total), 0))}</Text>
                 </View>
 
+                <TouchableOpacity
+                  style={styles.botonChatDetalle}
+                  onPress={() => abrirChat(`mesa-${detalle.mesa.id}`, `💬 Mesa ${detalle.mesa.numero}`)}
+                >
+                  <Text style={styles.botonChatDetalleTexto}>💬 Chat con esta mesa</Text>
+                </TouchableOpacity>
+
                 {!detalle.pedido && (
                   <TouchableOpacity style={styles.botonCerrarMesa} onPress={cerrarMesa}>
                     <Text style={styles.botonTexto}>🧾 Cerrar mesa (cuenta pagada)</Text>
@@ -696,6 +740,40 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
             </TouchableOpacity>
           </View>
         </View>
+      </Modal>
+
+      <Modal visible={!!chatCanal} transparent animationType="slide" onRequestClose={() => setChatCanal(null)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalDetalle}>
+              <Text style={styles.modalTitulo}>{chatCanal?.titulo}</Text>
+              <ScrollView style={styles.chatMensajes}>
+                {mensajesChat.length === 0 && <Text style={styles.vacioTexto}>Sin mensajes todavía.</Text>}
+                {mensajesChat.map((m) => (
+                  <View key={m.id} style={[styles.chatBurbuja, m.de === 'dueno' ? styles.chatPropia : styles.chatOtra]}>
+                    <Text style={[styles.chatAutor, m.de === 'dueno' ? styles.chatAutorPropia : styles.chatAutorOtra]}>{m.de === 'dueno' ? 'Tú' : (m.nombre || m.de)}</Text>
+                    <Text style={[styles.chatTexto, m.de === 'dueno' ? styles.chatTextoPropia : styles.chatTextoOtra]}>{m.texto}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+              <View style={styles.chatEntradaFila}>
+                <TextInput
+                  style={styles.chatInput}
+                  value={textoChat}
+                  onChangeText={setTextoChat}
+                  placeholder="Escribe un mensaje…"
+                  placeholderTextColor="#6a6a80"
+                />
+                <TouchableOpacity style={styles.chatEnviarBoton} onPress={enviarMensajeChat}>
+                  <Text style={styles.botonTexto}>Enviar</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity style={styles.cerrarModal} onPress={() => setChatCanal(null)}>
+                <Text style={styles.cerrarModalTexto}>Cerrar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={mostrarAyuda} transparent animationType="slide" onRequestClose={() => setMostrarAyuda(false)}>
@@ -831,6 +909,22 @@ const styles = StyleSheet.create({
   totalTexto: { color: '#f2f2f2', fontSize: 17, fontWeight: '700' },
   boton: { backgroundColor: '#d4a338', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 16 },
   botonCerrarMesa: { backgroundColor: '#3ecf8e', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 16 },
+  botonChatDetalle: { backgroundColor: '#26263a', borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 14, borderWidth: 1, borderColor: '#3a3a4a' },
+  botonChatDetalleTexto: { color: '#f2f2f2', fontSize: 14, fontWeight: '700' },
+
+  chatMensajes: { maxHeight: 300, marginVertical: 10 },
+  chatBurbuja: { maxWidth: '80%', padding: 10, borderRadius: 14, marginBottom: 8 },
+  chatPropia: { backgroundColor: '#d4a338', alignSelf: 'flex-end', borderBottomRightRadius: 4 },
+  chatOtra: { backgroundColor: '#26263a', alignSelf: 'flex-start', borderBottomLeftRadius: 4 },
+  chatAutor: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', opacity: 0.7, marginBottom: 2 },
+  chatAutorPropia: { color: '#14141f' },
+  chatAutorOtra: { color: '#a0a0b0' },
+  chatTexto: { fontSize: 14 },
+  chatTextoPropia: { color: '#14141f' },
+  chatTextoOtra: { color: '#f2f2f2' },
+  chatEntradaFila: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  chatInput: { flex: 1, backgroundColor: '#26263a', color: '#f2f2f2', borderRadius: 12, padding: 12, fontSize: 15 },
+  chatEnviarBoton: { backgroundColor: '#d4a338', borderRadius: 12, paddingHorizontal: 18, justifyContent: 'center' },
   botonTexto: { color: '#14141f', fontSize: 16, fontWeight: '700' },
   pagoBox: { backgroundColor: '#26263a', borderRadius: 14, padding: 14, marginTop: 14 },
   comprobanteImg: { width: '100%', height: 180, borderRadius: 10, marginBottom: 10, backgroundColor: '#14141f' },
