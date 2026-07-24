@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native'
 import { Audio } from 'expo-av'
 import { supabase, cerrarSesion } from '../lib/supabase'
@@ -53,12 +53,15 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
   const [textoChat, setTextoChat] = useState('')
   const [canalesConNuevos, setCanalesConNuevos] = useState({})
   const [mostrarHistorial, setMostrarHistorial] = useState(false)
+  const mesasPermitidasRef = useRef(new Set())
+  const [detallePedido, setDetallePedido] = useState(null)
 
   const cargar = useCallback(async () => {
     const { data: mesasData } = await supabase.from('mesas').select('id, numero, mesero_asignado_id').eq('bar_id', usuario.bar_id)
     const mesasPermitidas = new Set(
       (mesasData || []).filter((m) => !m.mesero_asignado_id || m.mesero_asignado_id === usuario.id).map((m) => m.id)
     )
+    mesasPermitidasRef.current = mesasPermitidas
 
     const { data: pedidosData } = await supabase
       .from('pedidos').select('id, mesa_id, estado, total, created_at')
@@ -93,8 +96,12 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
       .channel(`mesero-${usuario.bar_id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos', filter: `bar_id=eq.${usuario.bar_id}` }, cargar)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitudes', filter: `bar_id=eq.${usuario.bar_id}` }, cargar)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos', filter: `bar_id=eq.${usuario.bar_id}` }, reproducirSonido)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'solicitudes', filter: `bar_id=eq.${usuario.bar_id}` }, reproducirSonido)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos', filter: `bar_id=eq.${usuario.bar_id}` }, (payload) => {
+        if (mesasPermitidasRef.current.has(payload.new.mesa_id)) reproducirSonido()
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'solicitudes', filter: `bar_id=eq.${usuario.bar_id}` }, (payload) => {
+        if (mesasPermitidasRef.current.has(payload.new.mesa_id)) reproducirSonido()
+      })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes_chat', filter: `bar_id=eq.${usuario.bar_id}` }, (payload) => {
         if (payload.new.de === 'mesero') return
         if (chatCanal && payload.new.canal === chatCanal.canal) {
@@ -116,6 +123,13 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
 
   async function atenderSolicitud(id) {
     await supabase.from('solicitudes').update({ atendida: true }).eq('id', id)
+  }
+
+  async function abrirDetallePedido(pedido) {
+    const { data: items } = await supabase.from('pedido_items').select('id, cantidad, precio_unitario, productos(nombre)').eq('pedido_id', pedido.id)
+    const { data: pedidoCompleto } = await supabase.from('pedidos').select('cliente_nombre').eq('id', pedido.id).maybeSingle()
+    const { data: pago } = await supabase.from('pagos').select('metodo, monto, comprobante_url, confirmado').eq('pedido_id', pedido.id).maybeSingle()
+    setDetallePedido({ ...pedido, items: items || [], cliente_nombre: pedidoCompleto?.cliente_nombre, pago: pago || null })
   }
 
   async function abrirChat(canal, titulo) {
@@ -177,36 +191,36 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
           const paso = SIGUIENTE_ESTADO[item.estado]
           const canalMesa = `mesa-${item.mesa_id}`
           return (
-            <View key={item.id} style={styles.pedidoCard}>
+            <TouchableOpacity key={item.id} style={styles.pedidoCard} onPress={() => abrirDetallePedido(item)} activeOpacity={0.8}>
               <Text style={styles.pedidoMesa}>Mesa {mesas[item.mesa_id] || '?'}</Text>
-              <Text style={styles.pedidoEstado}>{item.estado}</Text>
+              <Text style={styles.pedidoEstado}>{item.estado} · toca para ver detalle</Text>
               {paso && (
-                <TouchableOpacity style={styles.boton} onPress={() => avanzarEstado(item)}>
+                <TouchableOpacity style={styles.boton} onPress={(e) => { e.stopPropagation?.(); avanzarEstado(item) }}>
                   <Text style={styles.botonTexto}>{paso.boton}</Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity style={styles.botonChatMesa} onPress={() => abrirChat(canalMesa, `💬 Mesa ${mesas[item.mesa_id] || '?'}`)}>
+              <TouchableOpacity style={styles.botonChatMesa} onPress={(e) => { e.stopPropagation?.(); abrirChat(canalMesa, `💬 Mesa ${mesas[item.mesa_id] || '?'}`) }}>
                 <Text style={styles.botonChatMesaTexto}>
                   💬 Preguntarle algo a la mesa{canalesConNuevos[canalMesa] ? ' 🔴' : ''}
                 </Text>
               </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
           )
         })}
 
         <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
+          <TouchableOpacity style={styles.statCard} onPress={() => setMostrarHistorial(true)}>
             <Text style={styles.statValor}>{mesasAtendidasHoy}</Text>
             <Text style={styles.statLabel}>Mesas atendidas hoy</Text>
-          </View>
-          <View style={styles.statCard}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.statCard} onPress={() => setMostrarHistorial(true)}>
             <Text style={styles.statValor}>{money(propinasHoy)}</Text>
             <Text style={styles.statLabel}>Propinas recibidas</Text>
-          </View>
-          <View style={styles.statCard}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.statCard} onPress={() => pedidos[0] && abrirDetallePedido(pedidos[0])}>
             <Text style={styles.statValor}>{pedidos.length}</Text>
             <Text style={styles.statLabel}>Pedidos activos</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity style={styles.botonHablarDueno} onPress={() => abrirChat(`dueno-${usuario.id}`, '🗨️ Chat con el dueño')}>
@@ -239,6 +253,41 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
       <TouchableOpacity style={styles.botonAyudaFlotante} onPress={() => setMostrarAyuda(true)}>
         <Text style={styles.botonAyudaFlotanteTexto}>❓ Ayuda</Text>
       </TouchableOpacity>
+
+      <Modal visible={!!detallePedido} transparent animationType="slide" onRequestClose={() => setDetallePedido(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalDetalle}>
+            {detallePedido && (
+              <>
+                <Text style={styles.modalTitulo}>Mesa {mesas[detallePedido.mesa_id] || '?'}</Text>
+                <Text style={{ color: '#d4a338', marginBottom: 10 }}>{detallePedido.estado}</Text>
+                {detallePedido.cliente_nombre && <Text style={styles.ayudaItemTexto}>👤 Pidió: {detallePedido.cliente_nombre}</Text>}
+                {detallePedido.items.map((it) => (
+                  <View key={it.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#2a2a3a' }}>
+                    <Text style={styles.ayudaItemTexto}>{it.cantidad}x {it.productos?.nombre}</Text>
+                    <Text style={styles.ayudaItemTexto}>{money(it.precio_unitario * it.cantidad)}</Text>
+                  </View>
+                ))}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
+                  <Text style={{ color: '#f2f2f2', fontWeight: '700' }}>Total</Text>
+                  <Text style={{ color: '#f2f2f2', fontWeight: '700' }}>{money(detallePedido.total)}</Text>
+                </View>
+                {detallePedido.pago && (
+                  <Text style={styles.ayudaItemTexto}>💳 Pago: {detallePedido.pago.metodo} — {detallePedido.pago.confirmado ? '✅ confirmado' : '⏳ pendiente de confirmar'}</Text>
+                )}
+                {SIGUIENTE_ESTADO[detallePedido.estado] && (
+                  <TouchableOpacity style={[styles.boton, { marginTop: 14 }]} onPress={async () => { await avanzarEstado(detallePedido); setDetallePedido(null) }}>
+                    <Text style={styles.botonTexto}>{SIGUIENTE_ESTADO[detallePedido.estado].boton}</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+            <TouchableOpacity style={styles.cerrarModal} onPress={() => setDetallePedido(null)}>
+              <Text style={styles.cerrarModalTexto}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={!!chatCanal} transparent animationType="slide" onRequestClose={() => setChatCanal(null)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
