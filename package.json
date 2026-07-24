@@ -14,16 +14,14 @@
     "@supabase/supabase-js": "^2.45.0",
     "base64-arraybuffer": "^1.0.2",
     "expo": "~54.0.0",
+    "expo-av": "~16.0.8",
     "expo-image-picker": "~16.0.0",
     "expo-status-bar": "~2.0.0",
     "react": "19.1.0",
-    "react-dom": "19.1.0",
     "react-native": "0.81.0",
-    "react-native-web": "~0.19.13",
     "react-native-safe-area-context": "^4.14.0",
     "react-native-screens": "^4.3.0",
-    "react-native-url-polyfill": "^2.0.0",
-    "@expo/metro-runtime": "~4.0.0"
+    "react-native-url-polyfill": "^2.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0"
