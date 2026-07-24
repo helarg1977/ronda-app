@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, Modal, ScrollView, Image, Alert, TextInput, KeyboardAvoidingView, Platform } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, Modal, ScrollView, Image, Alert, TextInput, KeyboardAvoidingView, Platform, Share } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Audio } from 'expo-av'
 import { supabase, cerrarSesion } from '../lib/supabase'
@@ -58,6 +58,17 @@ function minutosTexto(createdAt) {
 }
 
 const URL_MINI_WEB_CLIENTE = 'https://ronda-web.vercel.app' // actualiza esto cuando despliegues ronda-web a producción
+const URL_PANEL_DUENO_WEB = 'https://ronda-dueno-web.vercel.app' // actualiza esto cuando despliegues ronda-dueno-web a producción
+
+async function compartirAccesoWeb() {
+  try {
+    await Share.share({
+      message: `Hola! Este es el link para abrir Ronda desde el computador de la barra:\n\n${URL_PANEL_DUENO_WEB}\n\nEntra con tu mismo celular y PIN. Te recomiendo abrirlo en Chrome y darle "Instalar" (o el ícono de instalación en la barra de direcciones) para que quede como un ícono en el escritorio, igual que una app.`,
+    })
+  } catch (e) {
+    // el usuario canceló el share, no pasa nada
+  }
+}
 
 const ONBOARDING_PASOS = [
   {
@@ -404,9 +415,16 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
             <Text style={styles.titulo}>{bar?.nombre || 'Ronda'}</Text>
             <Text style={styles.subtituloHeader}>Panel del dueño</Text>
           </View>
-          <TouchableOpacity onPress={async () => { await cerrarSesion(); onCerrarSesion() }}>
-            <Text style={styles.salir}>Salir</Text>
-          </TouchableOpacity>
+          <View style={{ alignItems: 'flex-end', gap: 8 }}>
+            <TouchableOpacity onPress={async () => { await cerrarSesion(); onCerrarSesion() }}>
+              <Text style={styles.salir}>Salir</Text>
+            </TouchableOpacity>
+            {usuario.rol === 'dueno' && (
+              <TouchableOpacity onPress={compartirAccesoWeb}>
+                <Text style={styles.compartirTexto}>🔗 Compartir acceso web</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {solicitudes.length > 0 && (
@@ -903,6 +921,7 @@ const styles = StyleSheet.create({
   titulo: { fontSize: 22, fontWeight: '800', color: '#f2f2f2' },
   subtituloHeader: { fontSize: 13, color: '#d4a338', marginTop: 2 },
   salir: { color: '#a0a0b0', fontSize: 15 },
+  compartirTexto: { color: '#d4a338', fontSize: 12, fontWeight: '700' },
   avisos: { paddingHorizontal: 14, marginBottom: 6 },
   avisoItem: { backgroundColor: '#3a2f1a', borderRadius: 12, padding: 12, marginBottom: 8 },
   avisoTexto: { color: '#e0b94c', fontSize: 15 },
