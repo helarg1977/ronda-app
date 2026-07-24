@@ -30,7 +30,7 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
       setLlaveBreB(data.llave_bre_b || '')
       setPropinasHabilitadas(data.propinas_habilitadas !== false)
     }
-    const { data: emp } = await supabase.from('usuarios_bar').select('id, nombre, telefono, rol, activo, pin').eq('bar_id', usuario.bar_id).order('nombre')
+    const { data: emp } = await supabase.from('usuarios_bar').select('id, nombre, telefono, rol, activo, pin').eq('bar_id', usuario.bar_id).neq('rol', 'dueno').order('nombre')
     setEmpleados(emp || [])
   }, [usuario.bar_id])
 
