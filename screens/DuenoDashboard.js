@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, Modal, ScrollView } from 'react-native'
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, Modal, ScrollView, Image } from 'react-native'
 import { supabase, cerrarSesion } from '../lib/supabase'
 
 const ESTADO_LABEL = {
@@ -27,7 +27,7 @@ function colorPorAntiguedad(createdAt) {
   return '#e05c5c' // rojo
 }
 
-export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, onIrMenu }) {
+export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, onIrMenu, onIrConfiguracion }) {
   const [mesas, setMesas] = useState([])
   const [pedidos, setPedidos] = useState([])
   const [solicitudes, setSolicitudes] = useState([])
@@ -93,15 +93,29 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
       .order('created_at', { ascending: true })
 
     let items = []
+    let pago = null
     if (mesa.pedido) {
       const { data: itemsData } = await supabase
         .from('pedido_items')
         .select('id, cantidad, precio_unitario, productos(nombre)')
         .eq('pedido_id', mesa.pedido.id)
       items = itemsData || []
+
+      const { data: pagoData } = await supabase
+        .from('pagos')
+        .select('id, metodo, monto, comprobante_url, confirmado')
+        .eq('pedido_id', mesa.pedido.id)
+        .maybeSingle()
+      pago = pagoData || null
     }
-    setDetalle({ mesa, pedido: mesa.pedido || null, items, historial: historial || [] })
+    setDetalle({ mesa, pedido: mesa.pedido || null, items, historial: historial || [], pago })
     setCargandoDetalle(false)
+  }
+
+  async function confirmarPago() {
+    if (!detalle?.pago) return
+    await supabase.from('pagos').update({ confirmado: true }).eq('id', detalle.pago.id)
+    setDetalle({ ...detalle, pago: { ...detalle.pago, confirmado: true } })
   }
 
   async function cerrarMesa() {
@@ -195,6 +209,22 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                         <Text style={styles.botonTexto}>{SIGUIENTE_ESTADO[detalle.pedido.estado].boton}</Text>
                       </TouchableOpacity>
                     )}
+
+                    {detalle.pago && (
+                      <View style={styles.pagoBox}>
+                        <Text style={styles.subtitulo}>Pago — {detalle.pago.metodo}</Text>
+                        {detalle.pago.comprobante_url && (
+                          <Image source={{ uri: detalle.pago.comprobante_url }} style={styles.comprobanteImg} resizeMode="contain" />
+                        )}
+                        {detalle.pago.confirmado ? (
+                          <Text style={styles.pagoConfirmado}>✅ Pago confirmado</Text>
+                        ) : (
+                          <TouchableOpacity style={styles.botonConfirmarPago} onPress={confirmarPago}>
+                            <Text style={styles.botonTexto}>Confirmar que recibí el pago</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    )}
                   </>
                 )}
 
@@ -235,6 +265,9 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
         <TouchableOpacity style={styles.footerBoton} onPress={onIrComision}>
           <Text style={styles.footerBotonTexto}>💳 Pagar a Ronda</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={styles.footerBoton} onPress={onIrConfiguracion}>
+          <Text style={styles.footerBotonTexto}>⚙️ Config</Text>
+        </TouchableOpacity>
       </View>
     </View>
   )
@@ -268,6 +301,10 @@ const styles = StyleSheet.create({
   boton: { backgroundColor: '#d4a338', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 16 },
   botonCerrarMesa: { backgroundColor: '#3ecf8e', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 16 },
   botonTexto: { color: '#14141f', fontSize: 16, fontWeight: '700' },
+  pagoBox: { backgroundColor: '#26263a', borderRadius: 14, padding: 14, marginTop: 14 },
+  comprobanteImg: { width: '100%', height: 180, borderRadius: 10, marginBottom: 10, backgroundColor: '#14141f' },
+  pagoConfirmado: { color: '#3ecf8e', fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  botonConfirmarPago: { backgroundColor: '#3ecf8e', borderRadius: 12, padding: 14, alignItems: 'center' },
   cerrarModal: { padding: 14, alignItems: 'center', marginTop: 6 },
   cerrarModalTexto: { color: '#a0a0b0', fontSize: 15 },
 })
