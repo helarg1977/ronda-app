@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, Modal, ScrollView, Image, Alert } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase, cerrarSesion } from '../lib/supabase'
 
 const ESTADO_LABEL = {
@@ -41,6 +42,44 @@ function minutosTexto(createdAt) {
   return `+${minutos} min sin novedad`
 }
 
+const ONBOARDING_PASOS = [
+  {
+    titulo: '¡Bienvenido a Ronda! 🍻',
+    texto: 'Esto es tu panel de control. Aquí ves todas las mesas, pedidos y ventas de tu bar en tiempo real. Te mostramos rapidito cómo dejarlo listo para tu primera noche.',
+  },
+  {
+    titulo: '1. Configura tus pagos',
+    texto: 'Ve a "⚙️ Config" y guarda tu Nequi, Daviplata o Bre-B. Así, cuando un cliente pague digital, sabe exactamente a qué número transferir. Tú recibes el dinero directo — Ronda nunca lo toca.',
+  },
+  {
+    titulo: '2. Sube tu menú',
+    texto: 'Ve a "📋 Menú" y crea tus categorías (Cervezas, Tragos, Cócteles...) y luego agrega los productos con precio y, si quieres, una foto. Puedes tocar las sugerencias para ir más rápido.',
+  },
+  {
+    titulo: '3. Agrega tus mesas',
+    texto: 'Ahí mismo en "📋 Menú" baja hasta "Mesas" y toca "+ Agregar mesa" por cada mesa física de tu bar. Cada una genera un código QR único — ese es el que va impreso o pegado en la mesa.',
+  },
+  {
+    titulo: '4. Agrega a tus meseros',
+    texto: 'En "⚙️ Config" agrega a cada mesero con su celular y un PIN de 4 dígitos. Con eso entran a su propio panel y reciben los pedidos de las mesas que atienden.',
+  },
+  {
+    titulo: '¡Listo para tu primera noche! 🎉',
+    texto: 'El tablero de mesas se pinta de verde/amarillo/rojo según cuánto llevan esperando. Toca cualquier mesa para ver el pedido y avanzarlo. Si te pierdes, el botón "❓ Ayuda" (abajo a la derecha) siempre tiene esta guía a la mano.',
+  },
+]
+
+const AYUDA_SECCIONES = [
+  { titulo: '📋 ¿Cómo subo mi menú?', texto: 'Ve a "Menú" en la parte de abajo. Primero crea categorías (ej: Cervezas), luego dentro de cada una agrega productos con nombre, precio y opcionalmente una foto (pega el link de una imagen).' },
+  { titulo: '🪑 ¿Cómo agrego mesas?', texto: 'Dentro de "Menú", baja hasta la sección "Mesas" y toca "+ Agregar mesa". Cada mesa genera su propio código QR — ese código es el que debes imprimir o pegar físicamente en cada mesa del bar.' },
+  { titulo: '👥 ¿Cómo agrego a mis meseros?', texto: 'Ve a "⚙️ Config" → "Agregar empleado". Escribe su nombre, celular y un PIN de 4 dígitos. Con esos datos, el mesero entra a su propio panel desde su celular.' },
+  { titulo: '💳 ¿Cómo configuro mis pagos?', texto: 'En "⚙️ Config" guarda tu Nequi, Daviplata o Bre-B. Ronda nunca cobra por adelantado ni maneja tu plata — el cliente te paga directo a ti.' },
+  { titulo: '✅ ¿Cómo confirmo que me llegó un pago?', texto: 'Toca la mesa correspondiente, revisa el comprobante que subió el cliente, y toca "Confirmar que recibí el pago". También puedes hacerlo desde "Pagos por confirmar" en el panel principal.' },
+  { titulo: '🧾 ¿Cómo cierro una mesa cuando el grupo se va?', texto: 'Toca la mesa (debe estar sin pedido activo) y toca "Cerrar mesa (cuenta pagada)". Eso deja la mesa lista y limpia para el siguiente grupo, sin mezclar cuentas.' },
+  { titulo: '💰 ¿Cómo pago la comisión a Ronda?', texto: 'En "💳 Pagar a Ronda" ves cuánto has generado y cuánto le corresponde a Ronda (3%). Ahí reportas manualmente tu pago — nunca es automático.' },
+]
+
+
 export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, onIrMenu, onIrConfiguracion }) {
   const [bar, setBar] = useState(null)
   const [mesas, setMesas] = useState([])
@@ -51,8 +90,14 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [cargandoDetalle, setCargandoDetalle] = useState(false)
 
   const [ventasHoy, setVentasHoy] = useState(0)
+  const [ventasHoyDetalle, setVentasHoyDetalle] = useState([])
   const [propinasHoy, setPropinasHoy] = useState(0)
+  const [propinasHoyDetalle, setPropinasHoyDetalle] = useState([])
   const [pagosPendientes, setPagosPendientes] = useState([])
+  const [detalleStat, setDetalleStat] = useState(null) // 'ventas' | 'comision' | 'propinas' | 'pagos'
+  const [mostrarAyuda, setMostrarAyuda] = useState(false)
+  const [mostrarOnboarding, setMostrarOnboarding] = useState(false)
+  const [pasoOnboarding, setPasoOnboarding] = useState(0)
   const [ranking, setRanking] = useState([])
   const [productoEstrella, setProductoEstrella] = useState(null)
   const [horaPico, setHoraPico] = useState(null)
@@ -79,18 +124,24 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
 
     // --- Ventas y comisión de hoy ---
     const { data: entregadosHoy } = await supabase
-      .from('pedidos').select('total').eq('bar_id', usuario.bar_id).eq('estado', 'entregado').gte('created_at', inicioDeHoy())
+      .from('pedidos')
+      .select('id, total, created_at, mesas(numero), pedido_items(cantidad, productos(nombre))')
+      .eq('bar_id', usuario.bar_id).eq('estado', 'entregado').gte('created_at', inicioDeHoy())
+      .order('created_at', { ascending: false })
     const totalHoy = (entregadosHoy || []).reduce((s, p) => s + Number(p.total), 0)
     setVentasHoy(totalHoy)
+    setVentasHoyDetalle(entregadosHoy || [])
 
     // --- Propinas de hoy ---
+    const { data: meserosParaPropinas } = await supabase.from('usuarios_bar').select('id, nombre').eq('bar_id', usuario.bar_id).eq('rol', 'mesero')
+    const nombreMeseroPorId = {}
+    ;(meserosParaPropinas || []).forEach((m) => { nombreMeseroPorId[m.id] = m.nombre })
     const { data: propinasData } = await supabase
-      .from('propinas').select('monto, pedidos!inner(bar_id, created_at)').eq('pedidos.bar_id', usuario.bar_id)
+      .from('propinas').select('monto, calificacion, mesero_id, pedidos!inner(bar_id, created_at, mesas(numero))').eq('pedidos.bar_id', usuario.bar_id)
     const hoyMs = new Date(inicioDeHoy()).getTime()
-    const propinasHoyTotal = (propinasData || [])
-      .filter((p) => new Date(p.pedidos.created_at).getTime() >= hoyMs)
-      .reduce((s, p) => s + Number(p.monto), 0)
-    setPropinasHoy(propinasHoyTotal)
+    const propinasHoyLista = (propinasData || []).filter((p) => new Date(p.pedidos.created_at).getTime() >= hoyMs)
+    setPropinasHoy(propinasHoyLista.reduce((s, p) => s + Number(p.monto), 0))
+    setPropinasHoyDetalle(propinasHoyLista.map((p) => ({ ...p, meseroNombre: nombreMeseroPorId[p.mesero_id] || 'Sin asignar' })))
 
     // --- Pagos por confirmar ---
     const { data: pagosData } = await supabase
@@ -150,6 +201,9 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
 
   useEffect(() => {
     cargar()
+    AsyncStorage.getItem(`ronda_onboarding_${usuario.bar_id}`).then((visto) => {
+      if (!visto) setMostrarOnboarding(true)
+    })
     const canalPedidos = supabase
       .channel(`dueno-pedidos-${usuario.bar_id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos', filter: `bar_id=eq.${usuario.bar_id}` }, cargar)
@@ -168,6 +222,12 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
 
   async function atenderSolicitud(id) {
     await supabase.from('solicitudes').update({ atendida: true }).eq('id', id)
+  }
+
+  async function terminarOnboarding() {
+    await AsyncStorage.setItem(`ronda_onboarding_${usuario.bar_id}`, '1')
+    setMostrarOnboarding(false)
+    setPasoOnboarding(0)
   }
 
   async function agregarMesa() {
@@ -286,22 +346,22 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
         )}
 
         <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
+          <TouchableOpacity style={styles.statCard} onPress={() => setDetalleStat('ventas')}>
             <Text style={styles.statValor}>{money(ventasHoy)}</Text>
             <Text style={styles.statLabel}>Ventas de hoy</Text>
-          </View>
-          <View style={styles.statCard}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.statCard} onPress={() => setDetalleStat('comision')}>
             <Text style={styles.statValor}>{money(ventasHoy * (bar?.comision_pct || 0.03))}</Text>
             <Text style={styles.statLabel}>Comisión Ronda ({Math.round((bar?.comision_pct || 0.03) * 100)}%)</Text>
-          </View>
-          <View style={styles.statCard}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.statCard} onPress={() => setDetalleStat('propinas')}>
             <Text style={styles.statValor}>{money(propinasHoy)}</Text>
             <Text style={styles.statLabel}>Propinas registradas</Text>
-          </View>
-          <View style={styles.statCard}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.statCard} onPress={() => setDetalleStat('pagos')}>
             <Text style={styles.statValor}>{pagosPendientes.length}</Text>
             <Text style={styles.statLabel}>Pagos por confirmar</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.seccionHeaderFila}>
@@ -517,6 +577,138 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           <Text style={styles.footerBotonTexto}>⚙️ Config</Text>
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity style={styles.botonAyudaFlotante} onPress={() => setMostrarAyuda(true)}>
+        <Text style={styles.botonAyudaFlotanteTexto}>❓ Ayuda</Text>
+      </TouchableOpacity>
+
+      <Modal visible={!!detalleStat} transparent animationType="slide" onRequestClose={() => setDetalleStat(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalDetalle}>
+            {detalleStat === 'ventas' && (
+              <>
+                <Text style={styles.modalTitulo}>Ventas de hoy</Text>
+                <ScrollView style={{ maxHeight: 400, marginTop: 10 }}>
+                  {ventasHoyDetalle.length === 0 && <Text style={styles.itemTexto}>Todavía no hay ventas entregadas hoy.</Text>}
+                  {ventasHoyDetalle.map((p) => (
+                    <View key={p.id} style={styles.rondaHistorial}>
+                      <View style={styles.itemFila}>
+                        <Text style={styles.itemTextoBold}>Mesa {p.mesas?.numero} · {new Date(p.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</Text>
+                        <Text style={styles.itemTextoBold}>{money(p.total)}</Text>
+                      </View>
+                      {p.pedido_items.map((it, j) => (
+                        <Text key={j} style={styles.itemTextoChico}>{it.cantidad}x {it.productos?.nombre}</Text>
+                      ))}
+                    </View>
+                  ))}
+                </ScrollView>
+              </>
+            )}
+            {detalleStat === 'comision' && (
+              <>
+                <Text style={styles.modalTitulo}>Comisión Ronda ({Math.round((bar?.comision_pct || 0.03) * 100)}%)</Text>
+                <ScrollView style={{ maxHeight: 400, marginTop: 10 }}>
+                  {ventasHoyDetalle.length === 0 && <Text style={styles.itemTexto}>Todavía no hay ventas entregadas hoy.</Text>}
+                  {ventasHoyDetalle.map((p) => (
+                    <View key={p.id} style={styles.itemFila}>
+                      <Text style={styles.itemTexto}>Mesa {p.mesas?.numero} — {money(p.total)}</Text>
+                      <Text style={styles.itemTextoBold}>{money(p.total * (bar?.comision_pct || 0.03))}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              </>
+            )}
+            {detalleStat === 'propinas' && (
+              <>
+                <Text style={styles.modalTitulo}>Propinas de hoy</Text>
+                <ScrollView style={{ maxHeight: 400, marginTop: 10 }}>
+                  {propinasHoyDetalle.length === 0 && <Text style={styles.itemTexto}>Todavía no hay propinas hoy.</Text>}
+                  {propinasHoyDetalle.map((p, i) => (
+                    <View key={i} style={styles.itemFila}>
+                      <Text style={styles.itemTexto}>{p.meseroNombre}{p.calificacion ? ` · ${'★'.repeat(p.calificacion)}` : ''}</Text>
+                      <Text style={styles.itemTextoBold}>{money(p.monto)}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              </>
+            )}
+            {detalleStat === 'pagos' && (
+              <>
+                <Text style={styles.modalTitulo}>Pagos por confirmar</Text>
+                <ScrollView style={{ maxHeight: 400, marginTop: 10 }}>
+                  {pagosPendientes.length === 0 && <Text style={styles.itemTexto}>Todos los pagos están confirmados ✅</Text>}
+                  {pagosPendientes.map((p) => (
+                    <View key={p.id} style={styles.itemFila}>
+                      <Text style={styles.itemTexto}>Mesa {p.pedidos?.mesas?.numero} · {p.metodo}</Text>
+                      <Text style={styles.itemTextoBold}>{money(p.monto)}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              </>
+            )}
+            <TouchableOpacity style={styles.cerrarModal} onPress={() => setDetalleStat(null)}>
+              <Text style={styles.cerrarModalTexto}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={mostrarAyuda} transparent animationType="slide" onRequestClose={() => setMostrarAyuda(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalDetalle}>
+            <Text style={styles.modalTitulo}>❓ Ayuda</Text>
+            <ScrollView style={{ maxHeight: 460, marginTop: 10 }}>
+              {AYUDA_SECCIONES.map((s, i) => (
+                <View key={i} style={styles.ayudaItem}>
+                  <Text style={styles.ayudaItemTitulo}>{s.titulo}</Text>
+                  <Text style={styles.ayudaItemTexto}>{s.texto}</Text>
+                </View>
+              ))}
+              <TouchableOpacity onPress={() => { setMostrarAyuda(false); setPasoOnboarding(0); setMostrarOnboarding(true) }}>
+                <Text style={styles.verGuiaTexto}>▶️ Ver la guía de bienvenida otra vez</Text>
+              </TouchableOpacity>
+            </ScrollView>
+            <TouchableOpacity style={styles.cerrarModal} onPress={() => setMostrarAyuda(false)}>
+              <Text style={styles.cerrarModalTexto}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={mostrarOnboarding} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalDetalle}>
+            <Text style={styles.modalTitulo}>{ONBOARDING_PASOS[pasoOnboarding].titulo}</Text>
+            <Text style={styles.onboardingTexto}>{ONBOARDING_PASOS[pasoOnboarding].texto}</Text>
+            <View style={styles.onboardingPuntos}>
+              {ONBOARDING_PASOS.map((_, i) => (
+                <View key={i} style={[styles.onboardingPunto, i === pasoOnboarding && styles.onboardingPuntoActivo]} />
+              ))}
+            </View>
+            <View style={styles.onboardingBotones}>
+              {pasoOnboarding > 0 && (
+                <TouchableOpacity style={styles.botonSecundarioOnboarding} onPress={() => setPasoOnboarding((p) => p - 1)}>
+                  <Text style={styles.botonSecundarioOnboardingTexto}>← Atrás</Text>
+                </TouchableOpacity>
+              )}
+              {pasoOnboarding < ONBOARDING_PASOS.length - 1 ? (
+                <TouchableOpacity style={[styles.boton, { flex: 1, marginTop: 0 }]} onPress={() => setPasoOnboarding((p) => p + 1)}>
+                  <Text style={styles.botonTexto}>Siguiente →</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={[styles.boton, { flex: 1, marginTop: 0 }]} onPress={terminarOnboarding}>
+                  <Text style={styles.botonTexto}>Empezar a usar Ronda 🍻</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            {pasoOnboarding < ONBOARDING_PASOS.length - 1 && (
+              <TouchableOpacity onPress={terminarOnboarding}>
+                <Text style={styles.omitirTexto}>Saltar la guía</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   )
 }
@@ -600,4 +792,26 @@ const styles = StyleSheet.create({
   botonConfirmarPago: { backgroundColor: '#3ecf8e', borderRadius: 12, padding: 14, alignItems: 'center' },
   cerrarModal: { padding: 14, alignItems: 'center', marginTop: 6 },
   cerrarModalTexto: { color: '#a0a0b0', fontSize: 15 },
+
+  botonAyudaFlotante: {
+    position: 'absolute', bottom: 90, right: 16,
+    backgroundColor: '#1e1e2e', borderWidth: 1, borderColor: '#d4a338',
+    borderRadius: 999, paddingVertical: 12, paddingHorizontal: 18,
+    shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 8, elevation: 6,
+  },
+  botonAyudaFlotanteTexto: { color: '#f2f2f2', fontSize: 14, fontWeight: '700' },
+
+  ayudaItem: { marginBottom: 18 },
+  ayudaItemTitulo: { color: '#d4a338', fontSize: 15, fontWeight: '700', marginBottom: 6 },
+  ayudaItemTexto: { color: '#c0c0cc', fontSize: 14, lineHeight: 20 },
+  verGuiaTexto: { color: '#d4a338', fontSize: 14, fontWeight: '700', textAlign: 'center', marginTop: 6, marginBottom: 10 },
+
+  onboardingTexto: { color: '#c0c0cc', fontSize: 15, lineHeight: 22, marginTop: 14 },
+  onboardingPuntos: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 22 },
+  onboardingPunto: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#3a3a4a' },
+  onboardingPuntoActivo: { backgroundColor: '#d4a338', width: 18 },
+  onboardingBotones: { flexDirection: 'row', gap: 10, marginTop: 22 },
+  botonSecundarioOnboarding: { flex: 1, backgroundColor: '#26263a', borderRadius: 14, padding: 16, alignItems: 'center' },
+  botonSecundarioOnboardingTexto: { color: '#f2f2f2', fontSize: 15, fontWeight: '600' },
+  omitirTexto: { color: '#6a6a80', fontSize: 13, textAlign: 'center', marginTop: 16 },
 })
