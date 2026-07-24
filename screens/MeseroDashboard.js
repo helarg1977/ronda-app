@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, ScrollView, Modal } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native'
 import { Audio } from 'expo-av'
 import { supabase, cerrarSesion } from '../lib/supabase'
 
@@ -48,6 +48,10 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
   const [historialHoy, setHistorialHoy] = useState([])
   const [propinasHoy, setPropinasHoy] = useState(0)
   const [mostrarAyuda, setMostrarAyuda] = useState(false)
+  const [chatCanal, setChatCanal] = useState(null) // { canal, titulo }
+  const [mensajesChat, setMensajesChat] = useState([])
+  const [textoChat, setTextoChat] = useState('')
+  const [canalesConNuevos, setCanalesConNuevos] = useState({})
 
   const cargar = useCallback(async () => {
     const { data: pedidosData } = await supabase
@@ -86,9 +90,18 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitudes', filter: `bar_id=eq.${usuario.bar_id}` }, cargar)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos', filter: `bar_id=eq.${usuario.bar_id}` }, reproducirSonido)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'solicitudes', filter: `bar_id=eq.${usuario.bar_id}` }, reproducirSonido)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes_chat', filter: `bar_id=eq.${usuario.bar_id}` }, (payload) => {
+        if (payload.new.de === 'mesero') return
+        if (chatCanal && payload.new.canal === chatCanal.canal) {
+          setMensajesChat((m) => [...m, payload.new])
+        } else {
+          setCanalesConNuevos((c) => ({ ...c, [payload.new.canal]: true }))
+          reproducirSonido()
+        }
+      })
       .subscribe()
     return () => supabase.removeChannel(canal)
-  }, [cargar, usuario.bar_id])
+  }, [cargar, usuario.bar_id, chatCanal])
 
   async function avanzarEstado(pedido) {
     const paso = SIGUIENTE_ESTADO[pedido.estado]
@@ -98,6 +111,26 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
 
   async function atenderSolicitud(id) {
     await supabase.from('solicitudes').update({ atendida: true }).eq('id', id)
+  }
+
+  async function abrirChat(canal, titulo) {
+    setChatCanal({ canal, titulo })
+    setCanalesConNuevos((c) => ({ ...c, [canal]: false }))
+    const { data } = await supabase.from('mensajes_chat').select('id, de, nombre, texto, created_at').eq('canal', canal).order('created_at', { ascending: true })
+    setMensajesChat(data || [])
+  }
+
+  async function enviarMensajeChat() {
+    if (!textoChat.trim() || !chatCanal) return
+    const texto = textoChat.trim()
+    setTextoChat('')
+    await supabase.from('mensajes_chat').insert({
+      bar_id: usuario.bar_id,
+      canal: chatCanal.canal,
+      de: 'mesero',
+      nombre: usuario.nombre,
+      texto,
+    })
   }
 
   const mesasAtendidasHoy = new Set(historialHoy.map((p) => p.mesa_id)).size
@@ -143,10 +176,17 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
           </View>
         )}
 
+        <TouchableOpacity style={styles.botonHablarDueno} onPress={() => abrirChat(`dueno-${usuario.id}`, '🗨️ Chat con el dueño')}>
+          <Text style={styles.botonHablarDuenoTexto}>
+            🗨️ Hablar con el dueño{canalesConNuevos[`dueno-${usuario.id}`] ? ' 🔴' : ''}
+          </Text>
+        </TouchableOpacity>
+
         <Text style={styles.seccionTitulo}>Pedidos activos</Text>
         {pedidos.length === 0 && <Text style={styles.vacio}>Sin pedidos pendientes por ahora 🍹</Text>}
         {pedidos.map((item) => {
           const paso = SIGUIENTE_ESTADO[item.estado]
+          const canalMesa = `mesa-${item.mesa_id}`
           return (
             <View key={item.id} style={styles.pedidoCard}>
               <Text style={styles.pedidoMesa}>Mesa {mesas[item.mesa_id] || '?'}</Text>
@@ -156,6 +196,11 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
                   <Text style={styles.botonTexto}>{paso.boton}</Text>
                 </TouchableOpacity>
               )}
+              <TouchableOpacity style={styles.botonChatMesa} onPress={() => abrirChat(canalMesa, `💬 Mesa ${mesas[item.mesa_id] || '?'}`)}>
+                <Text style={styles.botonChatMesaTexto}>
+                  💬 Preguntarle algo a la mesa{canalesConNuevos[canalMesa] ? ' 🔴' : ''}
+                </Text>
+              </TouchableOpacity>
             </View>
           )
         })}
@@ -176,6 +221,40 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
       <TouchableOpacity style={styles.botonAyudaFlotante} onPress={() => setMostrarAyuda(true)}>
         <Text style={styles.botonAyudaFlotanteTexto}>❓ Ayuda</Text>
       </TouchableOpacity>
+
+      <Modal visible={!!chatCanal} transparent animationType="slide" onRequestClose={() => setChatCanal(null)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalDetalle}>
+              <Text style={styles.modalTitulo}>{chatCanal?.titulo}</Text>
+              <ScrollView style={styles.chatMensajes}>
+                {mensajesChat.length === 0 && <Text style={styles.vacio}>Sin mensajes todavía.</Text>}
+                {mensajesChat.map((m) => (
+                  <View key={m.id} style={[styles.chatBurbuja, m.de === 'mesero' ? styles.chatPropia : styles.chatOtra]}>
+                    <Text style={[styles.chatAutor, m.de === 'mesero' ? styles.chatAutorPropia : styles.chatAutorOtra]}>{m.de === 'mesero' ? 'Tú' : (m.nombre || m.de)}</Text>
+                    <Text style={[styles.chatTexto, m.de === 'mesero' ? styles.chatTextoPropia : styles.chatTextoOtra]}>{m.texto}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+              <View style={styles.chatEntradaFila}>
+                <TextInput
+                  style={styles.chatInput}
+                  value={textoChat}
+                  onChangeText={setTextoChat}
+                  placeholder="Escribe un mensaje…"
+                  placeholderTextColor="#6a6a80"
+                />
+                <TouchableOpacity style={styles.chatEnviarBoton} onPress={enviarMensajeChat}>
+                  <Text style={styles.botonTexto}>Enviar</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity style={styles.cerrarModal} onPress={() => setChatCanal(null)}>
+                <Text style={styles.cerrarModalTexto}>Cerrar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <Modal visible={mostrarAyuda} transparent animationType="slide" onRequestClose={() => setMostrarAyuda(false)}>
         <View style={styles.modalOverlay}>
@@ -245,4 +324,26 @@ const styles = StyleSheet.create({
   ayudaItemTexto: { color: '#c0c0cc', fontSize: 14, lineHeight: 20 },
   cerrarModal: { padding: 14, alignItems: 'center', marginTop: 6 },
   cerrarModalTexto: { color: '#a0a0b0', fontSize: 15 },
+
+  botonHablarDueno: {
+    marginHorizontal: 14, marginBottom: 16, backgroundColor: '#26263a', borderRadius: 12,
+    padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#d4a338',
+  },
+  botonHablarDuenoTexto: { color: '#d4a338', fontSize: 14, fontWeight: '700' },
+  botonChatMesa: { marginTop: 10, backgroundColor: '#26263a', borderRadius: 10, padding: 10, alignItems: 'center' },
+  botonChatMesaTexto: { color: '#f2f2f2', fontSize: 13, fontWeight: '600' },
+
+  chatMensajes: { maxHeight: 300, marginVertical: 10 },
+  chatBurbuja: { maxWidth: '80%', padding: 10, borderRadius: 14, marginBottom: 8 },
+  chatPropia: { backgroundColor: '#d4a338', alignSelf: 'flex-end', borderBottomRightRadius: 4 },
+  chatOtra: { backgroundColor: '#26263a', alignSelf: 'flex-start', borderBottomLeftRadius: 4 },
+  chatAutor: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', opacity: 0.7, marginBottom: 2 },
+  chatAutorPropia: { color: '#14141f' },
+  chatAutorOtra: { color: '#a0a0b0' },
+  chatTexto: { fontSize: 14 },
+  chatTextoPropia: { color: '#14141f' },
+  chatTextoOtra: { color: '#f2f2f2' },
+  chatEntradaFila: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  chatInput: { flex: 1, backgroundColor: '#26263a', color: '#f2f2f2', borderRadius: 12, padding: 12, fontSize: 15 },
+  chatEnviarBoton: { backgroundColor: '#d4a338', borderRadius: 12, paddingHorizontal: 18, justifyContent: 'center' },
 })
