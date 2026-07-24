@@ -271,7 +271,9 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     if (!textoChat.trim() || !chatCanal) return
     const texto = textoChat.trim()
     setTextoChat('')
-    await supabase.from('mensajes_chat').insert({ bar_id: usuario.bar_id, canal: chatCanal.canal, de: 'dueno', nombre: 'Dueño', texto })
+    const { data, error } = await supabase.from('mensajes_chat').insert({ bar_id: usuario.bar_id, canal: chatCanal.canal, de: 'dueno', nombre: 'Dueño', texto }).select().single()
+    if (error) { console.log('Error enviando mensaje:', error.message); return }
+    setMensajesChat((m) => [...m, data])
   }
 
   async function terminarOnboarding() {
