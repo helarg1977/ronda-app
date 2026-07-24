@@ -52,6 +52,7 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
   const [mensajesChat, setMensajesChat] = useState([])
   const [textoChat, setTextoChat] = useState('')
   const [canalesConNuevos, setCanalesConNuevos] = useState({})
+  const [mostrarHistorial, setMostrarHistorial] = useState(false)
 
   const cargar = useCallback(async () => {
     const { data: pedidosData } = await supabase
@@ -124,13 +125,18 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
     if (!textoChat.trim() || !chatCanal) return
     const texto = textoChat.trim()
     setTextoChat('')
-    await supabase.from('mensajes_chat').insert({
+    const { data, error } = await supabase.from('mensajes_chat').insert({
       bar_id: usuario.bar_id,
       canal: chatCanal.canal,
       de: 'mesero',
       nombre: usuario.nombre,
       texto,
-    })
+    }).select().single()
+    if (error) {
+      console.log('Error enviando mensaje:', error.message)
+      return
+    }
+    setMensajesChat((m) => [...m, data])
   }
 
   const mesasAtendidasHoy = new Set(historialHoy.map((p) => p.mesa_id)).size
@@ -151,21 +157,6 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValor}>{mesasAtendidasHoy}</Text>
-            <Text style={styles.statLabel}>Mesas atendidas hoy</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValor}>{money(propinasHoy)}</Text>
-            <Text style={styles.statLabel}>Propinas recibidas</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValor}>{pedidos.length}</Text>
-            <Text style={styles.statLabel}>Pedidos activos</Text>
-          </View>
-        </View>
-
         {solicitudes.length > 0 && (
           <View style={styles.avisos}>
             {solicitudes.map((s) => (
@@ -175,12 +166,6 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
             ))}
           </View>
         )}
-
-        <TouchableOpacity style={styles.botonHablarDueno} onPress={() => abrirChat(`dueno-${usuario.id}`, '🗨️ Chat con el dueño')}>
-          <Text style={styles.botonHablarDuenoTexto}>
-            🗨️ Hablar con el dueño{canalesConNuevos[`dueno-${usuario.id}`] ? ' 🔴' : ''}
-          </Text>
-        </TouchableOpacity>
 
         <Text style={styles.seccionTitulo}>Pedidos activos</Text>
         {pedidos.length === 0 && <Text style={styles.vacio}>Sin pedidos pendientes por ahora 🍹</Text>}
@@ -205,17 +190,46 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
           )
         })}
 
-        <Text style={styles.seccionTitulo}>Historial de la noche</Text>
-        {historialHoy.length === 0 && <Text style={styles.vacio}>Aún no has entregado pedidos hoy.</Text>}
-        {historialHoy.map((p) => (
-          <View key={p.id} style={styles.historialCard}>
-            <View style={styles.historialHeader}>
-              <Text style={styles.historialMesa}>Mesa {mesas[p.mesa_id] || '?'}</Text>
-              <Text style={styles.historialMonto}>{money(p.total)}</Text>
-            </View>
-            <Text style={styles.historialItems}>{p.pedido_items.map((it) => `${it.cantidad}× ${it.productos?.nombre}`).join(', ')}</Text>
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValor}>{mesasAtendidasHoy}</Text>
+            <Text style={styles.statLabel}>Mesas atendidas hoy</Text>
           </View>
-        ))}
+          <View style={styles.statCard}>
+            <Text style={styles.statValor}>{money(propinasHoy)}</Text>
+            <Text style={styles.statLabel}>Propinas recibidas</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValor}>{pedidos.length}</Text>
+            <Text style={styles.statLabel}>Pedidos activos</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity style={styles.botonHablarDueno} onPress={() => abrirChat(`dueno-${usuario.id}`, '🗨️ Chat con el dueño')}>
+          <Text style={styles.botonHablarDuenoTexto}>
+            🗨️ Hablar con el dueño{canalesConNuevos[`dueno-${usuario.id}`] ? ' 🔴' : ''}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => setMostrarHistorial(!mostrarHistorial)}>
+          <Text style={[styles.seccionTitulo, { marginBottom: mostrarHistorial ? 10 : 20 }]}>
+            {mostrarHistorial ? '▾' : '▸'} Historial de la noche ({historialHoy.length})
+          </Text>
+        </TouchableOpacity>
+        {mostrarHistorial && (
+          <>
+            {historialHoy.length === 0 && <Text style={styles.vacio}>Aún no has entregado pedidos hoy.</Text>}
+            {historialHoy.map((p) => (
+              <View key={p.id} style={styles.historialCard}>
+                <View style={styles.historialHeader}>
+                  <Text style={styles.historialMesa}>Mesa {mesas[p.mesa_id] || '?'}</Text>
+                  <Text style={styles.historialMonto}>{money(p.total)}</Text>
+                </View>
+                <Text style={styles.historialItems}>{p.pedido_items.map((it) => `${it.cantidad}× ${it.productos?.nombre}`).join(', ')}</Text>
+              </View>
+            ))}
+          </>
+        )}
       </ScrollView>
 
       <TouchableOpacity style={styles.botonAyudaFlotante} onPress={() => setMostrarAyuda(true)}>
