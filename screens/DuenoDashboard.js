@@ -1,7 +1,22 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, Modal, ScrollView, Image, Alert } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { Audio } from 'expo-av'
 import { supabase, cerrarSesion } from '../lib/supabase'
+
+const SONIDO_NOTIFICACION = 'https://raw.githubusercontent.com/helarg1977/ronda-app/main/assets/notificacion.wav'
+
+async function reproducirSonido() {
+  try {
+    const { sound } = await Audio.Sound.createAsync({ uri: SONIDO_NOTIFICACION })
+    await sound.playAsync()
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if (status.didJustFinish) sound.unloadAsync()
+    })
+  } catch (e) {
+    // si falla el sonido, no interrumpe el resto de la app
+  }
+}
 
 const ESTADO_LABEL = {
   pendiente: 'Nuevo pedido',
@@ -208,10 +223,12 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     const canalPedidos = supabase
       .channel(`dueno-pedidos-${usuario.bar_id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos', filter: `bar_id=eq.${usuario.bar_id}` }, cargar)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos', filter: `bar_id=eq.${usuario.bar_id}` }, reproducirSonido)
       .subscribe()
     const canalSolicitudes = supabase
       .channel(`dueno-solicitudes-${usuario.bar_id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitudes', filter: `bar_id=eq.${usuario.bar_id}` }, cargar)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'solicitudes', filter: `bar_id=eq.${usuario.bar_id}` }, reproducirSonido)
       .subscribe()
     const intervalo = setInterval(cargar, 30000)
     return () => {
