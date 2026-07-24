@@ -1,6 +1,21 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, ScrollView, Modal } from 'react-native'
+import { Audio } from 'expo-av'
 import { supabase, cerrarSesion } from '../lib/supabase'
+
+const SONIDO_NOTIFICACION = 'https://raw.githubusercontent.com/helarg1977/ronda-app/main/assets/notificacion.wav'
+
+async function reproducirSonido() {
+  try {
+    const { sound } = await Audio.Sound.createAsync({ uri: SONIDO_NOTIFICACION })
+    await sound.playAsync()
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if (status.didJustFinish) sound.unloadAsync()
+    })
+  } catch (e) {
+    // si falla el sonido, no interrumpe el resto de la app
+  }
+}
 
 const AYUDA_MESERO = [
   { titulo: '🔔 ¿Cómo sé si hay un pedido nuevo?', texto: 'Aparece en "Pedidos activos" arriba. Toca "✅ Confirmar pedido" cuando lo veas, y ve avanzando el botón según lo vayas preparando y llevando a la mesa.' },
@@ -69,6 +84,8 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
       .channel(`mesero-${usuario.bar_id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos', filter: `bar_id=eq.${usuario.bar_id}` }, cargar)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitudes', filter: `bar_id=eq.${usuario.bar_id}` }, cargar)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos', filter: `bar_id=eq.${usuario.bar_id}` }, reproducirSonido)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'solicitudes', filter: `bar_id=eq.${usuario.bar_id}` }, reproducirSonido)
       .subscribe()
     return () => supabase.removeChannel(canal)
   }, [cargar, usuario.bar_id])
