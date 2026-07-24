@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, Modal, ScrollView, Image } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, Modal, ScrollView, Image, Alert } from 'react-native'
 import { supabase, cerrarSesion } from '../lib/supabase'
 
 const ESTADO_LABEL = {
@@ -57,6 +57,9 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [productoEstrella, setProductoEstrella] = useState(null)
   const [horaPico, setHoraPico] = useState(null)
   const [pedidosRecientes, setPedidosRecientes] = useState([])
+  const [mostrarTodosPedidos, setMostrarTodosPedidos] = useState(false)
+  const [modoSeleccion, setModoSeleccion] = useState(false)
+  const [seleccionados, setSeleccionados] = useState([])
 
   const cargar = useCallback(async () => {
     const { data: barData } = await supabase.from('bares').select('nombre, comision_pct').eq('id', usuario.bar_id).maybeSingle()
@@ -167,12 +170,58 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     await supabase.from('solicitudes').update({ atendida: true }).eq('id', id)
   }
 
+  async function agregarMesa() {
+    const siguienteNumero = mesas.length > 0 ? Math.max(...mesas.map((m) => Number(m.numero) || 0)) + 1 : 1
+    Alert.alert('Agregar mesa', `¿Crear la Mesa ${siguienteNumero}?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Crear', onPress: async () => {
+          const { error } = await supabase.from('mesas').insert({ bar_id: usuario.bar_id, numero: String(siguienteNumero) })
+          if (error) { Alert.alert('Error', 'No se pudo crear la mesa: ' + error.message); return }
+          cargar()
+        },
+      },
+    ])
+  }
+
+  function toggleSeleccion(id) {
+    setSeleccionados((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
+  }
+
+  async function borrarSeleccionados() {
+    if (seleccionados.length === 0) return
+    Alert.alert('Borrar pedidos', `¿Borrar ${seleccionados.length} pedido(s) del historial? Esto no se puede deshacer.`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Borrar', style: 'destructive', onPress: async () => {
+          await supabase.from('pedidos').delete().in('id', seleccionados)
+          setSeleccionados([])
+          setModoSeleccion(false)
+          cargar()
+        },
+      },
+    ])
+  }
+
   async function abrirDetalle(mesa) {
     setCargandoDetalle(true)
     const { data: historial } = await supabase
       .from('pedidos').select('id, estado, total, created_at')
       .eq('mesa_id', mesa.id).eq('sesion_id', mesa.sesion_actual).neq('estado', 'cancelado')
       .order('created_at', { ascending: true })
+
+    const historialIds = (historial || []).map((h) => h.id)
+    let itemsPorRonda = {}
+    if (historialIds.length > 0) {
+      const { data: itemsHistorial } = await supabase
+        .from('pedido_items').select('pedido_id, cantidad, precio_unitario, productos(nombre)').in('pedido_id', historialIds)
+      itemsPorRonda = (itemsHistorial || []).reduce((acc, it) => {
+        if (!acc[it.pedido_id]) acc[it.pedido_id] = []
+        acc[it.pedido_id].push(it)
+        return acc
+      }, {})
+    }
+    const historialConItems = (historial || []).map((h) => ({ ...h, items: itemsPorRonda[h.id] || [] }))
 
     let items = []
     let pago = null
@@ -182,7 +231,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
       const { data: pagoData } = await supabase.from('pagos').select('id, metodo, monto, comprobante_url, confirmado').eq('pedido_id', mesa.pedido.id).maybeSingle()
       pago = pagoData || null
     }
-    setDetalle({ mesa, pedido: mesa.pedido || null, items, historial: historial || [], pago })
+    setDetalle({ mesa, pedido: mesa.pedido || null, items, historial: historialConItems, pago })
     setCargandoDetalle(false)
   }
 
@@ -255,7 +304,12 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           </View>
         </View>
 
-        <Text style={styles.seccionTitulo}>Mapa del bar</Text>
+        <View style={styles.seccionHeaderFila}>
+          <Text style={[styles.seccionTitulo, { marginTop: 0, marginBottom: 0, paddingHorizontal: 0 }]}>Mapa del bar</Text>
+          <TouchableOpacity style={styles.botonAgregarMesa} onPress={agregarMesa}>
+            <Text style={styles.botonAgregarMesaTexto}>+ Agregar mesa</Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.mesasGrid}>
           {mesasConEstado.map((item) => (
             <TouchableOpacity
@@ -323,11 +377,25 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           ))}
         </View>
 
-        <Text style={styles.seccionTitulo}>Pedidos recientes</Text>
-        {pedidosRecientes.map((p) => (
-          <View key={p.id} style={[styles.pedidoRecienteCard, { borderLeftColor: p.estado === 'entregado' ? '#3ecf8e' : '#d4a338' }]}>
+        <View style={styles.seccionHeaderFila}>
+          <Text style={[styles.seccionTitulo, { marginTop: 0, marginBottom: 0, paddingHorizontal: 0 }]}>Pedidos recientes</Text>
+          <TouchableOpacity onPress={() => { setModoSeleccion(!modoSeleccion); setSeleccionados([]) }}>
+            <Text style={styles.botonSeleccionarTexto}>{modoSeleccion ? 'Cancelar' : 'Seleccionar'}</Text>
+          </TouchableOpacity>
+        </View>
+        {(mostrarTodosPedidos ? pedidosRecientes : pedidosRecientes.slice(0, 5)).map((p) => (
+          <TouchableOpacity
+            key={p.id}
+            activeOpacity={modoSeleccion ? 0.6 : 1}
+            onPress={() => modoSeleccion && toggleSeleccion(p.id)}
+            style={[
+              styles.pedidoRecienteCard,
+              { borderLeftColor: p.estado === 'entregado' ? '#3ecf8e' : '#d4a338' },
+              modoSeleccion && seleccionados.includes(p.id) && styles.pedidoRecienteSeleccionado,
+            ]}
+          >
             <View style={styles.pedidoRecienteHeader}>
-              <Text style={styles.mesaNumero}>Mesa {p.mesas?.numero}</Text>
+              <Text style={styles.mesaNumero}>{modoSeleccion ? (seleccionados.includes(p.id) ? '☑️ ' : '⬜ ') : ''}Mesa {p.mesas?.numero}</Text>
               <View style={styles.estadoPill}><Text style={styles.estadoPillTexto}>{ESTADO_LABEL[p.estado] || p.estado}</Text></View>
             </View>
             {p.cliente_nombre && <Text style={styles.pedidoCliente}>👤 {p.cliente_nombre}</Text>}
@@ -338,8 +406,23 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
               <Text style={styles.pedidoMonto}>{money(p.total)}</Text>
               {p.pagos?.[0]?.metodo && <Text style={styles.pedidoMetodo}>{p.pagos[0].metodo}</Text>}
             </View>
-          </View>
+          </TouchableOpacity>
         ))}
+        {pedidosRecientes.length > 5 && !mostrarTodosPedidos && (
+          <TouchableOpacity style={styles.botonVerMas} onPress={() => setMostrarTodosPedidos(true)}>
+            <Text style={styles.botonVerMasTexto}>Ver los {pedidosRecientes.length} pedidos ↓</Text>
+          </TouchableOpacity>
+        )}
+        {mostrarTodosPedidos && (
+          <TouchableOpacity style={styles.botonVerMas} onPress={() => setMostrarTodosPedidos(false)}>
+            <Text style={styles.botonVerMasTexto}>Ver menos ↑</Text>
+          </TouchableOpacity>
+        )}
+        {modoSeleccion && seleccionados.length > 0 && (
+          <TouchableOpacity style={styles.botonBorrarSeleccion} onPress={borrarSeleccionados}>
+            <Text style={styles.botonTexto}>🗑️ Borrar {seleccionados.length} seleccionado(s)</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       <Modal visible={!!detalle} transparent animationType="slide" onRequestClose={() => setDetalle(null)}>
@@ -386,11 +469,19 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                 )}
 
                 <Text style={styles.subtitulo}>Cuenta de esta visita</Text>
-                <ScrollView style={{ maxHeight: 180 }}>
+                <ScrollView style={{ maxHeight: 220 }}>
                   {detalle.historial.map((h, i) => (
-                    <View key={h.id} style={styles.itemFila}>
-                      <Text style={styles.itemTexto}>Ronda {i + 1} — {ESTADO_LABEL[h.estado] || h.estado}</Text>
-                      <Text style={styles.itemTexto}>{money(h.total)}</Text>
+                    <View key={h.id} style={styles.rondaHistorial}>
+                      <View style={styles.itemFila}>
+                        <Text style={styles.itemTextoBold}>Ronda {i + 1} — {ESTADO_LABEL[h.estado] || h.estado}</Text>
+                        <Text style={styles.itemTextoBold}>{money(h.total)}</Text>
+                      </View>
+                      {h.items.map((it, j) => (
+                        <View key={j} style={styles.itemFilaChica}>
+                          <Text style={styles.itemTextoChico}>{it.cantidad}x {it.productos?.nombre}</Text>
+                          <Text style={styles.itemTextoChico}>{money(it.precio_unitario * it.cantidad)}</Text>
+                        </View>
+                      ))}
                     </View>
                   ))}
                   {detalle.historial.length === 0 && <Text style={styles.itemTexto}>Sin pedidos todavía.</Text>}
@@ -446,6 +537,14 @@ const styles = StyleSheet.create({
   statLabel: { color: '#a0a0b0', fontSize: 11, marginTop: 4, textTransform: 'uppercase' },
 
   seccionTitulo: { color: '#d4a338', fontSize: 15, fontWeight: '800', marginTop: 22, marginBottom: 10, paddingHorizontal: 16 },
+  seccionHeaderFila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginTop: 22, marginBottom: 10 },
+  botonAgregarMesa: { backgroundColor: '#26263a', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12 },
+  botonAgregarMesaTexto: { color: '#d4a338', fontSize: 13, fontWeight: '700' },
+  botonSeleccionarTexto: { color: '#a0a0b0', fontSize: 13, fontWeight: '700' },
+  botonVerMas: { alignItems: 'center', paddingVertical: 12 },
+  botonVerMasTexto: { color: '#d4a338', fontSize: 14, fontWeight: '700' },
+  botonBorrarSeleccion: { backgroundColor: '#e05c5c', borderRadius: 14, padding: 16, alignItems: 'center', marginHorizontal: 14, marginTop: 6 },
+  pedidoRecienteSeleccionado: { borderWidth: 1, borderColor: '#d4a338' },
   card: { backgroundColor: '#1e1e2e', borderRadius: 14, padding: 14, marginHorizontal: 14 },
 
   mesasGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 10 },
@@ -487,6 +586,10 @@ const styles = StyleSheet.create({
   subtitulo: { color: '#a0a0b0', fontSize: 13, fontWeight: '700', marginTop: 16, marginBottom: 6, textTransform: 'uppercase' },
   itemFila: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#2a2a3a' },
   itemTexto: { color: '#f2f2f2', fontSize: 15 },
+  rondaHistorial: { marginBottom: 8 },
+  itemFilaChica: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, paddingLeft: 12 },
+  itemTextoBold: { color: '#f2f2f2', fontSize: 14, fontWeight: '700' },
+  itemTextoChico: { color: '#8a8a9a', fontSize: 13 },
   totalTexto: { color: '#f2f2f2', fontSize: 17, fontWeight: '700' },
   boton: { backgroundColor: '#d4a338', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 16 },
   botonCerrarMesa: { backgroundColor: '#3ecf8e', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 16 },
