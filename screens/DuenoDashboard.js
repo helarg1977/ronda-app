@@ -97,7 +97,7 @@ const AYUDA_SECCIONES = [
 ]
 
 
-export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, onIrMenu, onIrConfiguracion }) {
+export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, onIrMenu, onIrConfiguracion, onIrReportes }) {
   const [bar, setBar] = useState(null)
   const [mesas, setMesas] = useState([])
   const [meserosLista, setMeserosLista] = useState([])
@@ -691,6 +691,9 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
       <View style={styles.footer}>
         <TouchableOpacity style={styles.footerBoton} onPress={onIrMenu}>
           <Text style={styles.footerBotonTexto}>📋 Menú</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.footerBoton} onPress={onIrReportes}>
+          <Text style={styles.footerBotonTexto}>📊 Informes</Text>
         </TouchableOpacity>
         {usuario.rol === 'dueno' && (
           <TouchableOpacity style={styles.footerBoton} onPress={onIrComision}>
