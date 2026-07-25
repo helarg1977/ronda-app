@@ -12,6 +12,7 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
   const [llaveDaviplata, setLlaveDaviplata] = useState('')
   const [llaveBreB, setLlaveBreB] = useState('')
   const [propinasHabilitadas, setPropinasHabilitadas] = useState(true)
+  const [horaPicoActiva, setHoraPicoActiva] = useState(false)
   const [guardando, setGuardando] = useState(false)
 
   const [empleados, setEmpleados] = useState([])
@@ -28,13 +29,14 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
   const [clientesFidelizados, setClientesFidelizados] = useState(0)
 
   const cargar = useCallback(async () => {
-    const { data } = await supabase.from('bares').select('nombre, llave_nequi, llave_daviplata, llave_bre_b, propinas_habilitadas').eq('id', usuario.bar_id).maybeSingle()
+    const { data } = await supabase.from('bares').select('nombre, llave_nequi, llave_daviplata, llave_bre_b, propinas_habilitadas, hora_pico_activa').eq('id', usuario.bar_id).maybeSingle()
     if (data) {
       setNombre(data.nombre || '')
       setLlaveNequi(data.llave_nequi || '')
       setLlaveDaviplata(data.llave_daviplata || '')
       setLlaveBreB(data.llave_bre_b || '')
       setPropinasHabilitadas(data.propinas_habilitadas !== false)
+      setHoraPicoActiva(!!data.hora_pico_activa)
     }
     const { data: emp } = await supabase.from('usuarios_bar').select('id, nombre, telefono, rol, activo, pin').eq('bar_id', usuario.bar_id).neq('rol', 'dueno').order('nombre')
     setEmpleados(emp || [])
@@ -56,6 +58,7 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
       llave_daviplata: llaveDaviplata.trim() || null,
       llave_bre_b: llaveBreB.trim() || null,
       propinas_habilitadas: propinasHabilitadas,
+      hora_pico_activa: horaPicoActiva,
     }).eq('id', usuario.bar_id)
     setGuardando(false)
     if (error) { Alert.alert('Error', 'No se pudo guardar.'); return }
@@ -162,6 +165,15 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
             <>
               <Text style={styles.label}>Nombre del bar</Text>
               <TextInput style={styles.input} value={nombre} onChangeText={setNombre} placeholder="Nombre de tu bar" placeholderTextColor="#6a6a80" />
+
+              <View style={styles.filaSwitch}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.label}>🔥 Modo estrés (hora pico)</Text>
+                  <Text style={styles.ayudaChica}>Actívalo un viernes a full — tus clientes verán un aviso pidiendo un poco más de paciencia, en vez de sentir que los ignoran.</Text>
+                </View>
+                <Switch value={horaPicoActiva} onValueChange={setHoraPicoActiva} trackColor={{ true: '#d4a338' }} />
+              </View>
+
               <TouchableOpacity style={styles.boton} onPress={guardar} disabled={guardando}>
                 <Text style={styles.botonTexto}>{guardando ? 'Guardando…' : 'Guardar'}</Text>
               </TouchableOpacity>
