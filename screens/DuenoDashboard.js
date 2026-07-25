@@ -138,6 +138,8 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [pedidosRecientes, setPedidosRecientes] = useState([])
   const [mostrarTodosPedidos, setMostrarTodosPedidos] = useState(false)
   const [pedidosVisible, setPedidosVisible] = useState(true)
+  const [mostrarRanking, setMostrarRanking] = useState(false)
+  const [mostrarProductoEstrella, setMostrarProductoEstrella] = useState(false)
   const [modoSeleccion, setModoSeleccion] = useState(false)
   const [seleccionados, setSeleccionados] = useState([])
 
@@ -483,40 +485,48 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
 
         {ranking.length > 0 && (
           <>
-            <Text style={styles.seccionTitulo}>🏆 Ranking de meseros</Text>
-            <View style={styles.card}>
-              {ranking.map((r, i) => (
-                <View key={i} style={styles.rankingFila}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.rankingNombre}>{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'} {r.nombre} · {r.entregados} entregados</Text>
-                    <Text style={styles.rankingValor}>{money(r.ventas)} · 💰{money(r.propinas)}</Text>
+            <TouchableOpacity onPress={() => setMostrarRanking(!mostrarRanking)}>
+              <Text style={styles.seccionTitulo}>{mostrarRanking ? '▾' : '▸'} 🏆 Ranking de meseros</Text>
+            </TouchableOpacity>
+            {mostrarRanking && (
+              <View style={styles.card}>
+                {ranking.map((r, i) => (
+                  <View key={i} style={styles.rankingFila}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.rankingNombre}>{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'} {r.nombre} · {r.entregados} entregados</Text>
+                      <Text style={styles.rankingValor}>{money(r.ventas)} · 💰{money(r.propinas)}</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => abrirChat(`dueno-${r.id}`, `💬 ${r.nombre}`)}>
+                      <Text style={{ fontSize: 20 }}>💬{canalesConNuevos[`dueno-${r.id}`] ? ' 🔴' : ''}</Text>
+                    </TouchableOpacity>
                   </View>
-                  <TouchableOpacity onPress={() => abrirChat(`dueno-${r.id}`, `💬 ${r.nombre}`)}>
-                    <Text style={{ fontSize: 20 }}>💬{canalesConNuevos[`dueno-${r.id}`] ? ' 🔴' : ''}</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
+                ))}
+              </View>
+            )}
           </>
         )}
 
         {(productoEstrella || horaPico) && (
           <>
-            <Text style={styles.seccionTitulo}>📊 Lo más vendido y hora pico</Text>
-            <View style={styles.card}>
-              {productoEstrella && (
-                <View style={styles.rankingFila}>
-                  <Text style={styles.rankingNombre}>🍺 Producto estrella</Text>
-                  <Text style={styles.rankingValor}>{productoEstrella.nombre} ({productoEstrella.unidades}x)</Text>
-                </View>
-              )}
-              {horaPico && (
-                <View style={[styles.rankingFila, { borderBottomWidth: 0 }]}>
-                  <Text style={styles.rankingNombre}>🕒 Hora pico de ventas</Text>
-                  <Text style={styles.rankingValor}>{horaPico.hora}:00 — {money(horaPico.total)}</Text>
-                </View>
-              )}
-            </View>
+            <TouchableOpacity onPress={() => setMostrarProductoEstrella(!mostrarProductoEstrella)}>
+              <Text style={styles.seccionTitulo}>{mostrarProductoEstrella ? '▾' : '▸'} 📊 Lo más vendido y hora pico</Text>
+            </TouchableOpacity>
+            {mostrarProductoEstrella && (
+              <View style={styles.card}>
+                {productoEstrella && (
+                  <View style={styles.rankingFila}>
+                    <Text style={styles.rankingNombre}>🍺 Producto estrella</Text>
+                    <Text style={styles.rankingValor}>{productoEstrella.nombre} ({productoEstrella.unidades}x)</Text>
+                  </View>
+                )}
+                {horaPico && (
+                  <View style={[styles.rankingFila, { borderBottomWidth: 0 }]}>
+                    <Text style={styles.rankingNombre}>🕒 Hora pico de ventas</Text>
+                    <Text style={styles.rankingValor}>{horaPico.hora}:00 — {money(horaPico.total)}</Text>
+                  </View>
+                )}
+              </View>
+            )}
           </>
         )}
 
@@ -948,7 +958,7 @@ const styles = StyleSheet.create({
     padding: 12, alignItems: 'center', minHeight: 90, justifyContent: 'center',
   },
   mesaNumero: { color: '#f2f2f2', fontSize: 16, fontWeight: '700' },
-  mesaEstado: { color: '#a0a0b0', fontSize: 11, marginTop: 6, textAlign: 'center' },
+  mesaEstado: { color: '#c9c9d4', fontSize: 13, marginTop: 6, textAlign: 'center', fontWeight: '600' },
   mesaMonto: { color: '#d4a338', fontSize: 12, marginTop: 4, fontWeight: '700' },
 
   rankingFila: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#2a2a3a' },
