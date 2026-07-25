@@ -100,7 +100,6 @@ export default function LoginScreen({ onLogin }) {
         </View>
       </Modal>
       </ScrollView>
-    </ScrollView>
     </View>
     </TouchableWithoutFeedback>
   )
