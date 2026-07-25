@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal, KeyboardAvoidingView, ScrollView, Platform } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal, KeyboardAvoidingView, ScrollView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native'
 import { supabase, guardarSesion } from '../lib/supabase'
 
 export default function LoginScreen({ onLogin }) {
@@ -32,6 +32,7 @@ export default function LoginScreen({ onLogin }) {
   }
 
   return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#14141f' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" alwaysBounceVertical={true}>
       <Text style={styles.titulo}>Ronda</Text>
@@ -94,6 +95,7 @@ export default function LoginScreen({ onLogin }) {
       </Modal>
       </ScrollView>
     </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   )
 }
 
