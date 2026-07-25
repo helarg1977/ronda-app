@@ -33,8 +33,14 @@ export default function LoginScreen({ onLogin }) {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#14141f' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" alwaysBounceVertical={true}>
+    <View style={{ flex: 1, backgroundColor: '#14141f' }}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        alwaysBounceVertical={true}
+        automaticallyAdjustKeyboardInsets={true}
+        keyboardDismissMode="interactive"
+      >
       <Text style={styles.titulo}>Ronda</Text>
       <Text style={styles.subtitulo}>La siguiente ronda está a un toque</Text>
 
@@ -94,7 +100,8 @@ export default function LoginScreen({ onLogin }) {
         </View>
       </Modal>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </ScrollView>
+    </View>
     </TouchableWithoutFeedback>
   )
 }
