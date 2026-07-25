@@ -21,6 +21,11 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
   const [rolEmpleado, setRolEmpleado] = useState('mesero')
   const [verPin, setVerPin] = useState(false)
 
+  const [promociones, setPromociones] = useState([])
+  const [tituloPromo, setTituloPromo] = useState('')
+  const [mensajePromo, setMensajePromo] = useState('')
+  const [clientesFidelizados, setClientesFidelizados] = useState(0)
+
   const cargar = useCallback(async () => {
     const { data } = await supabase.from('bares').select('nombre, llave_nequi, llave_daviplata, llave_bre_b, propinas_habilitadas').eq('id', usuario.bar_id).maybeSingle()
     if (data) {
@@ -32,6 +37,12 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
     }
     const { data: emp } = await supabase.from('usuarios_bar').select('id, nombre, telefono, rol, activo, pin').eq('bar_id', usuario.bar_id).neq('rol', 'dueno').order('nombre')
     setEmpleados(emp || [])
+
+    const { data: promos } = await supabase.from('promociones').select('id, titulo, mensaje, activa').eq('bar_id', usuario.bar_id).order('created_at', { ascending: false })
+    setPromociones(promos || [])
+
+    const { count } = await supabase.from('clientes_bar').select('id', { count: 'exact', head: true }).eq('bar_id', usuario.bar_id)
+    setClientesFidelizados(count || 0)
   }, [usuario.bar_id])
 
   useEffect(() => { cargar() }, [cargar])
@@ -87,6 +98,30 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
     ])
   }
 
+  async function crearPromocion() {
+    if (!tituloPromo.trim() || !mensajePromo.trim()) {
+      Alert.alert('Falta información', 'Escribe un título y un mensaje.')
+      return
+    }
+    const { error } = await supabase.from('promociones').insert({ bar_id: usuario.bar_id, titulo: tituloPromo.trim(), mensaje: mensajePromo.trim(), activa: true })
+    if (error) { Alert.alert('Error', 'No se pudo crear la promoción.'); return }
+    setTituloPromo('')
+    setMensajePromo('')
+    cargar()
+  }
+
+  async function togglePromocion(promo) {
+    await supabase.from('promociones').update({ activa: !promo.activa }).eq('id', promo.id)
+    cargar()
+  }
+
+  async function borrarPromocion(promo) {
+    Alert.alert('Borrar promoción', `¿Borrar "${promo.titulo}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Borrar', style: 'destructive', onPress: async () => { await supabase.from('promociones').delete().eq('id', promo.id); cargar() } },
+    ])
+  }
+
   async function resetearPin(empleado) {
     const nuevoPin = pinAleatorio()
     Alert.alert(
@@ -137,6 +172,29 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
         <TouchableOpacity style={styles.boton} onPress={guardar} disabled={guardando}>
           <Text style={styles.botonTexto}>{guardando ? 'Guardando…' : 'Guardar configuración'}</Text>
         </TouchableOpacity>
+
+        <Text style={styles.seccion}>📣 Promociones y fidelización</Text>
+        <Text style={styles.ayuda}>
+          {clientesFidelizados} cliente{clientesFidelizados !== 1 ? 's' : ''} ya guardaron su número contigo. Cuando creas una promoción, la ven apenas abren tu mini-web.
+        </Text>
+
+        <Text style={styles.label}>Título</Text>
+        <TextInput style={styles.input} value={tituloPromo} onChangeText={setTituloPromo} placeholder="Ej: 2x1 en cócteles hoy" placeholderTextColor="#6a6a80" />
+        <Text style={styles.label}>Mensaje</Text>
+        <TextInput style={[styles.input, { height: 80 }]} value={mensajePromo} onChangeText={setMensajePromo} placeholder="Ej: Solo hasta la medianoche 🍹" placeholderTextColor="#6a6a80" multiline />
+        <TouchableOpacity style={styles.botonSecundario} onPress={crearPromocion}>
+          <Text style={styles.botonSecundarioTexto}>+ Publicar promoción</Text>
+        </TouchableOpacity>
+
+        {promociones.map((p) => (
+          <View key={p.id} style={styles.empleadoItem}>
+            <TouchableOpacity style={{ flex: 1 }} onPress={() => togglePromocion(p)}>
+              <Text style={[styles.empleadoNombre, { textTransform: 'none' }]}>{p.titulo}</Text>
+              <Text style={styles.empleadoEstado}>{p.activa ? 'Activa (toca para pausar)' : 'Pausada (toca para reactivar)'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => borrarPromocion(p)}><Text style={styles.borrarTexto}>🗑️</Text></TouchableOpacity>
+          </View>
+        ))}
 
         <Text style={styles.seccion}>Empleados</Text>
         <Text style={styles.ayuda}>Crea el acceso de cada persona de tu equipo: elige su nombre, celular y un PIN — con eso entra directo a la app.</Text>
