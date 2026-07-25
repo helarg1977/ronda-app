@@ -56,7 +56,10 @@ function minutosTexto(createdAt) {
   const minutos = Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000)
   if (minutos < 1) return 'recién pedido'
   if (minutos < 20) return `hace ${minutos} min`
-  return `+${minutos} min sin novedad`
+  if (minutos < 60) return `+${minutos} min sin novedad`
+  const horas = Math.floor(minutos / 60)
+  const minRestantes = minutos % 60
+  return `+${horas}h ${minRestantes}min sin novedad`
 }
 
 const URL_MINI_WEB_CLIENTE = 'https://ronda-web.vercel.app' // actualiza esto cuando despliegues ronda-web a producción
@@ -428,7 +431,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     <View style={styles.container}>
       <ScrollView
         refreshControl={<RefreshControl refreshing={refrescando} onRefresh={async () => { setRefrescando(true); await cargar(); setRefrescando(false) }} />}
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={{ paddingBottom: 170 }}
       >
         <View style={styles.header}>
           <View>
@@ -989,7 +992,7 @@ const styles = StyleSheet.create({
   ayudaChica: { color: '#6a6a80', fontSize: 12, paddingHorizontal: 16, marginTop: -4, marginBottom: 10 },
 
   pagoPendienteFila: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#2a2a3a' },
-  botonConfirmarChico: { backgroundColor: '#3ecf8e', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14 },
+  botonConfirmarChico: { backgroundColor: '#d4a338', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14 },
   botonConfirmarChicoTexto: { color: '#14141f', fontSize: 13, fontWeight: '700' },
 
   pedidoRecienteCard: { backgroundColor: '#1e1e2e', borderRadius: 14, borderLeftWidth: 4, padding: 14, marginHorizontal: 14, marginBottom: 10 },
@@ -1050,7 +1053,7 @@ const styles = StyleSheet.create({
   pagoBox: { backgroundColor: '#26263a', borderRadius: 14, padding: 14, marginTop: 14 },
   comprobanteImg: { width: '100%', height: 180, borderRadius: 10, marginBottom: 10, backgroundColor: '#14141f' },
   pagoConfirmado: { color: '#3ecf8e', fontSize: 14, fontWeight: '700', textAlign: 'center' },
-  botonConfirmarPago: { backgroundColor: '#3ecf8e', borderRadius: 12, padding: 14, alignItems: 'center' },
+  botonConfirmarPago: { backgroundColor: '#d4a338', borderRadius: 12, padding: 14, alignItems: 'center' },
   cerrarModal: { padding: 14, alignItems: 'center', marginTop: 6 },
   cerrarModalTexto: { color: '#a0a0b0', fontSize: 15 },
 
