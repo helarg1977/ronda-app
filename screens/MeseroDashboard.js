@@ -163,7 +163,7 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
     <View style={styles.container}>
       <ScrollView
         refreshControl={<RefreshControl refreshing={refrescando} onRefresh={async () => { setRefrescando(true); await cargar(); setRefrescando(false) }} />}
-        contentContainerStyle={{ paddingBottom: 30 }}
+        contentContainerStyle={{ paddingBottom: 140 }}
       >
         <View style={styles.header}>
           <View>
