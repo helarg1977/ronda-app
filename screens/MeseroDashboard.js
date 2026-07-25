@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native'
 import { Audio } from 'expo-av'
 import { supabase, cerrarSesion } from '../lib/supabase'
+import CapaFlotante from '../components/CapaFlotante'
 
 const SONIDO_NOTIFICACION = 'https://raw.githubusercontent.com/helarg1977/ronda-app/main/assets/notificacion.wav'
 
@@ -53,6 +54,7 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
   const [textoChat, setTextoChat] = useState('')
   const [canalesConNuevos, setCanalesConNuevos] = useState({})
   const [mostrarHistorial, setMostrarHistorial] = useState(false)
+  const [altoFlotante, setAltoFlotante] = useState(80)
   const mesasPermitidasRef = useRef(new Set())
   const [detallePedido, setDetallePedido] = useState(null)
 
@@ -163,7 +165,7 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
     <View style={styles.container}>
       <ScrollView
         refreshControl={<RefreshControl refreshing={refrescando} onRefresh={async () => { setRefrescando(true); await cargar(); setRefrescando(false) }} />}
-        contentContainerStyle={{ paddingBottom: 140 }}
+        contentContainerStyle={{ paddingBottom: altoFlotante + 20 }}
       >
         <View style={styles.header}>
           <View>
@@ -250,9 +252,11 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
         )}
       </ScrollView>
 
-      <TouchableOpacity style={styles.botonAyudaFlotante} onPress={() => setMostrarAyuda(true)}>
-        <Text style={styles.botonAyudaFlotanteTexto}>❓ Ayuda</Text>
-      </TouchableOpacity>
+      <CapaFlotante onAltoCambio={setAltoFlotante}>
+        <TouchableOpacity style={styles.botonAyudaFlotante} onPress={() => setMostrarAyuda(true)}>
+          <Text style={styles.botonAyudaFlotanteTexto}>❓ Ayuda</Text>
+        </TouchableOpacity>
+      </CapaFlotante>
 
       <Modal visible={!!detallePedido} transparent animationType="slide" onRequestClose={() => setDetallePedido(null)}>
         <View style={styles.modalOverlay}>
@@ -377,7 +381,6 @@ const styles = StyleSheet.create({
   historialItems: { color: '#a0a0b0', fontSize: 13, marginTop: 4 },
 
   botonAyudaFlotante: {
-    position: 'absolute', bottom: 20, right: 16,
     backgroundColor: '#1e1e2e', borderWidth: 1, borderColor: '#d4a338',
     borderRadius: 999, paddingVertical: 12, paddingHorizontal: 18,
     shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 8, elevation: 6,
