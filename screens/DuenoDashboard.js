@@ -2,6 +2,8 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, Modal, ScrollView, Image, Alert, TextInput, KeyboardAvoidingView, Platform, Share } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Audio } from 'expo-av'
+import * as FileSystem from 'expo-file-system'
+import * as Sharing from 'expo-sharing'
 import { supabase, cerrarSesion } from '../lib/supabase'
 
 const SONIDO_NOTIFICACION = 'https://raw.githubusercontent.com/helarg1977/ronda-app/main/assets/notificacion.wav'
@@ -380,6 +382,22 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     await supabase.from('pagos').update({ confirmado: true }).eq('id', pagoId)
     if (detalle?.pago?.id === pagoId) setDetalle({ ...detalle, pago: { ...detalle.pago, confirmado: true } })
     cargar()
+  }
+
+  async function descargarQr(mesa) {
+    try {
+      const url = `https://api.qrserver.com/v1/create-qr-code/?size=800x800&data=${encodeURIComponent(`${URL_MINI_WEB_CLIENTE}/?m=${mesa.qr_code}`)}`
+      const destino = FileSystem.cacheDirectory + `qr-mesa-${mesa.numero}.png`
+      const { uri } = await FileSystem.downloadAsync(url, destino)
+      const disponible = await Sharing.isAvailableAsync()
+      if (disponible) {
+        await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: `QR Mesa ${mesa.numero}` })
+      } else {
+        Alert.alert('Listo', 'El QR se descargó, pero este celular no puede abrir el menú para compartir/imprimir.')
+      }
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo descargar el QR. Intenta de nuevo.')
+    }
   }
 
   async function asignarMesero(mesaId, meseroId) {
@@ -822,6 +840,9 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                   style={styles.qrImagen}
                 />
                 <Text style={styles.qrEnlaceTexto}>{URL_MINI_WEB_CLIENTE}/?m={detalle.mesa.qr_code}</Text>
+                <TouchableOpacity style={styles.botonDescargarQr} onPress={() => descargarQr(detalle.mesa)}>
+                  <Text style={styles.botonChatDetalleTexto}>📥 Descargar / Compartir para imprimir</Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.cerrarModal} onPress={() => setMostrarQr(false)}>
                   <Text style={styles.cerrarModalTexto}>Cerrar</Text>
                 </TouchableOpacity>
@@ -1006,6 +1027,7 @@ const styles = StyleSheet.create({
   meseroChipTexto: { color: '#f2f2f2', fontSize: 13, fontWeight: '600' },
   meseroChipTextoActivo: { color: '#14141f', fontWeight: '800' },
   botonVerQr: { backgroundColor: '#26263a', borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 14, borderWidth: 1, borderColor: '#d4a338' },
+  botonDescargarQr: { backgroundColor: '#3ecf8e', borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 14 },
   ayudaQr: { color: '#a0a0b0', fontSize: 13, textAlign: 'center', marginVertical: 10, paddingHorizontal: 10 },
   qrImagen: { width: 220, height: 220, backgroundColor: '#fff', borderRadius: 12, marginVertical: 10 },
   qrEnlaceTexto: { color: '#6a6a80', fontSize: 11, textAlign: 'center', marginBottom: 10 },
