@@ -6,6 +6,8 @@ function money(n) {
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n || 0)
 }
 
+const NUMERO_PAGO_RONDA = '3133661600' // Nequi / Daviplata / Bre-B de Ronda
+
 export default function ComisionScreen({ usuario, onVolver }) {
   const [totalVendido, setTotalVendido] = useState(0)
   const [comisionPct, setComisionPct] = useState(0.03)
@@ -86,6 +88,10 @@ export default function ComisionScreen({ usuario, onVolver }) {
       </View>
 
       <Text style={styles.label}>Reportar un pago</Text>
+      <View style={styles.numeroPagoBox}>
+        <Text style={styles.numeroPagoTexto}>Envía tu pago a Nequi / Daviplata / Bre-B:</Text>
+        <Text style={styles.numeroPagoNumero}>{NUMERO_PAGO_RONDA}</Text>
+      </View>
       <TextInput
         style={styles.input}
         value={monto}
@@ -123,6 +129,9 @@ const styles = StyleSheet.create({
   filaLabelPendiente: { color: '#d4a338', fontSize: 15, fontWeight: '700' },
   filaValorPendiente: { color: '#d4a338', fontSize: 18, fontWeight: '800' },
   label: { color: '#a0a0b0', fontSize: 15, marginTop: 10, marginBottom: 8 },
+  numeroPagoBox: { backgroundColor: '#26263a', borderRadius: 12, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#d4a338' },
+  numeroPagoTexto: { color: '#a0a0b0', fontSize: 13 },
+  numeroPagoNumero: { color: '#d4a338', fontSize: 20, fontWeight: '800', marginTop: 4 },
   input: {
     backgroundColor: '#1e1e2e', color: '#f2f2f2', borderRadius: 14, padding: 16,
     fontSize: 18, borderWidth: 1, borderColor: '#2a2a3a', marginBottom: 14,
