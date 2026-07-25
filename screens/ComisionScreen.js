@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native'
 import { supabase } from '../lib/supabase'
 
 function money(n) {
@@ -61,7 +61,8 @@ export default function ComisionScreen({ usuario, onVolver }) {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 18, paddingTop: 50 }}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={40}>
+    <ScrollView style={styles.container} contentContainerStyle={{ padding: 18, paddingTop: 50 }} keyboardShouldPersistTaps="handled">
       <TouchableOpacity onPress={onVolver}><Text style={styles.volver}>← Volver</Text></TouchableOpacity>
       <Text style={styles.titulo}>Comisión con Ronda</Text>
       <Text style={styles.explicacion}>
@@ -113,6 +114,7 @@ export default function ComisionScreen({ usuario, onVolver }) {
       ))}
       {historial.length === 0 && <Text style={styles.vacio}>Todavía no has reportado pagos.</Text>}
     </ScrollView>
+    </KeyboardAvoidingView>
   )
 }
 
