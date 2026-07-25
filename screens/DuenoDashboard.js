@@ -5,6 +5,7 @@ import { Audio } from 'expo-av'
 import * as FileSystem from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
 import { supabase, cerrarSesion } from '../lib/supabase'
+import CapaFlotante from '../components/CapaFlotante'
 
 const SONIDO_NOTIFICACION = 'https://raw.githubusercontent.com/helarg1977/ronda-app/main/assets/notificacion.wav'
 
@@ -137,6 +138,8 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [mostrarOnboarding, setMostrarOnboarding] = useState(false)
   const [pasoOnboarding, setPasoOnboarding] = useState(0)
   const [mostrarQr, setMostrarQr] = useState(false)
+  const [altoFlotante, setAltoFlotante] = useState(80)
+  const [mostrarMas, setMostrarMas] = useState(false)
   const [ranking, setRanking] = useState([])
   const [productoEstrella, setProductoEstrella] = useState(null)
   const [horaPico, setHoraPico] = useState(null)
@@ -425,13 +428,23 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     cargar()
   }
 
+  const mesasConCuentaSolicitada = new Set(solicitudes.filter((s) => s.tipo === 'cuenta').map((s) => s.mesa_id))
+  const mesasConPagoPendiente = new Set(pagosPendientes.map((p) => p.pedidos?.mesa_id).filter(Boolean))
+
+  function estadoMesa(item) {
+    if (mesasConCuentaSolicitada.has(item.id)) return { color: '#4a90d9', texto: '🔵 Pidió la cuenta' }
+    if (item.pedido) return { color: colorPorAntiguedad(item.pedido.created_at), texto: minutosTexto(item.pedido.created_at) }
+    if (mesasConPagoPendiente.has(item.id)) return { color: '#9b6fd6', texto: '🟣 Pago sin confirmar' }
+    return { color: '#2a2a3a', texto: 'Libre' }
+  }
+
   const mesasConEstado = mesas.map((m) => ({ ...m, pedido: pedidos.find((p) => p.mesa_id === m.id) }))
 
   return (
     <View style={styles.container}>
       <ScrollView
         refreshControl={<RefreshControl refreshing={refrescando} onRefresh={async () => { setRefrescando(true); await cargar(); setRefrescando(false) }} />}
-        contentContainerStyle={{ paddingBottom: 170 }}
+        contentContainerStyle={{ paddingBottom: altoFlotante + 20 }}
       >
         <View style={styles.header}>
           <View>
@@ -460,22 +473,28 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           </View>
         )}
 
-        <View style={styles.statsGrid}>
-          <TouchableOpacity style={styles.statCard} onPress={() => setDetalleStat('ventas')}>
-            <Text style={styles.statValor}>{money(ventasHoy)}</Text>
-            <Text style={styles.statLabel}>Ventas de hoy</Text>
+        <TouchableOpacity style={styles.heroVentas} onPress={() => setDetalleStat('ventas')} activeOpacity={0.85}>
+          <Text style={styles.heroLabel}>VENTAS DE HOY</Text>
+          <Text style={styles.heroValor}>{money(ventasHoy)}</Text>
+          <View style={styles.heroEstadoFila}>
+            <Text style={styles.heroEstadoTexto}>🪑 {mesasConEstado.filter((m) => m.pedido).length} mesa{mesasConEstado.filter((m) => m.pedido).length !== 1 ? 's' : ''} activa{mesasConEstado.filter((m) => m.pedido).length !== 1 ? 's' : ''}</Text>
+            <Text style={styles.heroEstadoTexto}>·</Text>
+            <Text style={styles.heroEstadoTexto}>🧾 {pedidos.length} pedido{pedidos.length !== 1 ? 's' : ''} en curso</Text>
+          </View>
+        </TouchableOpacity>
+
+        <View style={styles.statsGridSecundario}>
+          <TouchableOpacity style={styles.statCardChico} onPress={() => setDetalleStat('comision')}>
+            <Text style={styles.statValorChico}>{money(ventasHoy * (bar?.comision_pct || 0.03))}</Text>
+            <Text style={styles.statLabelChico}>Comisión Ronda</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.statCard} onPress={() => setDetalleStat('comision')}>
-            <Text style={styles.statValor}>{money(ventasHoy * (bar?.comision_pct || 0.03))}</Text>
-            <Text style={styles.statLabel}>Comisión Ronda ({Math.round((bar?.comision_pct || 0.03) * 100)}%)</Text>
+          <TouchableOpacity style={styles.statCardChico} onPress={() => setDetalleStat('propinas')}>
+            <Text style={styles.statValorChico}>{money(propinasHoy)}</Text>
+            <Text style={styles.statLabelChico}>Propinas</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.statCard} onPress={() => setDetalleStat('propinas')}>
-            <Text style={styles.statValor}>{money(propinasHoy)}</Text>
-            <Text style={styles.statLabel}>Propinas registradas</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.statCard} onPress={() => setDetalleStat('pagos')}>
-            <Text style={styles.statValor}>{pagosPendientes.length}</Text>
-            <Text style={styles.statLabel}>Pagos por confirmar</Text>
+          <TouchableOpacity style={styles.statCardChico} onPress={() => setDetalleStat('pagos')}>
+            <Text style={styles.statValorChico}>{pagosPendientes.length}</Text>
+            <Text style={styles.statLabelChico}>Pagos x confirmar</Text>
           </TouchableOpacity>
         </View>
 
@@ -486,21 +505,22 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           </TouchableOpacity>
         </View>
         <View style={styles.mesasGrid}>
-          {mesasConEstado.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={[styles.mesaCard, { borderColor: item.pedido ? colorPorAntiguedad(item.pedido.created_at) : '#2a2a3a' }]}
-              onPress={() => abrirDetalle(item)}
-              onLongPress={() => quitarMesa(item)}
-              activeOpacity={0.6}
-            >
-              <Text style={styles.mesaNumero}>Mesa {item.numero}</Text>
-              <Text style={styles.mesaEstado}>
-                {item.pedido ? minutosTexto(item.pedido.created_at) : 'Libre'}
-              </Text>
-              {item.pedido && <Text style={styles.mesaMonto}>{money(item.pedido.total)}</Text>}
-            </TouchableOpacity>
-          ))}
+          {mesasConEstado.map((item) => {
+            const estado = estadoMesa(item)
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={[styles.mesaCard, { borderColor: estado.color }]}
+                onPress={() => abrirDetalle(item)}
+                onLongPress={() => quitarMesa(item)}
+                activeOpacity={0.6}
+              >
+                <Text style={styles.mesaNumero}>Mesa {item.numero}</Text>
+                <Text style={styles.mesaEstado}>{estado.texto}</Text>
+                {item.pedido && <Text style={styles.mesaMonto}>{money(item.pedido.total)}</Text>}
+              </TouchableOpacity>
+            )
+          })}
         </View>
         <Text style={styles.ayudaChica}>Mantén presionada una mesa libre para quitarla del mapa</Text>
 
@@ -745,20 +765,34 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           <Text style={styles.footerBotonTexto}>📊 Informes</Text>
         </TouchableOpacity>
         {usuario.rol === 'dueno' && (
-          <TouchableOpacity style={styles.footerBoton} onPress={onIrComision}>
-            <Text style={styles.footerBotonTexto}>💳 Pagar a Ronda</Text>
-          </TouchableOpacity>
-        )}
-        {usuario.rol === 'dueno' && (
-          <TouchableOpacity style={styles.footerBoton} onPress={onIrConfiguracion}>
-            <Text style={styles.footerBotonTexto}>⚙️ Config</Text>
+          <TouchableOpacity style={styles.footerBoton} onPress={() => setMostrarMas(true)}>
+            <Text style={styles.footerBotonTexto}>⋯ Más</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      <TouchableOpacity style={styles.botonAyudaFlotante} onPress={() => setMostrarAyuda(true)}>
-        <Text style={styles.botonAyudaFlotanteTexto}>❓ Ayuda</Text>
-      </TouchableOpacity>
+      <Modal visible={mostrarMas} transparent animationType="slide" onRequestClose={() => setMostrarMas(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalDetalle}>
+            <Text style={styles.modalTitulo}>Más opciones</Text>
+            <TouchableOpacity style={styles.masOpcion} onPress={() => { setMostrarMas(false); onIrComision() }}>
+              <Text style={styles.masOpcionTexto}>💳 Pagar comisión a Ronda</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.masOpcion} onPress={() => { setMostrarMas(false); onIrConfiguracion() }}>
+              <Text style={styles.masOpcionTexto}>⚙️ Configuración del negocio</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cerrarModal} onPress={() => setMostrarMas(false)}>
+              <Text style={styles.cerrarModalTexto}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <CapaFlotante onAltoCambio={setAltoFlotante}>
+        <TouchableOpacity style={styles.botonAyudaFlotante} onPress={() => setMostrarAyuda(true)}>
+          <Text style={styles.botonAyudaFlotanteTexto}>❓ Ayuda</Text>
+        </TouchableOpacity>
+      </CapaFlotante>
 
       <Modal visible={!!detalleStat} transparent animationType="slide" onRequestClose={() => setDetalleStat(null)}>
         <View style={styles.modalOverlay}>
@@ -965,6 +999,20 @@ const styles = StyleSheet.create({
   statValor: { color: '#d4a338', fontSize: 18, fontWeight: '800' },
   statLabel: { color: '#a0a0b0', fontSize: 11, marginTop: 4, textTransform: 'uppercase' },
 
+  heroVentas: {
+    marginHorizontal: 14, marginBottom: 16, backgroundColor: '#1e1e2e', borderRadius: 20,
+    padding: 22, alignItems: 'center', borderWidth: 1, borderColor: '#3a3020',
+  },
+  heroLabel: { color: '#a0a0b0', fontSize: 12, letterSpacing: 1, fontWeight: '700' },
+  heroValor: { color: '#d4a338', fontSize: 44, fontWeight: '800', marginTop: 4 },
+  heroEstadoFila: { flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap', justifyContent: 'center' },
+  heroEstadoTexto: { color: '#c9c9d4', fontSize: 13, fontWeight: '600' },
+
+  statsGridSecundario: { flexDirection: 'row', paddingHorizontal: 10, gap: 8, marginBottom: 4 },
+  statCardChico: { flex: 1, backgroundColor: '#1e1e2e', borderRadius: 12, padding: 10, alignItems: 'center' },
+  statValorChico: { color: '#d4a338', fontSize: 14, fontWeight: '800' },
+  statLabelChico: { color: '#8a8a9a', fontSize: 10, marginTop: 2, textTransform: 'uppercase', textAlign: 'center' },
+
   seccionTitulo: { color: '#d4a338', fontSize: 15, fontWeight: '800', marginTop: 22, marginBottom: 10, paddingHorizontal: 16 },
   seccionHeaderFila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginTop: 22, marginBottom: 10 },
   botonAgregarMesa: { backgroundColor: '#26263a', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12 },
@@ -1055,10 +1103,11 @@ const styles = StyleSheet.create({
   pagoConfirmado: { color: '#3ecf8e', fontSize: 14, fontWeight: '700', textAlign: 'center' },
   botonConfirmarPago: { backgroundColor: '#d4a338', borderRadius: 12, padding: 14, alignItems: 'center' },
   cerrarModal: { padding: 14, alignItems: 'center', marginTop: 6 },
+  masOpcion: { backgroundColor: '#26263a', borderRadius: 12, padding: 16, marginBottom: 10 },
+  masOpcionTexto: { color: '#f2f2f2', fontSize: 15, fontWeight: '600' },
   cerrarModalTexto: { color: '#a0a0b0', fontSize: 15 },
 
   botonAyudaFlotante: {
-    position: 'absolute', bottom: 90, right: 16,
     backgroundColor: '#1e1e2e', borderWidth: 1, borderColor: '#d4a338',
     borderRadius: 999, paddingVertical: 12, paddingHorizontal: 18,
     shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 8, elevation: 6,
