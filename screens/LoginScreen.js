@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal, KeyboardAvoidingView, ScrollView, Platform } from 'react-native'
 import { supabase, guardarSesion } from '../lib/supabase'
 
@@ -8,6 +8,7 @@ export default function LoginScreen({ onLogin }) {
   const [verPin, setVerPin] = useState(false)
   const [cargando, setCargando] = useState(false)
   const [mostrarAyudaPin, setMostrarAyudaPin] = useState(false)
+  const refPin = useRef(null)
 
   async function entrar() {
     if (!telefono || !pin) {
@@ -31,8 +32,8 @@ export default function LoginScreen({ onLogin }) {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#14141f' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#14141f' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" alwaysBounceVertical={true}>
       <Text style={styles.titulo}>Ronda</Text>
       <Text style={styles.subtitulo}>La siguiente ronda está a un toque</Text>
 
@@ -44,11 +45,15 @@ export default function LoginScreen({ onLogin }) {
         keyboardType="phone-pad"
         placeholder="3001234567"
         placeholderTextColor="#6a6a80"
+        returnKeyType="next"
+        onSubmitEditing={() => refPin.current?.focus()}
+        blurOnSubmit={false}
       />
 
       <Text style={styles.label}>PIN</Text>
       <View style={styles.filaPin}>
         <TextInput
+          ref={refPin}
           style={[styles.input, { flex: 1, marginBottom: 0 }]}
           value={pin}
           onChangeText={setPin}
@@ -56,6 +61,8 @@ export default function LoginScreen({ onLogin }) {
           secureTextEntry={!verPin}
           placeholder="••••"
           placeholderTextColor="#6a6a80"
+          returnKeyType="done"
+          onSubmitEditing={entrar}
         />
         <TouchableOpacity style={styles.botonOjo} onPress={() => setVerPin(!verPin)}>
           <Text style={styles.botonOjoTexto}>{verPin ? '🙈' : '👁️'}</Text>
@@ -91,7 +98,7 @@ export default function LoginScreen({ onLogin }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: '#14141f', justifyContent: 'center', padding: 28 },
+  container: { flexGrow: 1, backgroundColor: '#14141f', paddingTop: 80, paddingHorizontal: 28, paddingBottom: 200 },
   titulo: { fontSize: 40, fontWeight: '800', color: '#f2f2f2', textAlign: 'center' },
   subtitulo: { fontSize: 16, color: '#d4a338', textAlign: 'center', marginBottom: 40 },
   label: { color: '#a0a0b0', fontSize: 15, marginBottom: 8, marginTop: 18 },
