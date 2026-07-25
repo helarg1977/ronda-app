@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal, KeyboardAvoidingView, ScrollView, Platform } from 'react-native'
 import { supabase, guardarSesion } from '../lib/supabase'
 
 export default function LoginScreen({ onLogin }) {
@@ -31,7 +31,8 @@ export default function LoginScreen({ onLogin }) {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#14141f' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <Text style={styles.titulo}>Ronda</Text>
       <Text style={styles.subtitulo}>La siguiente ronda está a un toque</Text>
 
@@ -84,12 +85,13 @@ export default function LoginScreen({ onLogin }) {
           </View>
         </View>
       </Modal>
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#14141f', justifyContent: 'center', padding: 28 },
+  container: { flexGrow: 1, backgroundColor: '#14141f', justifyContent: 'center', padding: 28 },
   titulo: { fontSize: 40, fontWeight: '800', color: '#f2f2f2', textAlign: 'center' },
   subtitulo: { fontSize: 16, color: '#d4a338', textAlign: 'center', marginBottom: 40 },
   label: { color: '#a0a0b0', fontSize: 15, marginBottom: 8, marginTop: 18 },
