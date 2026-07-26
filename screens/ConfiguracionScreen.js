@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform, Switch } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform, Switch, Image, ActivityIndicator } from 'react-native'
+import * as ImagePicker from 'expo-image-picker'
+import { decode } from 'base64-arraybuffer'
 import { supabase } from '../lib/supabase'
 
 function pinAleatorio() {
@@ -13,6 +15,9 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
   const [llaveBreB, setLlaveBreB] = useState('')
   const [propinasHabilitadas, setPropinasHabilitadas] = useState(true)
   const [horaPicoActiva, setHoraPicoActiva] = useState(false)
+  const [logoUrl, setLogoUrl] = useState('')
+  const [fotoPortada, setFotoPortada] = useState('')
+  const [subiendoImagen, setSubiendoImagen] = useState(false)
   const [guardando, setGuardando] = useState(false)
 
   const [empleados, setEmpleados] = useState([])
@@ -29,7 +34,7 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
   const [clientesFidelizados, setClientesFidelizados] = useState(0)
 
   const cargar = useCallback(async () => {
-    const { data } = await supabase.from('bares').select('nombre, llave_nequi, llave_daviplata, llave_bre_b, propinas_habilitadas, hora_pico_activa').eq('id', usuario.bar_id).maybeSingle()
+    const { data } = await supabase.from('bares').select('nombre, llave_nequi, llave_daviplata, llave_bre_b, propinas_habilitadas, hora_pico_activa, logo_url, foto_portada').eq('id', usuario.bar_id).maybeSingle()
     if (data) {
       setNombre(data.nombre || '')
       setLlaveNequi(data.llave_nequi || '')
@@ -37,6 +42,8 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
       setLlaveBreB(data.llave_bre_b || '')
       setPropinasHabilitadas(data.propinas_habilitadas !== false)
       setHoraPicoActiva(!!data.hora_pico_activa)
+      setLogoUrl(data.logo_url || '')
+      setFotoPortada(data.foto_portada || '')
     }
     const { data: emp } = await supabase.from('usuarios_bar').select('id, nombre, telefono, rol, activo, pin').eq('bar_id', usuario.bar_id).neq('rol', 'dueno').order('nombre')
     setEmpleados(emp || [])
@@ -50,6 +57,35 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
 
   useEffect(() => { cargar() }, [cargar])
 
+  async function elegirImagen(destino, desdeCamara) {
+    const permiso = desdeCamara
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!permiso.granted) {
+      Alert.alert('Falta permiso', desdeCamara ? 'Necesitamos permiso de la cámara.' : 'Necesitamos permiso para ver tus fotos.')
+      return
+    }
+    const resultado = desdeCamara
+      ? await ImagePicker.launchCameraAsync({ quality: 0.6, base64: true, allowsEditing: true })
+      : await ImagePicker.launchImageLibraryAsync({ quality: 0.6, base64: true, allowsEditing: true })
+    if (resultado.canceled || !resultado.assets?.[0]) return
+
+    setSubiendoImagen(true)
+    try {
+      const foto = resultado.assets[0]
+      const nombreArchivo = `${usuario.bar_id}_${destino}_${Date.now()}.jpg`
+      const { error } = await supabase.storage.from('negocios').upload(nombreArchivo, decode(foto.base64), { contentType: 'image/jpeg' })
+      if (error) throw error
+      const { data } = supabase.storage.from('negocios').getPublicUrl(nombreArchivo)
+      if (destino === 'logo') setLogoUrl(data.publicUrl)
+      else setFotoPortada(data.publicUrl)
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo subir la foto. Intenta de nuevo.')
+    } finally {
+      setSubiendoImagen(false)
+    }
+  }
+
   async function guardar() {
     setGuardando(true)
     const { error } = await supabase.from('bares').update({
@@ -59,6 +95,8 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
       llave_bre_b: llaveBreB.trim() || null,
       propinas_habilitadas: propinasHabilitadas,
       hora_pico_activa: horaPicoActiva,
+      logo_url: logoUrl || null,
+      foto_portada: fotoPortada || null,
     }).eq('id', usuario.bar_id)
     setGuardando(false)
     if (error) { Alert.alert('Error', 'No se pudo guardar.'); return }
@@ -163,6 +201,41 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
 
           {pestana === 'general' && (
             <>
+              <Text style={styles.label}>Logo de tu negocio</Text>
+              {logoUrl ? (
+                <View style={styles.previewImagenBox}>
+                  <Image source={{ uri: logoUrl }} style={styles.previewLogo} />
+                  <TouchableOpacity onPress={() => setLogoUrl('')}><Text style={styles.quitarFotoTexto}>Quitar</Text></TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.filaFotoBotones}>
+                  <TouchableOpacity style={styles.botonFoto} onPress={() => elegirImagen('logo', true)} disabled={subiendoImagen}>
+                    <Text style={styles.botonFotoTexto}>📷 Tomar foto</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.botonFoto} onPress={() => elegirImagen('logo', false)} disabled={subiendoImagen}>
+                    <Text style={styles.botonFotoTexto}>🖼️ Elegir de galería</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              <Text style={styles.label}>Foto de portada (fondo de tu mini-web)</Text>
+              {fotoPortada ? (
+                <View style={styles.previewImagenBox}>
+                  <Image source={{ uri: fotoPortada }} style={styles.previewPortada} />
+                  <TouchableOpacity onPress={() => setFotoPortada('')}><Text style={styles.quitarFotoTexto}>Quitar</Text></TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.filaFotoBotones}>
+                  <TouchableOpacity style={styles.botonFoto} onPress={() => elegirImagen('portada', true)} disabled={subiendoImagen}>
+                    <Text style={styles.botonFotoTexto}>📷 Tomar foto</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.botonFoto} onPress={() => elegirImagen('portada', false)} disabled={subiendoImagen}>
+                    <Text style={styles.botonFotoTexto}>🖼️ Elegir de galería</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {subiendoImagen && <ActivityIndicator color="#d4a338" style={{ marginVertical: 10 }} />}
+
               <Text style={styles.label}>Nombre del bar</Text>
               <TextInput style={styles.input} value={nombre} onChangeText={setNombre} placeholder="Nombre de tu bar" placeholderTextColor="#6a6a80" />
 
@@ -340,4 +413,11 @@ const styles = StyleSheet.create({
   empleadoInactivo: { color: '#6a6a80', textDecorationLine: 'line-through' },
   empleadoEstado: { color: '#6a6a80', fontSize: 13, marginTop: 4 },
   borrarTexto: { fontSize: 20, paddingLeft: 4 },
+  filaFotoBotones: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  botonFoto: { flex: 1, backgroundColor: '#26263a', borderRadius: 14, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#3a3a4a' },
+  botonFotoTexto: { color: '#f2f2f2', fontSize: 13, fontWeight: '600' },
+  previewImagenBox: { alignItems: 'center', marginBottom: 14 },
+  previewLogo: { width: 90, height: 90, borderRadius: 45, marginBottom: 8 },
+  previewPortada: { width: '100%', height: 120, borderRadius: 14, marginBottom: 8 },
+  quitarFotoTexto: { color: '#e05c5c', fontSize: 13 },
 })
