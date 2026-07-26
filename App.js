@@ -9,6 +9,7 @@ import MenuScreen from './screens/MenuScreen'
 import ComisionScreen from './screens/ComisionScreen'
 import ConfiguracionScreen from './screens/ConfiguracionScreen'
 import ReportesScreen from './screens/ReportesScreen'
+import { registrarToken } from './lib/notificaciones'
 
 const ROLES_PANEL_DUENO = ['dueno', 'administrador']
 
@@ -23,6 +24,10 @@ export default function App() {
       setCargando(false)
     })
   }, [])
+
+  useEffect(() => {
+    if (usuario?.id) registrarToken(usuario.id)
+  }, [usuario?.id])
 
   if (cargando) {
     return (
