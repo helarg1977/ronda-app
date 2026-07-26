@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native'
 import { supabase } from '../lib/supabase'
 
 function money(n) {
@@ -40,6 +40,9 @@ export default function ReportesScreen({ usuario, onVolver }) {
   const [porDia, setPorDia] = useState([])
   const [productoTop, setProductoTop] = useState(null)
   const [cargando, setCargando] = useState(true)
+  const [pedidosLista, setPedidosLista] = useState([])
+  const [propinasLista, setPropinasLista] = useState([])
+  const [detalleStat, setDetalleStat] = useState(null)
 
   const cargar = useCallback(async () => {
     setCargando(true)
@@ -50,18 +53,21 @@ export default function ReportesScreen({ usuario, onVolver }) {
 
     const { data: pedidos } = await supabase
       .from('pedidos')
-      .select('id, total, created_at, pedido_items(cantidad, productos(nombre))')
+      .select('id, total, created_at, mesas(numero), pedido_items(cantidad, productos(nombre))')
       .eq('bar_id', usuario.bar_id).eq('estado', 'entregado').gte('created_at', desde)
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: false })
 
     const lista = pedidos || []
     setVentasTotal(lista.reduce((s, p) => s + Number(p.total), 0))
     setNumPedidos(lista.length)
+    setPedidosLista(lista)
 
     const { data: propinas } = await supabase
-      .from('propinas').select('monto, pedidos!inner(bar_id, created_at)').eq('pedidos.bar_id', usuario.bar_id)
+      .from('propinas').select('monto, calificacion, pedidos!inner(bar_id, created_at, mesas(numero))').eq('pedidos.bar_id', usuario.bar_id)
     const desdeMs = new Date(desde).getTime()
-    setPropinasTotal((propinas || []).filter((p) => new Date(p.pedidos.created_at).getTime() >= desdeMs).reduce((s, p) => s + Number(p.monto), 0))
+    const propinasFiltradas = (propinas || []).filter((p) => new Date(p.pedidos.created_at).getTime() >= desdeMs)
+    setPropinasTotal(propinasFiltradas.reduce((s, p) => s + Number(p.monto), 0))
+    setPropinasLista(propinasFiltradas)
 
     const porDiaMap = {}
     lista.forEach((p) => {
@@ -86,6 +92,7 @@ export default function ReportesScreen({ usuario, onVolver }) {
   useEffect(() => { cargar() }, [cargar])
 
   return (
+    <>
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 18, paddingTop: 50, paddingBottom: 40 }}>
       <TouchableOpacity onPress={onVolver}><Text style={styles.volver}>← Volver</Text></TouchableOpacity>
       <Text style={styles.titulo}>Informes</Text>
@@ -104,22 +111,22 @@ export default function ReportesScreen({ usuario, onVolver }) {
       ) : (
         <>
           <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
+            <TouchableOpacity style={styles.statCard} onPress={() => setDetalleStat('ventas')}>
               <Text style={styles.statValor}>{money(ventasTotal)}</Text>
               <Text style={styles.statLabel}>Ventas</Text>
-            </View>
-            <View style={styles.statCard}>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.statCard} onPress={() => setDetalleStat('pedidos')}>
               <Text style={styles.statValor}>{numPedidos}</Text>
               <Text style={styles.statLabel}>Pedidos entregados</Text>
-            </View>
-            <View style={styles.statCard}>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.statCard} onPress={() => setDetalleStat('comision')}>
               <Text style={styles.statValor}>{money(ventasTotal * comisionPct)}</Text>
               <Text style={styles.statLabel}>Comisión Ronda ({Math.round(comisionPct * 100)}%)</Text>
-            </View>
-            <View style={styles.statCard}>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.statCard} onPress={() => setDetalleStat('propinas')}>
               <Text style={styles.statValor}>{money(propinasTotal)}</Text>
               <Text style={styles.statLabel}>Propinas</Text>
-            </View>
+            </TouchableOpacity>
           </View>
 
           {productoTop && (
@@ -141,6 +148,74 @@ export default function ReportesScreen({ usuario, onVolver }) {
         </>
       )}
     </ScrollView>
+
+    <Modal visible={!!detalleStat} transparent animationType="slide" onRequestClose={() => setDetalleStat(null)}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalDetalle}>
+          {detalleStat === 'ventas' && (
+            <>
+              <Text style={styles.modalTitulo}>Ventas del periodo</Text>
+              <ScrollView style={{ maxHeight: 400 }}>
+                {pedidosLista.length === 0 && <Text style={styles.ayuda}>Sin ventas todavía.</Text>}
+                {pedidosLista.map((p) => (
+                  <View key={p.id} style={styles.itemDetalle}>
+                    <View style={styles.itemDetalleFila}>
+                      <Text style={styles.itemDetalleTitulo}>Mesa {p.mesas?.numero} · {new Date(p.created_at).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</Text>
+                      <Text style={styles.itemDetalleValor}>{money(p.total)}</Text>
+                    </View>
+                    {p.pedido_items.map((it, j) => <Text key={j} style={styles.itemDetalleSub}>{it.cantidad}x {it.productos?.nombre}</Text>)}
+                  </View>
+                ))}
+              </ScrollView>
+            </>
+          )}
+          {detalleStat === 'pedidos' && (
+            <>
+              <Text style={styles.modalTitulo}>Pedidos entregados</Text>
+              <ScrollView style={{ maxHeight: 400 }}>
+                {pedidosLista.map((p) => (
+                  <View key={p.id} style={styles.itemDetalleFila}>
+                    <Text style={styles.itemDetalleTitulo}>Mesa {p.mesas?.numero} · {new Date(p.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</Text>
+                    <Text style={styles.itemDetalleValor}>{money(p.total)}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </>
+          )}
+          {detalleStat === 'comision' && (
+            <>
+              <Text style={styles.modalTitulo}>Comisión por pedido ({Math.round(comisionPct * 100)}%)</Text>
+              <ScrollView style={{ maxHeight: 400 }}>
+                {pedidosLista.map((p) => (
+                  <View key={p.id} style={styles.itemDetalleFila}>
+                    <Text style={styles.itemDetalleTitulo}>Mesa {p.mesas?.numero} — {money(p.total)}</Text>
+                    <Text style={styles.itemDetalleValor}>{money(p.total * comisionPct)}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </>
+          )}
+          {detalleStat === 'propinas' && (
+            <>
+              <Text style={styles.modalTitulo}>Propinas del periodo</Text>
+              <ScrollView style={{ maxHeight: 400 }}>
+                {propinasLista.length === 0 && <Text style={styles.ayuda}>Sin propinas todavía.</Text>}
+                {propinasLista.map((p, i) => (
+                  <View key={i} style={styles.itemDetalleFila}>
+                    <Text style={styles.itemDetalleTitulo}>Mesa {p.pedidos?.mesas?.numero}{p.calificacion ? ` · ${'★'.repeat(p.calificacion)}` : ''}</Text>
+                    <Text style={styles.itemDetalleValor}>{money(p.monto)}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </>
+          )}
+          <TouchableOpacity style={styles.cerrarModal} onPress={() => setDetalleStat(null)}>
+            <Text style={styles.cerrarModalTexto}>Cerrar</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+    </>
   )
 }
 
@@ -166,4 +241,14 @@ const styles = StyleSheet.create({
   diaFecha: { color: '#f2f2f2', fontSize: 14, fontWeight: '600', flex: 1.4, textTransform: 'capitalize' },
   diaPedidos: { color: '#a0a0b0', fontSize: 13, flex: 1 },
   diaTotal: { color: '#3ecf8e', fontSize: 14, fontWeight: '700' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalDetalle: { backgroundColor: '#1e1e2e', borderRadius: 20, padding: 20, paddingBottom: 34, maxHeight: '85%' },
+  modalTitulo: { fontSize: 18, fontWeight: '800', color: '#f2f2f2', marginBottom: 12 },
+  itemDetalle: { marginBottom: 12, borderBottomWidth: 1, borderBottomColor: '#2a2a3a', paddingBottom: 8 },
+  itemDetalleFila: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#2a2a3a' },
+  itemDetalleTitulo: { color: '#f2f2f2', fontSize: 13, fontWeight: '600', flex: 1 },
+  itemDetalleValor: { color: '#d4a338', fontSize: 13, fontWeight: '700' },
+  itemDetalleSub: { color: '#8a8a9a', fontSize: 12, marginTop: 2, paddingLeft: 6 },
+  cerrarModal: { padding: 14, alignItems: 'center', marginTop: 10 },
+  cerrarModalTexto: { color: '#a0a0b0', fontSize: 15 },
 })
