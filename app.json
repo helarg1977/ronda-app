@@ -13,8 +13,18 @@
       "package": "com.ronda.app",
       "adaptiveIcon": {
         "backgroundColor": "#14141f"
-      }
+      },
+      "permissions": ["android.permission.POST_NOTIFICATIONS"]
     },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "color": "#d4a338",
+          "mode": "production"
+        }
+      ]
+    ],
     "web": {
       "bundler": "metro"
     },
