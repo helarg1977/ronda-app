@@ -45,6 +45,7 @@ export default function MenuScreen({ usuario, onVolver }) {
   const [fotoProducto, setFotoProducto] = useState('')
   const [subiendoFoto, setSubiendoFoto] = useState(false)
   const [fotoAmpliada, setFotoAmpliada] = useState(null)
+  const [editandoProducto, setEditandoProducto] = useState(null)
 
   const cargar = useCallback(async () => {
     const { data: cats } = await supabase.from('categorias').select('id, nombre, icono').eq('bar_id', usuario.bar_id).order('orden')
@@ -129,25 +130,50 @@ export default function MenuScreen({ usuario, onVolver }) {
     }
   }
 
-  async function agregarProducto() {
+  async function guardarProducto() {
     if (!nombreProducto.trim() || !precioProducto || !categoriaSeleccionada) {
       Alert.alert('Falta información', 'Elige una categoría, escribe el nombre y el precio.')
       return
     }
-    const { error } = await supabase.from('productos').insert({
-      bar_id: usuario.bar_id,
-      categoria_id: categoriaSeleccionada,
-      nombre: nombreProducto.trim(),
-      precio: Number(precioProducto),
-      foto_url: fotoProducto.trim() || null,
-      disponible: true,
-      orden: productos.length,
-    })
-    if (error) { Alert.alert('Error', 'No se pudo crear el producto: ' + error.message); return }
+    if (editandoProducto) {
+      const { error } = await supabase.from('productos').update({
+        categoria_id: categoriaSeleccionada,
+        nombre: nombreProducto.trim(),
+        precio: Number(precioProducto),
+        foto_url: fotoProducto.trim() || null,
+      }).eq('id', editandoProducto)
+      if (error) { Alert.alert('Error', 'No se pudo guardar el cambio: ' + error.message); return }
+      setEditandoProducto(null)
+    } else {
+      const { error } = await supabase.from('productos').insert({
+        bar_id: usuario.bar_id,
+        categoria_id: categoriaSeleccionada,
+        nombre: nombreProducto.trim(),
+        precio: Number(precioProducto),
+        foto_url: fotoProducto.trim() || null,
+        disponible: true,
+        orden: productos.length,
+      })
+      if (error) { Alert.alert('Error', 'No se pudo crear el producto: ' + error.message); return }
+    }
     setNombreProducto('')
     setPrecioProducto('')
     setFotoProducto('')
     cargar()
+  }
+
+  function abrirEdicionProducto(producto) {
+    setEditandoProducto(producto.id)
+    setNombreProducto(producto.nombre)
+    setPrecioProducto(String(producto.precio))
+    setFotoProducto(producto.foto_url || '')
+  }
+
+  function cancelarEdicionProducto() {
+    setEditandoProducto(null)
+    setNombreProducto('')
+    setPrecioProducto('')
+    setFotoProducto('')
   }
 
   async function borrarProducto(producto) {
@@ -275,9 +301,14 @@ export default function MenuScreen({ usuario, onVolver }) {
         )}
         {subiendoFoto && <ActivityIndicator color="#d4a338" style={{ marginVertical: 10 }} />}
 
-        <TouchableOpacity style={styles.boton} onPress={agregarProducto}>
-          <Text style={styles.botonTexto}>+ Agregar producto</Text>
+        <TouchableOpacity style={styles.boton} onPress={guardarProducto}>
+          <Text style={styles.botonTexto}>{editandoProducto ? '💾 Guardar cambios' : '+ Agregar producto'}</Text>
         </TouchableOpacity>
+        {editandoProducto && (
+          <TouchableOpacity onPress={cancelarEdicionProducto}>
+            <Text style={styles.cancelarTexto}>Cancelar edición</Text>
+          </TouchableOpacity>
+        )}
 
         <Text style={styles.seccion}>Productos de esta categoría</Text>
         {productos.filter((p) => p.categoria_id === categoriaSeleccionada).map((p) => (
@@ -291,6 +322,7 @@ export default function MenuScreen({ usuario, onVolver }) {
               <Text style={[styles.productoNombre, !p.disponible && styles.productoOculto]}>{p.nombre} — {formatearPrecio(String(p.precio))}</Text>
               <Text style={styles.productoEstado}>{p.disponible ? 'Disponible (toca para ocultar)' : 'Oculto (toca para activar)'}</Text>
             </TouchableOpacity>
+            <TouchableOpacity onPress={() => abrirEdicionProducto(p)}><Text style={styles.borrarTexto}>✏️</Text></TouchableOpacity>
             <TouchableOpacity onPress={() => borrarProducto(p)}><Text style={styles.borrarTexto}>🗑️</Text></TouchableOpacity>
           </View>
         ))}
