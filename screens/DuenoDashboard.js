@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, Modal, ScrollView, Image, Alert, TextInput, KeyboardAvoidingView, Platform, Share } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Audio } from 'expo-av'
-import * as FileSystem from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
+import { captureRef } from 'react-native-view-shot'
 import { supabase, cerrarSesion } from '../lib/supabase'
 import CapaFlotante from '../components/CapaFlotante'
 
@@ -140,6 +140,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [mostrarQr, setMostrarQr] = useState(false)
   const [altoFlotante, setAltoFlotante] = useState(80)
   const [mostrarMas, setMostrarMas] = useState(false)
+  const refTarjetaQr = useRef(null)
   const [ranking, setRanking] = useState([])
   const [productoEstrella, setProductoEstrella] = useState(null)
   const [horaPico, setHoraPico] = useState(null)
@@ -393,17 +394,15 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
 
   async function descargarQr(mesa) {
     try {
-      const url = `https://api.qrserver.com/v1/create-qr-code/?size=800x800&data=${encodeURIComponent(`${URL_MINI_WEB_CLIENTE}/?m=${mesa.qr_code}`)}`
-      const destino = FileSystem.cacheDirectory + `qr-mesa-${mesa.numero}.png`
-      const { uri } = await FileSystem.downloadAsync(url, destino)
+      const uriCapturada = await captureRef(refTarjetaQr, { format: 'png', quality: 1, result: 'tmpfile' })
       const disponible = await Sharing.isAvailableAsync()
       if (disponible) {
-        await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: `QR Mesa ${mesa.numero}` })
+        await Sharing.shareAsync(uriCapturada, { mimeType: 'image/png', dialogTitle: `QR Mesa ${mesa.numero}` })
       } else {
-        Alert.alert('Listo', 'El QR se descargó, pero este celular no puede abrir el menú para compartir/imprimir.')
+        Alert.alert('Listo', 'El QR se generó, pero este celular no puede abrir el menú para compartir/imprimir.')
       }
     } catch (e) {
-      Alert.alert('Error', 'No se pudo descargar el QR. Intenta de nuevo.')
+      Alert.alert('No se pudo generar el QR', e.message || 'Intenta de nuevo.')
     }
   }
 
@@ -758,12 +757,22 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
               ) : (
               <>
                 <Text style={styles.modalTitulo}>QR — Mesa {detalle.mesa.numero}</Text>
-                <Text style={styles.ayudaQr}>Imprime esto y pégalo en la mesa. El cliente lo escanea con la cámara de su celular.</Text>
-                <Image
-                  source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(`${URL_MINI_WEB_CLIENTE}/?m=${detalle.mesa.qr_code}`)}` }}
-                  style={styles.qrImagen}
-                />
-                <Text style={styles.qrEnlaceTexto}>{URL_MINI_WEB_CLIENTE}/?m={detalle.mesa.qr_code}</Text>
+                <Text style={styles.ayudaQr}>Imprime esto y pégalo en la mesa.</Text>
+
+                <View ref={refTarjetaQr} collapsable={false} style={styles.tarjetaQr}>
+                  <Text style={styles.tarjetaQrNombreBar}>{bar?.nombre || 'Nuestro bar'}</Text>
+                  <Text style={styles.tarjetaQrMesa}>Mesa {detalle.mesa.numero}</Text>
+                  <Image
+                    source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(`${URL_MINI_WEB_CLIENTE}/?m=${detalle.mesa.qr_code}`)}` }}
+                    style={styles.qrImagenGrande}
+                  />
+                  <Text style={styles.tarjetaQrPasosTitulo}>¿Cómo pedir?</Text>
+                  <Text style={styles.tarjetaQrPaso}>1. Escanea este código con la cámara de tu celular</Text>
+                  <Text style={styles.tarjetaQrPaso}>2. Elige lo que quieras del menú</Text>
+                  <Text style={styles.tarjetaQrPaso}>3. Toca "Enviar pedido"</Text>
+                  <Text style={styles.tarjetaQrPaso}>4. Espera a que te lo traigamos a la mesa 🍻</Text>
+                </View>
+
                 <TouchableOpacity style={styles.botonDescargarQr} onPress={() => descargarQr(detalle.mesa)}>
                   <Text style={styles.botonChatDetalleTexto}>📥 Descargar / Compartir para imprimir</Text>
                 </TouchableOpacity>
@@ -1078,6 +1087,14 @@ const styles = StyleSheet.create({
   botonDescargarQr: { backgroundColor: '#3ecf8e', borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 14 },
   ayudaQr: { color: '#a0a0b0', fontSize: 13, textAlign: 'center', marginVertical: 10, paddingHorizontal: 10 },
   qrImagen: { width: 220, height: 220, backgroundColor: '#fff', borderRadius: 12, marginVertical: 10 },
+  tarjetaQr: {
+    backgroundColor: '#ffffff', borderRadius: 16, padding: 24, alignItems: 'center', width: '100%', marginVertical: 10,
+  },
+  tarjetaQrNombreBar: { color: '#14141f', fontSize: 24, fontWeight: '800', textAlign: 'center' },
+  tarjetaQrMesa: { color: '#8a6a1f', fontSize: 15, fontWeight: '700', marginTop: 2, marginBottom: 14, textTransform: 'uppercase', letterSpacing: 1 },
+  qrImagenGrande: { width: 240, height: 240, marginBottom: 18 },
+  tarjetaQrPasosTitulo: { color: '#14141f', fontSize: 16, fontWeight: '800', marginBottom: 8, alignSelf: 'flex-start' },
+  tarjetaQrPaso: { color: '#2a2a2a', fontSize: 14, marginBottom: 4, alignSelf: 'flex-start', lineHeight: 20 },
   qrEnlaceTexto: { color: '#6a6a80', fontSize: 11, textAlign: 'center', marginBottom: 10 },
   botonChatDetalleTexto: { color: '#f2f2f2', fontSize: 14, fontWeight: '700' },
 
