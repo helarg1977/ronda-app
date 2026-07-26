@@ -354,6 +354,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
 
   async function abrirDetalle(mesa) {
     setCargandoDetalle(true)
+    setMostrarQr(false)
     const { data: historial } = await supabase
       .from('pedidos').select('id, estado, total, created_at')
       .eq('mesa_id', mesa.id).eq('sesion_id', mesa.sesion_actual).neq('estado', 'cancelado')
@@ -650,6 +651,8 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           <View style={styles.modalDetalle}>
             {detalle && (
               <>
+              {!mostrarQr ? (
+              <>
                 <Text style={styles.modalTitulo}>Mesa {detalle.mesa.numero}</Text>
 
                 <Text style={styles.subtitulo}>Mesero asignado</Text>
@@ -751,6 +754,24 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                 <TouchableOpacity style={styles.cerrarModal} onPress={() => setDetalle(null)}>
                   <Text style={styles.cerrarModalTexto}>Cerrar</Text>
                 </TouchableOpacity>
+              </>
+              ) : (
+              <>
+                <Text style={styles.modalTitulo}>QR — Mesa {detalle.mesa.numero}</Text>
+                <Text style={styles.ayudaQr}>Imprime esto y pégalo en la mesa. El cliente lo escanea con la cámara de su celular.</Text>
+                <Image
+                  source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(`${URL_MINI_WEB_CLIENTE}/?m=${detalle.mesa.qr_code}`)}` }}
+                  style={styles.qrImagen}
+                />
+                <Text style={styles.qrEnlaceTexto}>{URL_MINI_WEB_CLIENTE}/?m={detalle.mesa.qr_code}</Text>
+                <TouchableOpacity style={styles.botonDescargarQr} onPress={() => descargarQr(detalle.mesa)}>
+                  <Text style={styles.botonChatDetalleTexto}>📥 Descargar / Compartir para imprimir</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.cerrarModal} onPress={() => setMostrarQr(false)}>
+                  <Text style={styles.cerrarModalTexto}>← Volver al detalle de la mesa</Text>
+                </TouchableOpacity>
+              </>
+              )}
               </>
             )}
           </View>
@@ -861,30 +882,6 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
             <TouchableOpacity style={styles.cerrarModal} onPress={() => setDetalleStat(null)}>
               <Text style={styles.cerrarModalTexto}>Cerrar</Text>
             </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal visible={mostrarQr && !!detalle} transparent animationType="fade" onRequestClose={() => setMostrarQr(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalDetalle, { alignItems: 'center' }]}>
-            {detalle && (
-              <>
-                <Text style={styles.modalTitulo}>QR — Mesa {detalle.mesa.numero}</Text>
-                <Text style={styles.ayudaQr}>Imprime esto y pégalo en la mesa. El cliente lo escanea con la cámara de su celular.</Text>
-                <Image
-                  source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(`${URL_MINI_WEB_CLIENTE}/?m=${detalle.mesa.qr_code}`)}` }}
-                  style={styles.qrImagen}
-                />
-                <Text style={styles.qrEnlaceTexto}>{URL_MINI_WEB_CLIENTE}/?m={detalle.mesa.qr_code}</Text>
-                <TouchableOpacity style={styles.botonDescargarQr} onPress={() => descargarQr(detalle.mesa)}>
-                  <Text style={styles.botonChatDetalleTexto}>📥 Descargar / Compartir para imprimir</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.cerrarModal} onPress={() => setMostrarQr(false)}>
-                  <Text style={styles.cerrarModalTexto}>Cerrar</Text>
-                </TouchableOpacity>
-              </>
-            )}
           </View>
         </View>
       </Modal>
