@@ -63,7 +63,7 @@ function minutosTexto(createdAt) {
   return `+${horas}h ${minRestantes}min sin novedad`
 }
 
-const URL_MINI_WEB_CLIENTE = 'https://ronda-web.vercel.app' // actualiza esto cuando despliegues ronda-web a producción
+const URL_MINI_WEB_CLIENTE = 'https://ronda-web-orpin.vercel.app'
 const URL_PANEL_DUENO_WEB = 'https://ronda-dueno-web.vercel.app' // actualiza esto cuando despliegues ronda-dueno-web a producción
 
 async function compartirAccesoWeb() {
