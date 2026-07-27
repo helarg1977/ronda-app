@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, Modal, ScrollView, Image, Alert, TextInput, KeyboardAvoidingView, Platform, Share } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, Modal, ScrollView, Image, Alert, TextInput, KeyboardAvoidingView, Platform, Share, Switch } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Audio } from 'expo-av'
 import * as Sharing from 'expo-sharing'
@@ -156,7 +156,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     const { data: barData } = await supabase.from('bares').select('nombre, comision_pct').eq('id', usuario.bar_id).maybeSingle()
     setBar(barData)
 
-    const { data: mesasData } = await supabase.from('mesas').select('id, numero, sesion_actual, mesero_asignado_id, qr_code').eq('bar_id', usuario.bar_id).eq('activa', true).order('numero')
+    const { data: mesasData } = await supabase.from('mesas').select('id, numero, sesion_actual, mesero_asignado_id, qr_code, cuenta_abierta').eq('bar_id', usuario.bar_id).eq('activa', true).order('numero')
     const { data: pedidosData } = await supabase
       .from('pedidos').select('id, mesa_id, estado, total, created_at')
       .eq('bar_id', usuario.bar_id).not('estado', 'in', '(entregado,cancelado)')
@@ -404,6 +404,12 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     } catch (e) {
       Alert.alert('No se pudo generar el QR', e.message || 'Intenta de nuevo.')
     }
+  }
+
+  async function toggleCuentaAbierta(mesa) {
+    await supabase.from('mesas').update({ cuenta_abierta: !mesa.cuenta_abierta }).eq('id', mesa.id)
+    setDetalle((d) => (d ? { ...d, mesa: { ...d.mesa, cuenta_abierta: !mesa.cuenta_abierta } } : d))
+    cargar()
   }
 
   async function asignarMesero(mesaId, meseroId) {
@@ -676,6 +682,14 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                 <TouchableOpacity style={styles.botonVerQr} onPress={() => setMostrarQr(true)}>
                   <Text style={styles.botonChatDetalleTexto}>🔳 Ver código QR de esta mesa</Text>
                 </TouchableOpacity>
+
+                <View style={styles.filaSwitchCuenta}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.subtitulo}>🤝 Cuenta abierta</Text>
+                    <Text style={styles.ayudaCuentaAbierta}>Actívala solo si conoces al cliente — puede pedir varias rondas sin pagar cada una, y paga todo junto al final.</Text>
+                  </View>
+                  <Switch value={!!detalle.mesa.cuenta_abierta} onValueChange={() => toggleCuentaAbierta(detalle.mesa)} trackColor={{ true: '#d4a338' }} />
+                </View>
 
                 <Text style={styles.modalEstado}>
                   {detalle.pedido ? (ESTADO_LABEL[detalle.pedido.estado] || detalle.pedido.estado) : 'Sin pedido activo'}
@@ -1084,6 +1098,8 @@ const styles = StyleSheet.create({
   meseroChipTexto: { color: '#f2f2f2', fontSize: 13, fontWeight: '600' },
   meseroChipTextoActivo: { color: '#14141f', fontWeight: '800' },
   botonVerQr: { backgroundColor: '#26263a', borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 14, borderWidth: 1, borderColor: '#d4a338' },
+  filaSwitchCuenta: { flexDirection: 'row', alignItems: 'center', marginTop: 16, backgroundColor: '#26263a', borderRadius: 14, padding: 14 },
+  ayudaCuentaAbierta: { color: '#8a8a9a', fontSize: 12, marginTop: 4, lineHeight: 16 },
   botonDescargarQr: { backgroundColor: '#3ecf8e', borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 14 },
   ayudaQr: { color: '#a0a0b0', fontSize: 13, textAlign: 'center', marginVertical: 10, paddingHorizontal: 10 },
   qrImagen: { width: 220, height: 220, backgroundColor: '#fff', borderRadius: 12, marginVertical: 10 },
