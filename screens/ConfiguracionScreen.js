@@ -17,6 +17,7 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
   const [horaPicoActiva, setHoraPicoActiva] = useState(false)
   const [logoUrl, setLogoUrl] = useState('')
   const [fotoPortada, setFotoPortada] = useState('')
+  const [modoNegocio, setModoNegocio] = useState('equipo')
   const [subiendoImagen, setSubiendoImagen] = useState(false)
   const [guardando, setGuardando] = useState(false)
 
@@ -34,7 +35,7 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
   const [clientesFidelizados, setClientesFidelizados] = useState(0)
 
   const cargar = useCallback(async () => {
-    const { data } = await supabase.from('bares').select('nombre, llave_nequi, llave_daviplata, llave_bre_b, propinas_habilitadas, hora_pico_activa, logo_url, foto_portada').eq('id', usuario.bar_id).maybeSingle()
+    const { data } = await supabase.from('bares').select('nombre, llave_nequi, llave_daviplata, llave_bre_b, propinas_habilitadas, hora_pico_activa, logo_url, foto_portada, modo_negocio').eq('id', usuario.bar_id).maybeSingle()
     if (data) {
       setNombre(data.nombre || '')
       setLlaveNequi(data.llave_nequi || '')
@@ -44,6 +45,7 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
       setHoraPicoActiva(!!data.hora_pico_activa)
       setLogoUrl(data.logo_url || '')
       setFotoPortada(data.foto_portada || '')
+      setModoNegocio(data.modo_negocio || 'equipo')
     }
     const { data: emp } = await supabase.from('usuarios_bar').select('id, nombre, telefono, rol, activo, pin').eq('bar_id', usuario.bar_id).neq('rol', 'dueno').order('nombre')
     setEmpleados(emp || [])
@@ -97,6 +99,7 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
       hora_pico_activa: horaPicoActiva,
       logo_url: logoUrl || null,
       foto_portada: fotoPortada || null,
+      modo_negocio: modoNegocio,
     }).eq('id', usuario.bar_id)
     setGuardando(false)
     if (error) { Alert.alert('Error', 'No se pudo guardar.'); return }
@@ -201,6 +204,17 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
 
           {pestana === 'general' && (
             <>
+              <Text style={styles.label}>¿Cómo es tu negocio?</Text>
+              <View style={styles.filaRoles}>
+                <TouchableOpacity style={[styles.rolChip, modoNegocio === 'solo' && styles.rolChipActivo]} onPress={() => setModoNegocio('solo')}>
+                  <Text style={[styles.rolChipTexto, modoNegocio === 'solo' && styles.rolChipTextoActivo]}>🙋 Atiendo yo solo</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.rolChip, modoNegocio === 'equipo' && styles.rolChipActivo]} onPress={() => setModoNegocio('equipo')}>
+                  <Text style={[styles.rolChipTexto, modoNegocio === 'equipo' && styles.rolChipTextoActivo]}>👥 Tengo empleados</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.ayudaChica}>Esto oculta o muestra el ranking de meseros y la asignación de mesas — lo puedes cambiar cuando quieras.</Text>
+
               <Text style={styles.label}>Logo de tu negocio</Text>
               {logoUrl ? (
                 <View style={styles.previewImagenBox}>
