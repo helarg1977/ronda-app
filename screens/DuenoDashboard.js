@@ -139,6 +139,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [pasoOnboarding, setPasoOnboarding] = useState(0)
   const [mostrarQr, setMostrarQr] = useState(false)
   const [mostrarPreguntaModo, setMostrarPreguntaModo] = useState(false)
+  const necesitaPreguntaModoRef = useRef(false)
   const [altoFlotante, setAltoFlotante] = useState(80)
   const [mostrarMas, setMostrarMas] = useState(false)
   const refTarjetaQr = useRef(null)
@@ -156,7 +157,11 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const cargar = useCallback(async () => {
     const { data: barData } = await supabase.from('bares').select('nombre, comision_pct, modo_negocio').eq('id', usuario.bar_id).maybeSingle()
     setBar(barData)
-    if (usuario.rol === 'dueno' && barData && !barData.modo_negocio) setMostrarPreguntaModo(true)
+    if (usuario.rol === 'dueno' && barData && !barData.modo_negocio) {
+      necesitaPreguntaModoRef.current = true
+      const onboardingYaVisto = await AsyncStorage.getItem(`ronda_onboarding_${usuario.bar_id}`)
+      if (onboardingYaVisto) setMostrarPreguntaModo(true)
+    }
 
     const { data: mesasData } = await supabase.from('mesas').select('id, numero, sesion_actual, mesero_asignado_id, qr_code, cuenta_abierta').eq('bar_id', usuario.bar_id).eq('activa', true).order('numero')
     const { data: pedidosData } = await supabase
@@ -253,6 +258,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     cargar()
     AsyncStorage.getItem(`ronda_onboarding_${usuario.bar_id}`).then((visto) => {
       if (!visto) setMostrarOnboarding(true)
+      else if (necesitaPreguntaModoRef.current) setMostrarPreguntaModo(true)
     })
     const canalPedidos = supabase
       .channel(`dueno-pedidos-${usuario.bar_id}`)
@@ -309,6 +315,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     await AsyncStorage.setItem(`ronda_onboarding_${usuario.bar_id}`, '1')
     setMostrarOnboarding(false)
     setPasoOnboarding(0)
+    if (necesitaPreguntaModoRef.current) setMostrarPreguntaModo(true)
   }
 
   async function agregarMesa() {
@@ -412,6 +419,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     await supabase.from('bares').update({ modo_negocio: modo }).eq('id', usuario.bar_id)
     setBar((b) => (b ? { ...b, modo_negocio: modo } : b))
     setMostrarPreguntaModo(false)
+    necesitaPreguntaModoRef.current = false
   }
 
   async function toggleCuentaAbierta(mesa) {
