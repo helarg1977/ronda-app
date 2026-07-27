@@ -138,6 +138,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [mostrarOnboarding, setMostrarOnboarding] = useState(false)
   const [pasoOnboarding, setPasoOnboarding] = useState(0)
   const [mostrarQr, setMostrarQr] = useState(false)
+  const [mostrarPreguntaModo, setMostrarPreguntaModo] = useState(false)
   const [altoFlotante, setAltoFlotante] = useState(80)
   const [mostrarMas, setMostrarMas] = useState(false)
   const refTarjetaQr = useRef(null)
@@ -153,8 +154,9 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [seleccionados, setSeleccionados] = useState([])
 
   const cargar = useCallback(async () => {
-    const { data: barData } = await supabase.from('bares').select('nombre, comision_pct').eq('id', usuario.bar_id).maybeSingle()
+    const { data: barData } = await supabase.from('bares').select('nombre, comision_pct, modo_negocio').eq('id', usuario.bar_id).maybeSingle()
     setBar(barData)
+    if (usuario.rol === 'dueno' && barData && !barData.modo_negocio) setMostrarPreguntaModo(true)
 
     const { data: mesasData } = await supabase.from('mesas').select('id, numero, sesion_actual, mesero_asignado_id, qr_code, cuenta_abierta').eq('bar_id', usuario.bar_id).eq('activa', true).order('numero')
     const { data: pedidosData } = await supabase
@@ -406,6 +408,12 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     }
   }
 
+  async function elegirModoNegocio(modo) {
+    await supabase.from('bares').update({ modo_negocio: modo }).eq('id', usuario.bar_id)
+    setBar((b) => (b ? { ...b, modo_negocio: modo } : b))
+    setMostrarPreguntaModo(false)
+  }
+
   async function toggleCuentaAbierta(mesa) {
     await supabase.from('mesas').update({ cuenta_abierta: !mesa.cuenta_abierta }).eq('id', mesa.id)
     setDetalle((d) => (d ? { ...d, mesa: { ...d.mesa, cuenta_abierta: !mesa.cuenta_abierta } } : d))
@@ -530,7 +538,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
         </View>
         <Text style={styles.ayudaChica}>Mantén presionada una mesa libre para quitarla del mapa</Text>
 
-        {ranking.length > 0 && (
+        {bar?.modo_negocio !== 'solo' && ranking.length > 0 && (
           <>
             <TouchableOpacity onPress={() => setMostrarRanking(!mostrarRanking)}>
               <Text style={styles.seccionTitulo}>{mostrarRanking ? '▾' : '▸'} 🏆 Ranking de meseros</Text>
@@ -660,6 +668,8 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
               <>
                 <Text style={styles.modalTitulo}>Mesa {detalle.mesa.numero}</Text>
 
+                {bar?.modo_negocio !== 'solo' && (
+                <>
                 <Text style={styles.subtitulo}>Mesero asignado</Text>
                 <View style={styles.filaMeseroChips}>
                   <TouchableOpacity
@@ -678,6 +688,8 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                     </TouchableOpacity>
                   ))}
                 </View>
+                </>
+                )}
 
                 <TouchableOpacity style={styles.botonVerQr} onPress={() => setMostrarQr(true)}>
                   <Text style={styles.botonChatDetalleTexto}>🔳 Ver código QR de esta mesa</Text>
@@ -965,6 +977,23 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
         </View>
       </Modal>
 
+      <Modal visible={mostrarPreguntaModo} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalDetalle}>
+            <Text style={styles.modalTitulo}>¿Cómo es tu negocio?</Text>
+            <Text style={styles.ayudaModoNegocio}>Esto nos ayuda a mostrarte solo lo que necesitas — lo puedes cambiar después en Configuración.</Text>
+            <TouchableOpacity style={styles.opcionModoNegocio} onPress={() => elegirModoNegocio('solo')}>
+              <Text style={styles.opcionModoNegocioTitulo}>🙋 Atiendo yo solo</Text>
+              <Text style={styles.opcionModoNegocioSub}>Sin meseros — tú recibes y entregas todos los pedidos</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.opcionModoNegocio} onPress={() => elegirModoNegocio('equipo')}>
+              <Text style={styles.opcionModoNegocioTitulo}>👥 Tengo empleados</Text>
+              <Text style={styles.opcionModoNegocioSub}>Meseros, administrador, o ambos</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={mostrarOnboarding} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalDetalle}>
@@ -1099,6 +1128,10 @@ const styles = StyleSheet.create({
   meseroChipTextoActivo: { color: '#14141f', fontWeight: '800' },
   botonVerQr: { backgroundColor: '#26263a', borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 14, borderWidth: 1, borderColor: '#d4a338' },
   filaSwitchCuenta: { flexDirection: 'row', alignItems: 'center', marginTop: 16, backgroundColor: '#26263a', borderRadius: 14, padding: 14 },
+  ayudaModoNegocio: { color: '#a0a0b0', fontSize: 13, marginBottom: 18, lineHeight: 18 },
+  opcionModoNegocio: { backgroundColor: '#26263a', borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#3a3a4a' },
+  opcionModoNegocioTitulo: { color: '#f2f2f2', fontSize: 16, fontWeight: '700' },
+  opcionModoNegocioSub: { color: '#8a8a9a', fontSize: 13, marginTop: 4 },
   ayudaCuentaAbierta: { color: '#8a8a9a', fontSize: 12, marginTop: 4, lineHeight: 16 },
   botonDescargarQr: { backgroundColor: '#3ecf8e', borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 14 },
   ayudaQr: { color: '#a0a0b0', fontSize: 13, textAlign: 'center', marginVertical: 10, paddingHorizontal: 10 },
