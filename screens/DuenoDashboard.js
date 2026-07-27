@@ -506,14 +506,18 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
         </TouchableOpacity>
 
         <View style={styles.statsGridSecundario}>
-          <TouchableOpacity style={styles.statCardChico} onPress={() => setDetalleStat('comision')}>
-            <Text style={styles.statValorChico}>{money(ventasHoy * (bar?.comision_pct || 0.03))}</Text>
-            <Text style={styles.statLabelChico}>Comisión Ronda</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.statCardChico} onPress={() => setDetalleStat('propinas')}>
-            <Text style={styles.statValorChico}>{money(propinasHoy)}</Text>
-            <Text style={styles.statLabelChico}>Propinas</Text>
-          </TouchableOpacity>
+          {bar?.modo_negocio !== 'solo' && (
+            <>
+              <TouchableOpacity style={styles.statCardChico} onPress={() => setDetalleStat('comision')}>
+                <Text style={styles.statValorChico}>{money(ventasHoy * (bar?.comision_pct || 0.03))}</Text>
+                <Text style={styles.statLabelChico}>Comisión Ronda</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.statCardChico} onPress={() => setDetalleStat('propinas')}>
+                <Text style={styles.statValorChico}>{money(propinasHoy)}</Text>
+                <Text style={styles.statLabelChico}>Propinas</Text>
+              </TouchableOpacity>
+            </>
+          )}
           <TouchableOpacity style={styles.statCardChico} onPress={() => setDetalleStat('pagos')}>
             <Text style={styles.statValorChico}>{pagosPendientes.length}</Text>
             <Text style={styles.statLabelChico}>Pagos x confirmar</Text>
