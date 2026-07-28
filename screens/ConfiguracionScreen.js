@@ -59,6 +59,16 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
 
   useEffect(() => { cargar() }, [cargar])
 
+  async function quitarImagen(destino) {
+    if (destino === 'logo') {
+      setLogoUrl('')
+      await supabase.from('bares').update({ logo_url: null }).eq('id', usuario.bar_id)
+    } else {
+      setFotoPortada('')
+      await supabase.from('bares').update({ foto_portada: null }).eq('id', usuario.bar_id)
+    }
+  }
+
   async function elegirImagen(destino, desdeCamara) {
     const permiso = desdeCamara
       ? await ImagePicker.requestCameraPermissionsAsync()
@@ -79,8 +89,15 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
       const { error } = await supabase.storage.from('negocios').upload(nombreArchivo, decode(foto.base64), { contentType: 'image/jpeg' })
       if (error) throw error
       const { data } = supabase.storage.from('negocios').getPublicUrl(nombreArchivo)
-      if (destino === 'logo') setLogoUrl(data.publicUrl)
-      else setFotoPortada(data.publicUrl)
+      const urlPublica = data.publicUrl
+      if (destino === 'logo') {
+        setLogoUrl(urlPublica)
+        await supabase.from('bares').update({ logo_url: urlPublica }).eq('id', usuario.bar_id)
+      } else {
+        setFotoPortada(urlPublica)
+        await supabase.from('bares').update({ foto_portada: urlPublica }).eq('id', usuario.bar_id)
+      }
+      Alert.alert('Listo', 'La foto ya quedó guardada.')
     } catch (e) {
       Alert.alert('Error', 'No se pudo subir la foto. Intenta de nuevo.')
     } finally {
@@ -219,7 +236,7 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
               {logoUrl ? (
                 <View style={styles.previewImagenBox}>
                   <Image source={{ uri: logoUrl }} style={styles.previewLogo} />
-                  <TouchableOpacity onPress={() => setLogoUrl('')}><Text style={styles.quitarFotoTexto}>Quitar</Text></TouchableOpacity>
+                  <TouchableOpacity onPress={() => quitarImagen('logo')}><Text style={styles.quitarFotoTexto}>Quitar</Text></TouchableOpacity>
                 </View>
               ) : (
                 <View style={styles.filaFotoBotones}>
@@ -236,7 +253,7 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
               {fotoPortada ? (
                 <View style={styles.previewImagenBox}>
                   <Image source={{ uri: fotoPortada }} style={styles.previewPortada} />
-                  <TouchableOpacity onPress={() => setFotoPortada('')}><Text style={styles.quitarFotoTexto}>Quitar</Text></TouchableOpacity>
+                  <TouchableOpacity onPress={() => quitarImagen('portada')}><Text style={styles.quitarFotoTexto}>Quitar</Text></TouchableOpacity>
                 </View>
               ) : (
                 <View style={styles.filaFotoBotones}>
