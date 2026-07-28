@@ -529,6 +529,22 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           </TouchableOpacity>
         </View>
 
+        <Text style={styles.seccionTitulo}>💳 Pagos por confirmar</Text>
+        <View style={styles.card}>
+          {pagosPendientes.length === 0 && <Text style={styles.vacioTexto}>Todos los pagos están confirmados ✅</Text>}
+          {pagosPendientes.map((p) => (
+            <View key={p.id} style={styles.pagoPendienteFila}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rankingNombre}>Mesa {p.pedidos?.mesas?.numero} · {p.metodo}</Text>
+                <Text style={styles.rankingValor}>{money(p.monto)}</Text>
+              </View>
+              <TouchableOpacity style={styles.botonConfirmarChico} onPress={() => confirmarPago(p.id)}>
+                <Text style={styles.botonConfirmarChicoTexto}>Confirmar</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+
         <View style={styles.seccionHeaderFila}>
           <Text style={[styles.seccionTitulo, { marginTop: 0, marginBottom: 0, paddingHorizontal: 0 }]}>Mapa del bar</Text>
           <TouchableOpacity style={styles.botonAgregarMesa} onPress={agregarMesa}>
@@ -602,22 +618,6 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
             )}
           </>
         )}
-
-        <Text style={styles.seccionTitulo}>💳 Pagos por confirmar</Text>
-        <View style={styles.card}>
-          {pagosPendientes.length === 0 && <Text style={styles.vacioTexto}>Todos los pagos están confirmados ✅</Text>}
-          {pagosPendientes.map((p) => (
-            <View key={p.id} style={styles.pagoPendienteFila}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rankingNombre}>Mesa {p.pedidos?.mesas?.numero} · {p.metodo}</Text>
-                <Text style={styles.rankingValor}>{money(p.monto)}</Text>
-              </View>
-              <TouchableOpacity style={styles.botonConfirmarChico} onPress={() => confirmarPago(p.id)}>
-                <Text style={styles.botonConfirmarChicoTexto}>Confirmar</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
 
         <View style={styles.seccionHeaderFila}>
           <TouchableOpacity onPress={() => setPedidosVisible(!pedidosVisible)} style={{ flex: 1 }}>
