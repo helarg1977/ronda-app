@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, ScrollView, M
 import { Audio } from 'expo-av'
 import { supabase, cerrarSesion } from '../lib/supabase'
 import CapaFlotante from '../components/CapaFlotante'
+import TarjetaParpadeante from '../components/TarjetaParpadeante'
 
 const SONIDO_NOTIFICACION = 'https://raw.githubusercontent.com/helarg1977/ronda-app/main/assets/ronda-chime.wav'
 
@@ -193,7 +194,12 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
           const paso = SIGUIENTE_ESTADO[item.estado]
           const canalMesa = `mesa-${item.mesa_id}`
           return (
-            <TouchableOpacity key={item.id} style={styles.pedidoCard} onPress={() => abrirDetallePedido(item)} activeOpacity={0.8}>
+            <TarjetaParpadeante
+              key={item.id}
+              activo={item.estado === 'pendiente'}
+              style={styles.pedidoCard}
+              onPress={() => abrirDetallePedido(item)}
+            >
               <Text style={styles.pedidoMesa}>Mesa {mesas[item.mesa_id] || '?'}</Text>
               <Text style={styles.pedidoEstado}>{item.estado} · toca para ver detalle</Text>
               {paso && (
@@ -206,7 +212,7 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
                   💬 Preguntarle algo a la mesa{canalesConNuevos[canalMesa] ? ' 🔴' : ''}
                 </Text>
               </TouchableOpacity>
-            </TouchableOpacity>
+            </TarjetaParpadeante>
           )
         })}
 
