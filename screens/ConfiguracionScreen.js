@@ -91,15 +91,17 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
       const { data } = supabase.storage.from('negocios').getPublicUrl(nombreArchivo)
       const urlPublica = data.publicUrl
       if (destino === 'logo') {
+        const { error: errorGuardar } = await supabase.from('bares').update({ logo_url: urlPublica }).eq('id', usuario.bar_id)
+        if (errorGuardar) throw errorGuardar
         setLogoUrl(urlPublica)
-        await supabase.from('bares').update({ logo_url: urlPublica }).eq('id', usuario.bar_id)
       } else {
+        const { error: errorGuardar } = await supabase.from('bares').update({ foto_portada: urlPublica }).eq('id', usuario.bar_id)
+        if (errorGuardar) throw errorGuardar
         setFotoPortada(urlPublica)
-        await supabase.from('bares').update({ foto_portada: urlPublica }).eq('id', usuario.bar_id)
       }
       Alert.alert('Listo', 'La foto ya quedó guardada.')
     } catch (e) {
-      Alert.alert('Error', 'No se pudo subir la foto. Intenta de nuevo.')
+      Alert.alert('No se pudo guardar', e.message || 'Intenta de nuevo.')
     } finally {
       setSubiendoImagen(false)
     }
