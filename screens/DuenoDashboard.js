@@ -6,6 +6,7 @@ import * as Sharing from 'expo-sharing'
 import { captureRef } from 'react-native-view-shot'
 import { supabase, cerrarSesion } from '../lib/supabase'
 import CapaFlotante from '../components/CapaFlotante'
+import TarjetaParpadeante from '../components/TarjetaParpadeante'
 
 const SONIDO_NOTIFICACION = 'https://raw.githubusercontent.com/helarg1977/ronda-app/main/assets/ronda-chime.wav'
 
@@ -533,18 +534,19 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
         <View style={styles.mesasGrid}>
           {mesasConEstado.map((item) => {
             const estado = estadoMesa(item)
+            const necesitaAtencion = item.pedido?.estado === 'pendiente' || mesasConCuentaSolicitada.has(item.id)
             return (
-              <TouchableOpacity
+              <TarjetaParpadeante
                 key={item.id}
+                activo={necesitaAtencion}
                 style={[styles.mesaCard, { borderColor: estado.color }]}
                 onPress={() => abrirDetalle(item)}
                 onLongPress={() => quitarMesa(item)}
-                activeOpacity={0.6}
               >
                 <Text style={styles.mesaNumero}>Mesa {item.numero}</Text>
                 <Text style={styles.mesaEstado}>{estado.texto}</Text>
                 {item.pedido && <Text style={styles.mesaMonto}>{money(item.pedido.total)}</Text>}
-              </TouchableOpacity>
+              </TarjetaParpadeante>
             )
           })}
         </View>
