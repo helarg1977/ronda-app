@@ -417,7 +417,11 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   }
 
   async function elegirModoNegocio(modo) {
-    await supabase.from('bares').update({ modo_negocio: modo }).eq('id', usuario.bar_id)
+    const { error } = await supabase.from('bares').update({ modo_negocio: modo }).eq('id', usuario.bar_id)
+    if (error) {
+      Alert.alert('No se pudo guardar', error.message)
+      return
+    }
     setBar((b) => (b ? { ...b, modo_negocio: modo } : b))
     setMostrarPreguntaModo(false)
     necesitaPreguntaModoRef.current = false
