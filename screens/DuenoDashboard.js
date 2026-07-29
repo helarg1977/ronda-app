@@ -141,6 +141,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [mostrarOnboarding, setMostrarOnboarding] = useState(false)
   const [pasoOnboarding, setPasoOnboarding] = useState(0)
   const [mostrarQr, setMostrarQr] = useState(false)
+  const [mostrarLineaTiempo, setMostrarLineaTiempo] = useState(false)
   const [mostrarPreguntaModo, setMostrarPreguntaModo] = useState(false)
   const necesitaPreguntaModoRef = useRef(false)
   const [altoFlotante, setAltoFlotante] = useState(80)
@@ -398,13 +399,16 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
 
     let items = []
     let pago = null
+    let eventos = []
     if (mesa.pedido) {
       const { data: itemsData } = await supabase.from('pedido_items').select('id, cantidad, precio_unitario, productos(nombre)').eq('pedido_id', mesa.pedido.id)
       items = itemsData || []
       const { data: pagoData } = await supabase.from('pagos').select('id, metodo, monto, comprobante_url, confirmado').eq('pedido_id', mesa.pedido.id).maybeSingle()
       pago = pagoData || null
+      const { data: eventosData } = await supabase.from('pedido_eventos').select('estado, created_at').eq('pedido_id', mesa.pedido.id).order('created_at', { ascending: true })
+      eventos = eventosData || []
     }
-    setDetalle({ mesa, pedido: mesa.pedido || null, items, historial: historialConItems, pago })
+    setDetalle({ mesa, pedido: mesa.pedido || null, items, historial: historialConItems, pago, eventos })
     setCargandoDetalle(false)
   }
 
@@ -780,6 +784,24 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                           </TouchableOpacity>
                         )}
                       </View>
+                    )}
+
+                    {detalle.eventos?.length > 0 && (
+                      <>
+                        <TouchableOpacity onPress={() => setMostrarLineaTiempo(!mostrarLineaTiempo)}>
+                          <Text style={styles.subtitulo}>{mostrarLineaTiempo ? '▾' : '▸'} 📋 Línea de tiempo de este pedido</Text>
+                        </TouchableOpacity>
+                        {mostrarLineaTiempo && (
+                          <View style={styles.lineaTiempoBox}>
+                            {detalle.eventos.map((ev, i) => (
+                              <View key={i} style={styles.lineaTiempoFila}>
+                                <Text style={styles.lineaTiempoHora}>{new Date(ev.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</Text>
+                                <Text style={styles.lineaTiempoEstado}>{ESTADO_LABEL[ev.estado] || ev.estado}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                      </>
                     )}
                   </>
                 )}
@@ -1221,6 +1243,10 @@ const styles = StyleSheet.create({
   chatEnviarBoton: { backgroundColor: '#d4a338', borderRadius: 12, paddingHorizontal: 18, justifyContent: 'center' },
   botonTexto: { color: '#14141f', fontSize: 16, fontWeight: '700' },
   pagoBox: { backgroundColor: '#26263a', borderRadius: 14, padding: 14, marginTop: 14 },
+  lineaTiempoBox: { backgroundColor: '#26263a', borderRadius: 12, padding: 12, marginTop: 6 },
+  lineaTiempoFila: { flexDirection: 'row', gap: 10, paddingVertical: 4 },
+  lineaTiempoHora: { color: '#6a6a80', fontSize: 12, fontWeight: '700', width: 70 },
+  lineaTiempoEstado: { color: '#f2f2f2', fontSize: 13 },
   comprobanteImg: { width: '100%', height: 180, borderRadius: 10, marginBottom: 10, backgroundColor: '#14141f' },
   pagoConfirmado: { color: '#3ecf8e', fontSize: 14, fontWeight: '700', textAlign: 'center' },
   botonConfirmarPago: { backgroundColor: '#d4a338', borderRadius: 12, padding: 14, alignItems: 'center' },
