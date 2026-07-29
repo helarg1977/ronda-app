@@ -291,10 +291,10 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
               <Text style={styles.ayuda}>Estos son TUS números — el cliente transfiere directo a ti. Ronda nunca recibe ni administra ese dinero.</Text>
 
               <Text style={styles.label}>Nequi</Text>
-              <TextInput style={styles.input} value={llaveNequi} onChangeText={setLlaveNequi} placeholder="Número de celular" keyboardType="phone-pad" placeholderTextColor="#6a6a80" />
+              <TextInput style={styles.input} value={llaveNequi} onChangeText={(v) => setLlaveNequi(v.replace(/\D/g, '').slice(0, 10))} placeholder="Número de celular" keyboardType="phone-pad" maxLength={10} placeholderTextColor="#6a6a80" />
 
               <Text style={styles.label}>Daviplata</Text>
-              <TextInput style={styles.input} value={llaveDaviplata} onChangeText={setLlaveDaviplata} placeholder="Número de celular" keyboardType="phone-pad" placeholderTextColor="#6a6a80" />
+              <TextInput style={styles.input} value={llaveDaviplata} onChangeText={(v) => setLlaveDaviplata(v.replace(/\D/g, '').slice(0, 10))} placeholder="Número de celular" keyboardType="phone-pad" maxLength={10} placeholderTextColor="#6a6a80" />
 
               <Text style={styles.label}>Bre-B</Text>
               <TextInput style={styles.input} value={llaveBreB} onChangeText={setLlaveBreB} placeholder="Tu llave Bre-B" placeholderTextColor="#6a6a80" />
@@ -361,7 +361,7 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
               <Text style={styles.label}>Nombre</Text>
               <TextInput style={styles.input} value={nombreEmpleado} onChangeText={setNombreEmpleado} placeholder="Ej: Camilo" placeholderTextColor="#6a6a80" />
               <Text style={styles.label}>Celular</Text>
-              <TextInput style={styles.input} value={telefonoEmpleado} onChangeText={setTelefonoEmpleado} placeholder="3001234567" keyboardType="phone-pad" placeholderTextColor="#6a6a80" />
+              <TextInput style={styles.input} value={telefonoEmpleado} onChangeText={(v) => setTelefonoEmpleado(v.replace(/\D/g, '').slice(0, 10))} placeholder="3001234567" keyboardType="phone-pad" maxLength={10} placeholderTextColor="#6a6a80" />
 
               <Text style={styles.label}>PIN de acceso</Text>
               <View style={styles.filaPin}>
