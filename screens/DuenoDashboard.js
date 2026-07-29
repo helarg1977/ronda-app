@@ -680,6 +680,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
       <Modal visible={!!detalle} transparent animationType="slide" onRequestClose={() => setDetalle(null)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalDetalle}>
+            <ScrollView showsVerticalScrollIndicator={true}>
             {detalle && (
               <>
               {!mostrarQr ? (
@@ -823,10 +824,14 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                 <TouchableOpacity style={styles.cerrarModal} onPress={() => setMostrarQr(false)}>
                   <Text style={styles.cerrarModalTexto}>← Volver al detalle de la mesa</Text>
                 </TouchableOpacity>
+                <TouchableOpacity style={styles.cerrarModal} onPress={() => { setMostrarQr(false); setDetalle(null) }}>
+                  <Text style={styles.cerrarModalTexto}>Cerrar ventana</Text>
+                </TouchableOpacity>
               </>
               )}
               </>
             )}
+            </ScrollView>
           </View>
         </View>
       </Modal>
