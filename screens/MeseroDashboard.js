@@ -25,6 +25,13 @@ const AYUDA_MESERO = [
   { titulo: '💰 ¿Cómo veo mis propinas?', texto: 'Arriba en las tarjetas ves el total de propinas del día. Se registran solas cuando el cliente deja propina después de que entregas su pedido.' },
 ]
 
+const ESTADO_LABEL_MESERO = {
+  pendiente: 'nuevo pedido',
+  confirmado: 'preparar pedido',
+  preparando: 'llevar a la mesa',
+  en_camino: 'confirmar entrega',
+}
+
 const SIGUIENTE_ESTADO = {
   pendiente: { siguiente: 'confirmado', boton: '✅ Aceptar pedido' },
   confirmado: { siguiente: 'preparando', boton: '🍸 Marcar preparando' },
@@ -68,6 +75,7 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
   const mesasPermitidasRef = useRef(new Set())
   const [detallePedido, setDetallePedido] = useState(null)
   const [misMesas, setMisMesas] = useState([])
+  const [mostrarMotivoApoyo, setMostrarMotivoApoyo] = useState(false)
 
   const cargar = useCallback(async () => {
     const { data: mesasData } = await supabase.from('mesas').select('id, numero, mesero_asignado_id').eq('bar_id', usuario.bar_id)
@@ -146,11 +154,12 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
     setDetallePedido({ ...pedido, items: items || [], cliente_nombre: pedidoCompleto?.cliente_nombre, pago: pago || null })
   }
 
-  async function pedirAyudaUrgente() {
+  async function pedirAyudaUrgente(motivo) {
     await supabase.from('mensajes_chat').insert({
       bar_id: usuario.bar_id, canal: `dueno-${usuario.id}`, de: 'mesero', nombre: usuario.nombre,
-      texto: '🚨 Necesito apoyo — el bar está muy movido ahora mismo',
+      texto: `🚨 Necesito apoyo: ${motivo}`,
     })
+    setMostrarMotivoApoyo(false)
     Alert.alert('Enviado', 'Ya le avisamos al dueño que necesitas apoyo.')
   }
 
@@ -181,6 +190,12 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
 
   const mesasAtendidasHoy = new Set(historialHoy.map((p) => p.mesa_id)).size
 
+  const todasLasTareas = [
+    ...pedidos.map((p) => ({ tipo: 'pedido', mesa_id: p.mesa_id, created_at: p.created_at, item: p })),
+    ...solicitudes.map((s) => ({ tipo: 'solicitud', mesa_id: s.mesa_id, created_at: s.created_at, item: s })),
+  ].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+  const prioridadActual = todasLasTareas[0]
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -198,10 +213,8 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
         </View>
 
         {(() => {
-          const pendientes = pedidos.filter((p) => p.estado === 'pendiente').map((p) => ({ tipo: 'pedido', mesa_id: p.mesa_id, created_at: p.created_at, item: p }))
-          const solicitudesAbiertas = solicitudes.map((s) => ({ tipo: 'solicitud', mesa_id: s.mesa_id, created_at: s.created_at, item: s }))
-          const todas = [...pendientes, ...solicitudesAbiertas].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-          const prioridad = todas[0]
+          const prioridad = prioridadActual
+          const pasoPrioridad = prioridad?.tipo === 'pedido' ? SIGUIENTE_ESTADO[prioridad.item.estado] : null
           return (
             <View style={styles.prioridadCard}>
               <Text style={styles.prioridadLabel}>🎯 TU PRIORIDAD AHORA</Text>
@@ -210,14 +223,16 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
               ) : prioridad.tipo === 'pedido' ? (
                 <>
                   <View style={styles.prioridadHeaderFila}>
-                    <Text style={styles.prioridadTexto}>Mesa {mesas[prioridad.mesa_id] || '?'} — nuevo pedido</Text>
+                    <Text style={styles.prioridadTexto}>Mesa {mesas[prioridad.mesa_id] || '?'} — {ESTADO_LABEL_MESERO[prioridad.item.estado] || prioridad.item.estado}</Text>
                     <Text style={[styles.prioridadTiempo, { color: tiempoTranscurrido(prioridad.created_at).color }]}>
                       {tiempoTranscurrido(prioridad.created_at).texto}
                     </Text>
                   </View>
-                  <TouchableOpacity style={styles.boton} onPress={() => avanzarEstado(prioridad.item)}>
-                    <Text style={styles.botonTexto}>✅ Aceptar pedido</Text>
-                  </TouchableOpacity>
+                  {pasoPrioridad && (
+                    <TouchableOpacity style={styles.boton} onPress={() => avanzarEstado(prioridad.item)}>
+                      <Text style={styles.botonTexto}>{pasoPrioridad.boton}</Text>
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity style={styles.botonSecundarioChico} onPress={() => abrirDetallePedido(prioridad.item)}>
                     <Text style={styles.botonSecundarioChicoTexto}>Ver detalle</Text>
                   </TouchableOpacity>
@@ -251,7 +266,7 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
 
         <Text style={styles.seccionTitulo}>Pedidos activos</Text>
         {pedidos.length === 0 && <Text style={styles.vacio}>Sin pedidos pendientes por ahora 🍹</Text>}
-        {pedidos.filter((item) => item.estado !== 'pendiente' || pedidos.filter((p) => p.estado === 'pendiente').sort((a, b) => new Date(a.created_at) - new Date(b.created_at))[0]?.id !== item.id).map((item) => {
+        {pedidos.filter((item) => !(prioridadActual?.tipo === 'pedido' && prioridadActual.item.id === item.id)).map((item) => {
           const paso = SIGUIENTE_ESTADO[item.estado]
           const canalMesa = `mesa-${item.mesa_id}`
           const tiempo = tiempoTranscurrido(item.created_at)
@@ -281,6 +296,15 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
           )
         })}
 
+        {(historialHoy.length + pedidos.length) > 0 && (
+          <View style={styles.progresoNocheBox}>
+            <Text style={styles.progresoNocheTexto}>Hoy llevas {historialHoy.length} entregado{historialHoy.length !== 1 ? 's' : ''} · {pedidos.length} pendiente{pedidos.length !== 1 ? 's' : ''}</Text>
+            <View style={styles.progresoNocheBarra}>
+              <View style={[styles.progresoNocheRelleno, { width: `${Math.round((historialHoy.length / (historialHoy.length + pedidos.length)) * 100)}%` }]} />
+            </View>
+          </View>
+        )}
+
         <View style={styles.statsGrid}>
           <TouchableOpacity style={styles.statCard} onPress={() => setMostrarHistorial(true)}>
             <Text style={styles.statValor}>{mesasAtendidasHoy}</Text>
@@ -302,36 +326,61 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
               🗨️ Hablar con el dueño{canalesConNuevos[`dueno-${usuario.id}`] ? ' 🔴' : ''}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.botonAyudaUrgente} onPress={pedirAyudaUrgente}>
+          <TouchableOpacity style={styles.botonAyudaUrgente} onPress={() => setMostrarMotivoApoyo(true)}>
             <Text style={styles.botonAyudaUrgenteTexto}>🚨 Necesito apoyo</Text>
           </TouchableOpacity>
         </View>
 
         <Text style={styles.seccionTitulo}>Mis mesas</Text>
         {misMesas.length === 0 && <Text style={styles.vacio}>No tienes mesas asignadas todavía.</Text>}
-        {misMesas.map((m) => {
-          const pedidoDeEstaMesa = pedidos.find((p) => p.mesa_id === m.id)
-          const solicitudDeEstaMesa = solicitudes.find((s) => s.mesa_id === m.id)
-          let texto = '⚪ Libre'
-          let sub = null
-          if (solicitudDeEstaMesa) {
-            texto = `🔵 Pide: ${solicitudDeEstaMesa.tipo}`
-            sub = tiempoTranscurrido(solicitudDeEstaMesa.created_at)
-          } else if (pedidoDeEstaMesa) {
-            texto = `🟡 ${pedidoDeEstaMesa.estado}`
-            sub = tiempoTranscurrido(pedidoDeEstaMesa.created_at)
+        {(() => {
+          const conAtencion = [], enProceso = [], libres = []
+          misMesas.forEach((m) => {
+            const pedidoDeEstaMesa = pedidos.find((p) => p.mesa_id === m.id)
+            const solicitudDeEstaMesa = solicitudes.find((s) => s.mesa_id === m.id)
+            if (solicitudDeEstaMesa || pedidoDeEstaMesa?.estado === 'pendiente') conAtencion.push({ m, pedidoDeEstaMesa, solicitudDeEstaMesa })
+            else if (pedidoDeEstaMesa) enProceso.push({ m, pedidoDeEstaMesa })
+            else libres.push(m)
+          })
+          const filaDetalle = ({ m, pedidoDeEstaMesa, solicitudDeEstaMesa }) => {
+            let texto = ''
+            let sub = null
+            if (solicitudDeEstaMesa) { texto = `🔵 Pide: ${solicitudDeEstaMesa.tipo}`; sub = tiempoTranscurrido(solicitudDeEstaMesa.created_at) }
+            else if (pedidoDeEstaMesa) { texto = `🟡 ${pedidoDeEstaMesa.estado}`; sub = tiempoTranscurrido(pedidoDeEstaMesa.created_at) }
+            return (
+              <TouchableOpacity key={m.id} style={styles.misMesaFila} onPress={() => pedidoDeEstaMesa && abrirDetallePedido(pedidoDeEstaMesa)}>
+                <Text style={styles.misMesaNumero}>Mesa {m.numero}</Text>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.misMesaEstado}>{texto}</Text>
+                  {pedidoDeEstaMesa && <Text style={styles.misMesaMonto}>{money(pedidoDeEstaMesa.total)}</Text>}
+                  {sub && <Text style={[styles.misMesaTiempo, { color: sub.color }]}>{sub.texto}</Text>}
+                </View>
+              </TouchableOpacity>
+            )
           }
           return (
-            <TouchableOpacity key={m.id} style={styles.misMesaFila} onPress={() => pedidoDeEstaMesa && abrirDetallePedido(pedidoDeEstaMesa)}>
-              <Text style={styles.misMesaNumero}>Mesa {m.numero}</Text>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.misMesaEstado}>{texto}</Text>
-                {pedidoDeEstaMesa && <Text style={styles.misMesaMonto}>{money(pedidoDeEstaMesa.total)}</Text>}
-                {sub && <Text style={[styles.misMesaTiempo, { color: sub.color }]}>{sub.texto}</Text>}
-              </View>
-            </TouchableOpacity>
+            <>
+              {conAtencion.length > 0 && (
+                <>
+                  <Text style={styles.subgrupoTitulo}>🟡 Necesitan atención ({conAtencion.length})</Text>
+                  {conAtencion.map(filaDetalle)}
+                </>
+              )}
+              {enProceso.length > 0 && (
+                <>
+                  <Text style={styles.subgrupoTitulo}>🔵 En proceso ({enProceso.length})</Text>
+                  {enProceso.map(filaDetalle)}
+                </>
+              )}
+              {libres.length > 0 && (
+                <View style={styles.libresBox}>
+                  <Text style={styles.subgrupoTitulo}>⚪ Libres ({libres.length})</Text>
+                  <Text style={styles.libresTexto}>{libres.map((m) => m.numero).join(' · ')}</Text>
+                </View>
+              )}
+            </>
           )
-        })}
+        })()}
 
         <TouchableOpacity onPress={() => setMostrarHistorial(!mostrarHistorial)}>
           <Text style={[styles.seccionTitulo, { marginBottom: mostrarHistorial ? 10 : 20 }]}>
@@ -448,6 +497,22 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
         </KeyboardAvoidingView>
       </Modal>
 
+      <Modal visible={mostrarMotivoApoyo} transparent animationType="slide" onRequestClose={() => setMostrarMotivoApoyo(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalDetalle}>
+            <Text style={styles.modalTitulo}>🚨 Necesito apoyo porque...</Text>
+            {['Hay mucha gente', 'No alcanzo a atender', 'Cliente complicado', 'Falta un producto', 'Necesito al administrador'].map((motivo) => (
+              <TouchableOpacity key={motivo} style={styles.opcionMotivoApoyo} onPress={() => pedirAyudaUrgente(motivo)}>
+                <Text style={styles.opcionMotivoApoyoTexto}>{motivo}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.cerrarModal} onPress={() => setMostrarMotivoApoyo(false)}>
+              <Text style={styles.cerrarModalTexto}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={mostrarAyuda} transparent animationType="slide" onRequestClose={() => setMostrarAyuda(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalDetalle}>
@@ -545,6 +610,15 @@ const styles = StyleSheet.create({
   misMesaEstado: { color: '#a0a0b0', fontSize: 13, fontWeight: '600' },
   misMesaMonto: { color: '#d4a338', fontSize: 12, fontWeight: '700', marginTop: 2 },
   misMesaTiempo: { fontSize: 11, fontWeight: '700', marginTop: 2 },
+  subgrupoTitulo: { color: '#8a8a9a', fontSize: 12, fontWeight: '800', textTransform: 'uppercase', marginHorizontal: 14, marginTop: 10, marginBottom: 6 },
+  libresBox: { marginHorizontal: 14, marginBottom: 8 },
+  libresTexto: { color: '#6a6a80', fontSize: 13, lineHeight: 20 },
+  opcionMotivoApoyo: { backgroundColor: '#26263a', borderRadius: 12, padding: 16, marginBottom: 10 },
+  opcionMotivoApoyoTexto: { color: '#f2f2f2', fontSize: 15, fontWeight: '600' },
+  progresoNocheBox: { marginHorizontal: 14, marginBottom: 14 },
+  progresoNocheTexto: { color: '#a0a0b0', fontSize: 12, fontWeight: '600', marginBottom: 6 },
+  progresoNocheBarra: { height: 8, backgroundColor: '#26263a', borderRadius: 999, overflow: 'hidden' },
+  progresoNocheRelleno: { height: '100%', backgroundColor: '#d4a338', borderRadius: 999 },
   botonChatMesa: { marginTop: 10, backgroundColor: '#26263a', borderRadius: 10, padding: 10, alignItems: 'center' },
   botonChatMesaTexto: { color: '#f2f2f2', fontSize: 13, fontWeight: '600' },
 
