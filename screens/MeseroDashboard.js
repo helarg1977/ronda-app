@@ -340,7 +340,7 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
         <View style={styles.statsGrid}>
           <TouchableOpacity style={styles.statCard} onPress={() => setMostrarHistorial(true)}>
             <Text style={styles.statValor}>🍺 {mesasAtendidasHoy}</Text>
-            <Text style={styles.statLabel}>Mesas felices hoy</Text>
+            <Text style={styles.statLabel}>Rondas servidas</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.statCard} onPress={() => setMostrarHistorial(true)}>
             <Text style={styles.statValor}>💰 {money(propinasHoy)}</Text>
@@ -416,7 +416,7 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
 
         <TouchableOpacity onPress={() => setMostrarHistorial(!mostrarHistorial)}>
           <Text style={[styles.seccionTitulo, { marginBottom: mostrarHistorial ? 10 : 20 }]}>
-            {mostrarHistorial ? '▾' : '▸'} Historial por mesa ({historialHoy.length})
+            {mostrarHistorial ? '▾' : '▸'} Actividad del turno ({historialHoy.length})
           </Text>
         </TouchableOpacity>
         {mostrarHistorial && (() => {
