@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native'
 import { Audio } from 'expo-av'
 import { supabase, cerrarSesion } from '../lib/supabase'
 import CapaFlotante from '../components/CapaFlotante'
@@ -59,6 +59,7 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
   const [altoFlotante, setAltoFlotante] = useState(80)
   const mesasPermitidasRef = useRef(new Set())
   const [detallePedido, setDetallePedido] = useState(null)
+  const [misMesas, setMisMesas] = useState([])
 
   const cargar = useCallback(async () => {
     const { data: mesasData } = await supabase.from('mesas').select('id, numero, mesero_asignado_id').eq('bar_id', usuario.bar_id)
@@ -82,6 +83,7 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
     setPedidos((pedidosData || []).filter((p) => mesasPermitidas.has(p.mesa_id)))
     setMesas(mesasMap)
     setSolicitudes((solicitudesData || []).filter((s) => mesasPermitidas.has(s.mesa_id)))
+    setMisMesas((mesasData || []).filter((m) => mesasPermitidas.has(m.id)).sort((a, b) => Number(a.numero) - Number(b.numero)))
 
     const { data: entregadosHoy } = await supabase
       .from('pedidos').select('id, mesa_id, total, created_at, pedido_items(cantidad, productos(nombre))')
@@ -136,6 +138,14 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
     setDetallePedido({ ...pedido, items: items || [], cliente_nombre: pedidoCompleto?.cliente_nombre, pago: pago || null })
   }
 
+  async function pedirAyudaUrgente() {
+    await supabase.from('mensajes_chat').insert({
+      bar_id: usuario.bar_id, canal: `dueno-${usuario.id}`, de: 'mesero', nombre: usuario.nombre,
+      texto: '🚨 Necesito apoyo — el bar está muy movido ahora mismo',
+    })
+    Alert.alert('Enviado', 'Ya le avisamos al dueño que necesitas apoyo.')
+  }
+
   async function abrirChat(canal, titulo) {
     setChatCanal({ canal, titulo })
     setCanalesConNuevos((c) => ({ ...c, [canal]: false }))
@@ -178,6 +188,35 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
             <Text style={styles.salir}>Salir</Text>
           </TouchableOpacity>
         </View>
+
+        {(() => {
+          const pendientes = pedidos.filter((p) => p.estado === 'pendiente').map((p) => ({ tipo: 'pedido', mesa_id: p.mesa_id, created_at: p.created_at, item: p }))
+          const solicitudesAbiertas = solicitudes.map((s) => ({ tipo: 'solicitud', mesa_id: s.mesa_id, created_at: s.created_at, item: s }))
+          const todas = [...pendientes, ...solicitudesAbiertas].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+          const prioridad = todas[0]
+          return (
+            <View style={styles.prioridadCard}>
+              <Text style={styles.prioridadLabel}>🎯 TU PRIORIDAD AHORA</Text>
+              {!prioridad ? (
+                <Text style={styles.prioridadTextoOk}>🟢 Todo bajo control — sin pendientes</Text>
+              ) : prioridad.tipo === 'pedido' ? (
+                <>
+                  <Text style={styles.prioridadTexto}>Mesa {mesas[prioridad.mesa_id] || '?'} — nuevo pedido sin aceptar</Text>
+                  <TouchableOpacity style={styles.boton} onPress={() => abrirDetallePedido(prioridad.item)}>
+                    <Text style={styles.botonTexto}>Ver y aceptar</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.prioridadTexto}>Mesa {mesas[prioridad.mesa_id] || '?'} pide: {prioridad.item.tipo}</Text>
+                  <TouchableOpacity style={styles.boton} onPress={() => atenderSolicitud(prioridad.item.id)}>
+                    <Text style={styles.botonTexto}>Marcar atendido</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          )
+        })()}
 
         {solicitudes.length > 0 && (
           <View style={styles.avisos}>
@@ -232,11 +271,32 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.botonHablarDueno} onPress={() => abrirChat(`dueno-${usuario.id}`, '🗨️ Chat con el dueño')}>
-          <Text style={styles.botonHablarDuenoTexto}>
-            🗨️ Hablar con el dueño{canalesConNuevos[`dueno-${usuario.id}`] ? ' 🔴' : ''}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.filaDueno}>
+          <TouchableOpacity style={[styles.botonHablarDueno, { flex: 1 }]} onPress={() => abrirChat(`dueno-${usuario.id}`, '🗨️ Chat con el dueño')}>
+            <Text style={styles.botonHablarDuenoTexto}>
+              🗨️ Hablar con el dueño{canalesConNuevos[`dueno-${usuario.id}`] ? ' 🔴' : ''}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.botonAyudaUrgente} onPress={pedirAyudaUrgente}>
+            <Text style={styles.botonAyudaUrgenteTexto}>🚨 Necesito apoyo</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.seccionTitulo}>Mis mesas</Text>
+        {misMesas.length === 0 && <Text style={styles.vacio}>No tienes mesas asignadas todavía.</Text>}
+        {misMesas.map((m) => {
+          const pedidoDeEstaMesa = pedidos.find((p) => p.mesa_id === m.id)
+          const solicitudDeEstaMesa = solicitudes.find((s) => s.mesa_id === m.id)
+          let texto = '⚪ Libre'
+          if (solicitudDeEstaMesa) texto = `🔵 Pide: ${solicitudDeEstaMesa.tipo}`
+          else if (pedidoDeEstaMesa) texto = `🟡 ${pedidoDeEstaMesa.estado}`
+          return (
+            <TouchableOpacity key={m.id} style={styles.misMesaFila} onPress={() => pedidoDeEstaMesa && abrirDetallePedido(pedidoDeEstaMesa)}>
+              <Text style={styles.misMesaNumero}>Mesa {m.numero}</Text>
+              <Text style={styles.misMesaEstado}>{texto}</Text>
+            </TouchableOpacity>
+          )
+        })}
 
         <TouchableOpacity onPress={() => setMostrarHistorial(!mostrarHistorial)}>
           <Text style={[styles.seccionTitulo, { marginBottom: mostrarHistorial ? 10 : 20 }]}>
@@ -428,10 +488,20 @@ const styles = StyleSheet.create({
   cerrarModalTexto: { color: '#a0a0b0', fontSize: 15 },
 
   botonHablarDueno: {
-    marginHorizontal: 14, marginBottom: 16, backgroundColor: '#26263a', borderRadius: 12,
+    backgroundColor: '#26263a', borderRadius: 12,
     padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#d4a338',
   },
   botonHablarDuenoTexto: { color: '#d4a338', fontSize: 14, fontWeight: '700' },
+  filaDueno: { flexDirection: 'row', gap: 8, marginHorizontal: 14, marginBottom: 16 },
+  botonAyudaUrgente: { backgroundColor: '#3a1a1a', borderRadius: 12, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#e05c5c', paddingHorizontal: 16 },
+  botonAyudaUrgenteTexto: { color: '#e05c5c', fontSize: 13, fontWeight: '800' },
+  prioridadCard: { marginHorizontal: 14, marginBottom: 16, backgroundColor: '#1e1e2e', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#3a3020' },
+  prioridadLabel: { color: '#d4a338', fontSize: 12, fontWeight: '800', letterSpacing: 0.5, marginBottom: 8 },
+  prioridadTexto: { color: '#f2f2f2', fontSize: 16, fontWeight: '700', marginBottom: 10 },
+  prioridadTextoOk: { color: '#3ecf8e', fontSize: 16, fontWeight: '700' },
+  misMesaFila: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#1e1e2e', borderRadius: 12, padding: 14, marginHorizontal: 14, marginBottom: 8 },
+  misMesaNumero: { color: '#f2f2f2', fontSize: 14, fontWeight: '700' },
+  misMesaEstado: { color: '#a0a0b0', fontSize: 13, fontWeight: '600' },
   botonChatMesa: { marginTop: 10, backgroundColor: '#26263a', borderRadius: 10, padding: 10, alignItems: 'center' },
   botonChatMesaTexto: { color: '#f2f2f2', fontSize: 13, fontWeight: '600' },
 
