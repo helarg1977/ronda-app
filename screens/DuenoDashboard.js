@@ -841,6 +841,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                   <Text style={styles.tarjetaQrPaso}>2. Elige lo que quieras del menú</Text>
                   <Text style={styles.tarjetaQrPaso}>3. Toca "Enviar pedido"</Text>
                   <Text style={styles.tarjetaQrPaso}>4. Espera a que te lo traigamos a la mesa 🍻</Text>
+                  <Text style={styles.tarjetaQrPaso}>5. ¿Van varios? Toca ➗ para dividir la cuenta entre todos</Text>
                 </View>
 
                 <TouchableOpacity style={styles.botonDescargarQr} onPress={() => descargarQr(detalle.mesa)}>
