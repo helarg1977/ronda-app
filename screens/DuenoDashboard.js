@@ -545,6 +545,9 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
             <Text style={styles.heroEstadoTexto}>·</Text>
             <Text style={styles.heroEstadoTexto}>🧾 {pedidos.length} pedido{pedidos.length !== 1 ? 's' : ''} en curso</Text>
           </View>
+          {pedidos.length > 0 && (
+            <Text style={styles.heroDineroMesas}>💰 {money(pedidos.reduce((s, p) => s + Number(p.total), 0))} pendiente de servir</Text>
+          )}
         </TouchableOpacity>
 
         <View style={styles.statsGridSecundario}>
@@ -1129,6 +1132,7 @@ const styles = StyleSheet.create({
   heroValor: { color: '#d4a338', fontSize: 44, fontWeight: '800', marginTop: 4 },
   heroEstadoFila: { flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap', justifyContent: 'center' },
   heroEstadoTexto: { color: '#c9c9d4', fontSize: 13, fontWeight: '600' },
+  heroDineroMesas: { color: '#e0b94c', fontSize: 13, fontWeight: '700', marginTop: 8 },
 
   statsGridSecundario: { flexDirection: 'row', paddingHorizontal: 10, gap: 8, marginBottom: 4 },
   statCardChico: { flex: 1, backgroundColor: '#1e1e2e', borderRadius: 12, padding: 10, alignItems: 'center' },
