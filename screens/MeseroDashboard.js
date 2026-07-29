@@ -26,10 +26,18 @@ const AYUDA_MESERO = [
 ]
 
 const SIGUIENTE_ESTADO = {
-  pendiente: { siguiente: 'confirmado', boton: '✅ Confirmar pedido' },
+  pendiente: { siguiente: 'confirmado', boton: '✅ Aceptar pedido' },
   confirmado: { siguiente: 'preparando', boton: '🍸 Marcar preparando' },
   preparando: { siguiente: 'en_camino', boton: '🚶 Llevar a la mesa' },
   en_camino: { siguiente: 'entregado', boton: '📬 Marcar entregado' },
+}
+
+function tiempoTranscurrido(fecha) {
+  const min = Math.floor((Date.now() - new Date(fecha).getTime()) / 60000)
+  if (min < 1) return { texto: 'Hace unos segundos', color: '#3ecf8e' }
+  if (min < 3) return { texto: `Hace ${min} min`, color: '#3ecf8e' }
+  if (min < 6) return { texto: `Hace ${min} min`, color: '#e0b94c' }
+  return { texto: `Hace ${min} min`, color: '#e05c5c' }
 }
 
 function money(n) {
@@ -201,14 +209,27 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
                 <Text style={styles.prioridadTextoOk}>🟢 Todo bajo control — sin pendientes</Text>
               ) : prioridad.tipo === 'pedido' ? (
                 <>
-                  <Text style={styles.prioridadTexto}>Mesa {mesas[prioridad.mesa_id] || '?'} — nuevo pedido sin aceptar</Text>
-                  <TouchableOpacity style={styles.boton} onPress={() => abrirDetallePedido(prioridad.item)}>
-                    <Text style={styles.botonTexto}>Ver y aceptar</Text>
+                  <View style={styles.prioridadHeaderFila}>
+                    <Text style={styles.prioridadTexto}>Mesa {mesas[prioridad.mesa_id] || '?'} — nuevo pedido</Text>
+                    <Text style={[styles.prioridadTiempo, { color: tiempoTranscurrido(prioridad.created_at).color }]}>
+                      {tiempoTranscurrido(prioridad.created_at).texto}
+                    </Text>
+                  </View>
+                  <TouchableOpacity style={styles.boton} onPress={() => avanzarEstado(prioridad.item)}>
+                    <Text style={styles.botonTexto}>✅ Aceptar pedido</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.botonSecundarioChico} onPress={() => abrirDetallePedido(prioridad.item)}>
+                    <Text style={styles.botonSecundarioChicoTexto}>Ver detalle</Text>
                   </TouchableOpacity>
                 </>
               ) : (
                 <>
-                  <Text style={styles.prioridadTexto}>Mesa {mesas[prioridad.mesa_id] || '?'} pide: {prioridad.item.tipo}</Text>
+                  <View style={styles.prioridadHeaderFila}>
+                    <Text style={styles.prioridadTexto}>Mesa {mesas[prioridad.mesa_id] || '?'} pide: {prioridad.item.tipo}</Text>
+                    <Text style={[styles.prioridadTiempo, { color: tiempoTranscurrido(prioridad.created_at).color }]}>
+                      {tiempoTranscurrido(prioridad.created_at).texto}
+                    </Text>
+                  </View>
                   <TouchableOpacity style={styles.boton} onPress={() => atenderSolicitud(prioridad.item.id)}>
                     <Text style={styles.botonTexto}>Marcar atendido</Text>
                   </TouchableOpacity>
@@ -222,7 +243,7 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
           <View style={styles.avisos}>
             {solicitudes.map((s) => (
               <TouchableOpacity key={s.id} style={styles.avisoItem} onPress={() => atenderSolicitud(s.id)}>
-                <Text style={styles.avisoTexto}>✋ Mesa {mesas[s.mesa_id] || '?'} pide: {s.tipo} — toca para marcar atendido</Text>
+                <Text style={styles.avisoTexto}>✋ Mesa {mesas[s.mesa_id] || '?'} pide: {s.tipo}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -230,9 +251,10 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
 
         <Text style={styles.seccionTitulo}>Pedidos activos</Text>
         {pedidos.length === 0 && <Text style={styles.vacio}>Sin pedidos pendientes por ahora 🍹</Text>}
-        {pedidos.map((item) => {
+        {pedidos.filter((item) => item.estado !== 'pendiente' || pedidos.filter((p) => p.estado === 'pendiente').sort((a, b) => new Date(a.created_at) - new Date(b.created_at))[0]?.id !== item.id).map((item) => {
           const paso = SIGUIENTE_ESTADO[item.estado]
           const canalMesa = `mesa-${item.mesa_id}`
+          const tiempo = tiempoTranscurrido(item.created_at)
           return (
             <TarjetaParpadeante
               key={item.id}
@@ -240,8 +262,11 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
               style={styles.pedidoCard}
               onPress={() => abrirDetallePedido(item)}
             >
-              <Text style={styles.pedidoMesa}>Mesa {mesas[item.mesa_id] || '?'}</Text>
-              <Text style={styles.pedidoEstado}>{item.estado} · toca para ver detalle</Text>
+              <View style={styles.pedidoHeaderFila}>
+                <Text style={styles.pedidoMesa}>Mesa {mesas[item.mesa_id] || '?'}</Text>
+                <Text style={[styles.pedidoTiempo, { color: tiempo.color }]}>{tiempo.texto}</Text>
+              </View>
+              <Text style={styles.pedidoEstado}>{item.estado}</Text>
               {paso && (
                 <TouchableOpacity style={styles.boton} onPress={(e) => { e.stopPropagation?.(); avanzarEstado(item) }}>
                   <Text style={styles.botonTexto}>{paso.boton}</Text>
@@ -288,12 +313,22 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
           const pedidoDeEstaMesa = pedidos.find((p) => p.mesa_id === m.id)
           const solicitudDeEstaMesa = solicitudes.find((s) => s.mesa_id === m.id)
           let texto = '⚪ Libre'
-          if (solicitudDeEstaMesa) texto = `🔵 Pide: ${solicitudDeEstaMesa.tipo}`
-          else if (pedidoDeEstaMesa) texto = `🟡 ${pedidoDeEstaMesa.estado}`
+          let sub = null
+          if (solicitudDeEstaMesa) {
+            texto = `🔵 Pide: ${solicitudDeEstaMesa.tipo}`
+            sub = tiempoTranscurrido(solicitudDeEstaMesa.created_at)
+          } else if (pedidoDeEstaMesa) {
+            texto = `🟡 ${pedidoDeEstaMesa.estado}`
+            sub = tiempoTranscurrido(pedidoDeEstaMesa.created_at)
+          }
           return (
             <TouchableOpacity key={m.id} style={styles.misMesaFila} onPress={() => pedidoDeEstaMesa && abrirDetallePedido(pedidoDeEstaMesa)}>
               <Text style={styles.misMesaNumero}>Mesa {m.numero}</Text>
-              <Text style={styles.misMesaEstado}>{texto}</Text>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={styles.misMesaEstado}>{texto}</Text>
+                {pedidoDeEstaMesa && <Text style={styles.misMesaMonto}>{money(pedidoDeEstaMesa.total)}</Text>}
+                {sub && <Text style={[styles.misMesaTiempo, { color: sub.color }]}>{sub.texto}</Text>}
+              </View>
             </TouchableOpacity>
           )
         })}
@@ -456,6 +491,8 @@ const styles = StyleSheet.create({
 
   pedidoCard: { backgroundColor: '#1e1e2e', borderRadius: 14, padding: 16, marginHorizontal: 14, marginBottom: 12 },
   pedidoMesa: { color: '#f2f2f2', fontSize: 19, fontWeight: '700' },
+  pedidoHeaderFila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  pedidoTiempo: { fontSize: 12, fontWeight: '700' },
   pedidoEstado: { color: '#a0a0b0', fontSize: 14, marginTop: 4, marginBottom: 12, textTransform: 'capitalize' },
   boton: { backgroundColor: '#d4a338', borderRadius: 12, padding: 14, alignItems: 'center' },
   botonTexto: { color: '#14141f', fontSize: 16, fontWeight: '700' },
@@ -493,15 +530,21 @@ const styles = StyleSheet.create({
   },
   botonHablarDuenoTexto: { color: '#d4a338', fontSize: 14, fontWeight: '700' },
   filaDueno: { flexDirection: 'row', gap: 8, marginHorizontal: 14, marginBottom: 16 },
-  botonAyudaUrgente: { backgroundColor: '#3a1a1a', borderRadius: 12, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#e05c5c', paddingHorizontal: 16 },
-  botonAyudaUrgenteTexto: { color: '#e05c5c', fontSize: 13, fontWeight: '800' },
+  botonAyudaUrgente: { backgroundColor: '#3a2a12', borderRadius: 12, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#e0954c', paddingHorizontal: 16 },
+  botonAyudaUrgenteTexto: { color: '#e0954c', fontSize: 13, fontWeight: '800' },
   prioridadCard: { marginHorizontal: 14, marginBottom: 16, backgroundColor: '#1e1e2e', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#3a3020' },
   prioridadLabel: { color: '#d4a338', fontSize: 12, fontWeight: '800', letterSpacing: 0.5, marginBottom: 8 },
-  prioridadTexto: { color: '#f2f2f2', fontSize: 16, fontWeight: '700', marginBottom: 10 },
+  prioridadHeaderFila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  prioridadTiempo: { fontSize: 13, fontWeight: '800' },
+  prioridadTexto: { color: '#f2f2f2', fontSize: 16, fontWeight: '700', flex: 1 },
   prioridadTextoOk: { color: '#3ecf8e', fontSize: 16, fontWeight: '700' },
+  botonSecundarioChico: { alignItems: 'center', padding: 10, marginTop: 8 },
+  botonSecundarioChicoTexto: { color: '#a0a0b0', fontSize: 13, fontWeight: '600' },
   misMesaFila: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#1e1e2e', borderRadius: 12, padding: 14, marginHorizontal: 14, marginBottom: 8 },
   misMesaNumero: { color: '#f2f2f2', fontSize: 14, fontWeight: '700' },
   misMesaEstado: { color: '#a0a0b0', fontSize: 13, fontWeight: '600' },
+  misMesaMonto: { color: '#d4a338', fontSize: 12, fontWeight: '700', marginTop: 2 },
+  misMesaTiempo: { fontSize: 11, fontWeight: '700', marginTop: 2 },
   botonChatMesa: { marginTop: 10, backgroundColor: '#26263a', borderRadius: 10, padding: 10, alignItems: 'center' },
   botonChatMesaTexto: { color: '#f2f2f2', fontSize: 13, fontWeight: '600' },
 
