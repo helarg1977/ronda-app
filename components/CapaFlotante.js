@@ -1,5 +1,6 @@
 import React from 'react'
 import { View, StyleSheet } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 /**
  * Contenedor único para TODO lo flotante de una pantalla (botón de ayuda,
@@ -21,9 +22,10 @@ import { View, StyleSheet } from 'react-native'
  *   </CapaFlotante>
  */
 export default function CapaFlotante({ children, style, onAltoCambio }) {
+  const insets = useSafeAreaInsets()
   return (
     <View
-      style={[styles.capa, style]}
+      style={[styles.capa, { paddingBottom: 20 + insets.bottom }, style]}
       pointerEvents="box-none"
       onLayout={(e) => onAltoCambio && onAltoCambio(e.nativeEvent.layout.height)}
     >
