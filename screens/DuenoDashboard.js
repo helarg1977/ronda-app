@@ -173,7 +173,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
       if (onboardingYaVisto) setMostrarPreguntaModo(true)
     }
 
-    const { data: mesasData } = await supabase.from('mesas').select('id, numero, sesion_actual, mesero_asignado_id, qr_code, cuenta_abierta').eq('bar_id', usuario.bar_id).eq('activa', true).order('numero')
+    const { data: mesasData } = await supabase.from('mesas').select('id, numero, sesion_actual, mesero_asignado_id, qr_code, cuenta_abierta, sesion_iniciada_en').eq('bar_id', usuario.bar_id).eq('activa', true).order('numero')
     const { data: pedidosData } = await supabase
       .from('pedidos').select('id, mesa_id, estado, total, created_at')
       .eq('bar_id', usuario.bar_id).not('estado', 'in', '(entregado,cancelado)')
@@ -494,6 +494,11 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     if (mesasConCuentaSolicitada.has(item.id)) return { color: '#4a90d9', texto: '🔵 Pidió la cuenta' }
     if (item.pedido) return { color: colorPorAntiguedad(item.pedido.created_at), texto: minutosTexto(item.pedido.created_at) }
     if (mesasConPagoPendiente.has(item.id)) return { color: '#9b6fd6', texto: '🟣 Pago sin confirmar' }
+    if (item.sesion_iniciada_en) {
+      const minSentados = (Date.now() - new Date(item.sesion_iniciada_en).getTime()) / 60000
+      if (minSentados >= 15) return { color: '#e0954c', texto: `🟠 Sin novedad hace ${Math.floor(minSentados)} min` }
+      return { color: '#3ecf8e', texto: `Sentados hace ${Math.floor(minSentados)} min` }
+    }
     return { color: '#2a2a3a', texto: 'Libre' }
   }
 
@@ -718,6 +723,11 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
               {!mostrarQr ? (
               <>
                 <Text style={styles.modalTitulo}>Mesa {detalle.mesa.numero}</Text>
+                {detalle.mesa.sesion_iniciada_en && (
+                  <Text style={styles.sentadosDesdeTexto}>
+                    🕒 Sentados desde las {new Date(detalle.mesa.sesion_iniciada_en).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                )}
 
                 {bar?.modo_negocio !== 'solo' && (
                 <>
@@ -1133,6 +1143,7 @@ const styles = StyleSheet.create({
   heroEstadoFila: { flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap', justifyContent: 'center' },
   heroEstadoTexto: { color: '#c9c9d4', fontSize: 13, fontWeight: '600' },
   heroDineroMesas: { color: '#e0b94c', fontSize: 13, fontWeight: '700', marginTop: 8 },
+  sentadosDesdeTexto: { color: '#8a8a9a', fontSize: 13, marginBottom: 10 },
 
   statsGridSecundario: { flexDirection: 'row', paddingHorizontal: 10, gap: 8, marginBottom: 4 },
   statCardChico: { flex: 1, backgroundColor: '#1e1e2e', borderRadius: 12, padding: 10, alignItems: 'center' },
