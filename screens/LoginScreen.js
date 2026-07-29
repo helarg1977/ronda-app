@@ -48,10 +48,11 @@ export default function LoginScreen({ onLogin }) {
       <TextInput
         style={styles.input}
         value={telefono}
-        onChangeText={setTelefono}
+        onChangeText={(v) => setTelefono(v.replace(/\D/g, '').slice(0, 10))}
         keyboardType="phone-pad"
         placeholder="3001234567"
         placeholderTextColor="#6a6a80"
+        maxLength={10}
         returnKeyType="next"
         onSubmitEditing={() => refPin.current?.focus()}
         blurOnSubmit={false}
