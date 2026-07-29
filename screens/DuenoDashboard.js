@@ -150,6 +150,11 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [pedidosRecientes, setPedidosRecientes] = useState([])
   const [mostrarTodosPedidos, setMostrarTodosPedidos] = useState(false)
   const [pedidosVisible, setPedidosVisible] = useState(true)
+  const [mesasHistorialAbiertas, setMesasHistorialAbiertas] = useState({})
+
+  function toggleHistorialMesa(mesaId) {
+    setMesasHistorialAbiertas((h) => ({ ...h, [mesaId]: !h[mesaId] }))
+  }
   const [mostrarRanking, setMostrarRanking] = useState(false)
   const [mostrarProductoEstrella, setMostrarProductoEstrella] = useState(false)
   const [modoSeleccion, setModoSeleccion] = useState(false)
@@ -247,11 +252,11 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
       if (top) setHoraPico({ hora: top[0], total: top[1] })
     }
 
-    // --- Pedidos recientes ---
+    // --- Pedidos recientes, agrupados por mesa ---
     const { data: recientes } = await supabase
       .from('pedidos')
-      .select('id, estado, total, created_at, cliente_nombre, mesas(numero), pagos(metodo), pedido_items(cantidad, productos(nombre))')
-      .eq('bar_id', usuario.bar_id).order('created_at', { ascending: false }).limit(10)
+      .select('id, mesa_id, estado, total, created_at, cliente_nombre, mesas(numero), pagos(metodo), pedido_items(cantidad, productos(nombre))')
+      .eq('bar_id', usuario.bar_id).order('created_at', { ascending: false }).limit(60)
     setPedidosRecientes(recientes || [])
   }, [usuario.bar_id])
 
@@ -446,6 +451,22 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     cargar()
   }
 
+  function cerrarMesaDesdeHistorial(mesaId, numero) {
+    Alert.alert(
+      `¿Cerrar Mesa ${numero}?`,
+      'Esto limpia la vista para empezar una cuenta nueva (por si ya se fueron esos clientes). Tus ventas de Informes NO se borran — solo deja de mezclarse con el próximo grupo que se siente ahí.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Sí, cerrar', style: 'destructive', onPress: async () => {
+            await supabase.rpc('cerrar_mesa', { p_mesa_id: mesaId })
+            cargar()
+          },
+        },
+      ]
+    )
+  }
+
   async function avanzarDesdeDetalle() {
     if (!detalle || !detalle.pedido) return
     const paso = SIGUIENTE_ESTADO[detalle.pedido.estado]
@@ -619,62 +640,54 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           </>
         )}
 
-        <View style={styles.seccionHeaderFila}>
-          <TouchableOpacity onPress={() => setPedidosVisible(!pedidosVisible)} style={{ flex: 1 }}>
-            <Text style={[styles.seccionTitulo, { marginTop: 0, marginBottom: 0, paddingHorizontal: 0 }]}>
-              {pedidosVisible ? '▾' : '▸'} Pedidos recientes ({pedidosRecientes.length})
-            </Text>
-          </TouchableOpacity>
-          {pedidosVisible && (
-            <TouchableOpacity onPress={() => { setModoSeleccion(!modoSeleccion); setSeleccionados([]) }}>
-              <Text style={styles.botonSeleccionarTexto}>{modoSeleccion ? 'Cancelar' : 'Seleccionar'}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        {pedidosVisible && (
-        <>
-        {(mostrarTodosPedidos ? pedidosRecientes : pedidosRecientes.slice(0, 5)).map((p) => (
-          <TouchableOpacity
-            key={p.id}
-            activeOpacity={modoSeleccion ? 0.6 : 1}
-            onPress={() => modoSeleccion && toggleSeleccion(p.id)}
-            style={[
-              styles.pedidoRecienteCard,
-              { borderLeftColor: p.estado === 'entregado' ? '#3ecf8e' : '#d4a338' },
-              modoSeleccion && seleccionados.includes(p.id) && styles.pedidoRecienteSeleccionado,
-            ]}
-          >
-            <View style={styles.pedidoRecienteHeader}>
-              <Text style={styles.mesaNumero}>{modoSeleccion ? (seleccionados.includes(p.id) ? '☑️ ' : '⬜ ') : ''}Mesa {p.mesas?.numero}</Text>
-              <View style={styles.estadoPill}><Text style={styles.estadoPillTexto}>{ESTADO_LABEL[p.estado] || p.estado}</Text></View>
+        <TouchableOpacity onPress={() => setPedidosVisible(!pedidosVisible)}>
+          <Text style={[styles.seccionTitulo, { marginTop: 0, marginBottom: 12, paddingHorizontal: 0 }]}>
+            {pedidosVisible ? '▾' : '▸'} Historial por mesa
+          </Text>
+        </TouchableOpacity>
+        {pedidosVisible && (() => {
+          const porMesa = {}
+          pedidosRecientes.forEach((p) => {
+            if (!porMesa[p.mesa_id]) porMesa[p.mesa_id] = { numero: p.mesas?.numero, pedidos: [], total: 0 }
+            porMesa[p.mesa_id].pedidos.push(p)
+            porMesa[p.mesa_id].total += Number(p.total)
+          })
+          const grupos = Object.entries(porMesa).sort((a, b) => Number(a[1].numero) - Number(b[1].numero))
+          if (grupos.length === 0) return <Text style={styles.vacioTexto}>Todavía no hay pedidos registrados.</Text>
+          return grupos.map(([mesaId, grupo]) => (
+            <View key={mesaId} style={styles.grupoMesaHistorial}>
+              <TouchableOpacity style={styles.grupoMesaHeader} onPress={() => toggleHistorialMesa(mesaId)}>
+                <Text style={styles.grupoMesaTitulo}>
+                  {mesasHistorialAbiertas[mesaId] ? '▾' : '▸'} Mesa {grupo.numero} — {grupo.pedidos.length} pedido{grupo.pedidos.length !== 1 ? 's' : ''}
+                </Text>
+                <Text style={styles.grupoMesaTotal}>{money(grupo.total)}</Text>
+              </TouchableOpacity>
+              {mesasHistorialAbiertas[mesaId] && (
+                <View style={styles.grupoMesaContenido}>
+                  {grupo.pedidos.map((p) => (
+                    <View key={p.id} style={[styles.pedidoRecienteCard, { borderLeftColor: p.estado === 'entregado' ? '#3ecf8e' : '#d4a338' }]}>
+                      <View style={styles.pedidoRecienteHeader}>
+                        <Text style={styles.pedidoHora}>{new Date(p.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</Text>
+                        <View style={styles.estadoPill}><Text style={styles.estadoPillTexto}>{ESTADO_LABEL[p.estado] || p.estado}</Text></View>
+                      </View>
+                      {p.cliente_nombre && <Text style={styles.pedidoCliente}>👤 {p.cliente_nombre}</Text>}
+                      {p.pedido_items.map((it, i) => (
+                        <Text key={i} style={styles.pedidoItemTexto}>{it.cantidad}x {it.productos?.nombre}</Text>
+                      ))}
+                      <View style={styles.pedidoRecienteFooter}>
+                        <Text style={styles.pedidoMonto}>{money(p.total)}</Text>
+                        {p.pagos?.[0]?.metodo && <Text style={styles.pedidoMetodo}>{p.pagos[0].metodo}</Text>}
+                      </View>
+                    </View>
+                  ))}
+                  <TouchableOpacity style={styles.botonCerrarMesaHistorial} onPress={() => cerrarMesaDesdeHistorial(mesaId, grupo.numero)}>
+                    <Text style={styles.botonCerrarMesaHistorialTexto}>🧹 Cerrar esta mesa (empezar cuenta nueva)</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
-            {p.cliente_nombre && <Text style={styles.pedidoCliente}>👤 {p.cliente_nombre}</Text>}
-            {p.pedido_items.map((it, i) => (
-              <Text key={i} style={styles.pedidoItemTexto}>{it.cantidad}x {it.productos?.nombre}</Text>
-            ))}
-            <View style={styles.pedidoRecienteFooter}>
-              <Text style={styles.pedidoMonto}>{money(p.total)}</Text>
-              {p.pagos?.[0]?.metodo && <Text style={styles.pedidoMetodo}>{p.pagos[0].metodo}</Text>}
-            </View>
-          </TouchableOpacity>
-        ))}
-        {pedidosRecientes.length > 5 && !mostrarTodosPedidos && (
-          <TouchableOpacity style={styles.botonVerMas} onPress={() => setMostrarTodosPedidos(true)}>
-            <Text style={styles.botonVerMasTexto}>Ver los {pedidosRecientes.length} pedidos ↓</Text>
-          </TouchableOpacity>
-        )}
-        {mostrarTodosPedidos && (
-          <TouchableOpacity style={styles.botonVerMas} onPress={() => setMostrarTodosPedidos(false)}>
-            <Text style={styles.botonVerMasTexto}>Ver menos ↑</Text>
-          </TouchableOpacity>
-        )}
-        {modoSeleccion && seleccionados.length > 0 && (
-          <TouchableOpacity style={styles.botonBorrarSeleccion} onPress={borrarSeleccionados}>
-            <Text style={styles.botonTexto}>🗑️ Borrar {seleccionados.length} seleccionado(s)</Text>
-          </TouchableOpacity>
-        )}
-        </>
-        )}
+          ))
+        })()}
       </ScrollView>
 
       <Modal visible={!!detalle} transparent animationType="slide" onRequestClose={() => setDetalle(null)}>
@@ -1116,6 +1129,14 @@ const styles = StyleSheet.create({
   botonConfirmarChicoTexto: { color: '#14141f', fontSize: 13, fontWeight: '700' },
 
   pedidoRecienteCard: { backgroundColor: '#1e1e2e', borderRadius: 14, borderLeftWidth: 4, padding: 14, marginHorizontal: 14, marginBottom: 10 },
+  grupoMesaHistorial: { marginHorizontal: 14, marginBottom: 10, backgroundColor: '#1a1a26', borderRadius: 14, borderWidth: 1, borderColor: '#2a2a3a', overflow: 'hidden' },
+  grupoMesaHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14 },
+  grupoMesaTitulo: { color: '#f2f2f2', fontSize: 14, fontWeight: '700' },
+  grupoMesaTotal: { color: '#d4a338', fontSize: 14, fontWeight: '800' },
+  grupoMesaContenido: { paddingHorizontal: 6, paddingBottom: 10 },
+  pedidoHora: { color: '#8a8a9a', fontSize: 12, fontWeight: '600' },
+  botonCerrarMesaHistorial: { marginHorizontal: 8, marginTop: 4, backgroundColor: '#26263a', borderRadius: 12, padding: 12, alignItems: 'center' },
+  botonCerrarMesaHistorialTexto: { color: '#e0b94c', fontSize: 13, fontWeight: '700' },
   pedidoRecienteHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   estadoPill: { backgroundColor: '#26263a', borderRadius: 999, paddingVertical: 3, paddingHorizontal: 10 },
   estadoPillTexto: { color: '#a0a0b0', fontSize: 11, fontWeight: '700' },
