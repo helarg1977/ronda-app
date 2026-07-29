@@ -64,6 +64,7 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
   const [refrescando, setRefrescando] = useState(false)
   const [historialHoy, setHistorialHoy] = useState([])
   const [propinasHoy, setPropinasHoy] = useState(0)
+  const [tiempoPromedio, setTiempoPromedio] = useState(null)
   const [mostrarAyuda, setMostrarAyuda] = useState(false)
   const [chatCanal, setChatCanal] = useState(null) // { canal, titulo }
   const [mensajesChat, setMensajesChat] = useState([])
@@ -106,6 +107,19 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
       .eq('mesero_id', usuario.id).eq('estado', 'entregado').gte('created_at', inicioDeHoy())
       .order('created_at', { ascending: false })
     setHistorialHoy(entregadosHoy || [])
+
+    const idsEntregadosHoy = (entregadosHoy || []).map((p) => p.id)
+    if (idsEntregadosHoy.length > 0) {
+      const { data: eventosHoy } = await supabase.from('pedido_eventos').select('pedido_id, estado, created_at').in('pedido_id', idsEntregadosHoy)
+      const duraciones = []
+      idsEntregadosHoy.forEach((id) => {
+        const evs = (eventosHoy || []).filter((e) => e.pedido_id === id)
+        const inicio = evs.find((e) => e.estado === 'pendiente')
+        const fin = evs.find((e) => e.estado === 'entregado')
+        if (inicio && fin) duraciones.push((new Date(fin.created_at) - new Date(inicio.created_at)) / 60000)
+      })
+      if (duraciones.length > 0) setTiempoPromedio(duraciones.reduce((s, d) => s + d, 0) / duraciones.length)
+    }
 
     const { data: propinasData } = await supabase.from('propinas').select('monto, pedido_id, pedidos!inner(created_at)').eq('mesero_id', usuario.id)
     const hoyMs = new Date(inicioDeHoy()).getTime()
@@ -317,6 +331,9 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
             <View style={styles.progresoNocheBarra}>
               <View style={[styles.progresoNocheRelleno, { width: `${Math.round((historialHoy.length / (historialHoy.length + pedidos.length)) * 100)}%` }]} />
             </View>
+            {tiempoPromedio != null && (
+              <Text style={styles.tiempoPromedioTexto}>⏱ Tiempo promedio de atención: {Math.round(tiempoPromedio)} min</Text>
+            )}
           </View>
         )}
 
@@ -636,6 +653,7 @@ const styles = StyleSheet.create({
   progresoNocheTexto: { color: '#a0a0b0', fontSize: 12, fontWeight: '600', marginBottom: 6 },
   progresoNocheBarra: { height: 8, backgroundColor: '#26263a', borderRadius: 999, overflow: 'hidden' },
   progresoNocheRelleno: { height: '100%', backgroundColor: '#d4a338', borderRadius: 999 },
+  tiempoPromedioTexto: { color: '#8a8a9a', fontSize: 12, marginTop: 6, fontWeight: '600' },
   botonChatMesa: { marginTop: 10, backgroundColor: '#26263a', borderRadius: 10, padding: 10, alignItems: 'center' },
   botonChatMesaTexto: { color: '#f2f2f2', fontSize: 13, fontWeight: '600' },
 
