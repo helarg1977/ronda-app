@@ -55,6 +55,7 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
   const [textoChat, setTextoChat] = useState('')
   const [canalesConNuevos, setCanalesConNuevos] = useState({})
   const [mostrarHistorial, setMostrarHistorial] = useState(false)
+  const [mesasHistorialAbiertas, setMesasHistorialAbiertas] = useState({})
   const [altoFlotante, setAltoFlotante] = useState(80)
   const mesasPermitidasRef = useRef(new Set())
   const [detallePedido, setDetallePedido] = useState(null)
@@ -239,23 +240,42 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
 
         <TouchableOpacity onPress={() => setMostrarHistorial(!mostrarHistorial)}>
           <Text style={[styles.seccionTitulo, { marginBottom: mostrarHistorial ? 10 : 20 }]}>
-            {mostrarHistorial ? '▾' : '▸'} Historial de la noche ({historialHoy.length})
+            {mostrarHistorial ? '▾' : '▸'} Historial por mesa ({historialHoy.length})
           </Text>
         </TouchableOpacity>
-        {mostrarHistorial && (
-          <>
-            {historialHoy.length === 0 && <Text style={styles.vacio}>Aún no has entregado pedidos hoy.</Text>}
-            {historialHoy.map((p) => (
-              <View key={p.id} style={styles.historialCard}>
-                <View style={styles.historialHeader}>
-                  <Text style={styles.historialMesa}>Mesa {mesas[p.mesa_id] || '?'}</Text>
-                  <Text style={styles.historialMonto}>{money(p.total)}</Text>
+        {mostrarHistorial && (() => {
+          const porMesa = {}
+          historialHoy.forEach((p) => {
+            if (!porMesa[p.mesa_id]) porMesa[p.mesa_id] = { numero: mesas[p.mesa_id] || '?', pedidos: [], total: 0 }
+            porMesa[p.mesa_id].pedidos.push(p)
+            porMesa[p.mesa_id].total += Number(p.total)
+          })
+          const grupos = Object.entries(porMesa)
+          if (grupos.length === 0) return <Text style={styles.vacio}>Aún no has entregado pedidos hoy.</Text>
+          return grupos.map(([mesaId, grupo]) => (
+            <View key={mesaId} style={styles.grupoMesaHistorial}>
+              <TouchableOpacity style={styles.grupoMesaHeader} onPress={() => setMesasHistorialAbiertas((h) => ({ ...h, [mesaId]: !h[mesaId] }))}>
+                <Text style={styles.grupoMesaTitulo}>
+                  {mesasHistorialAbiertas[mesaId] ? '▾' : '▸'} Mesa {grupo.numero} — {grupo.pedidos.length} pedido{grupo.pedidos.length !== 1 ? 's' : ''}
+                </Text>
+                <Text style={styles.grupoMesaTotal}>{money(grupo.total)}</Text>
+              </TouchableOpacity>
+              {mesasHistorialAbiertas[mesaId] && (
+                <View style={styles.grupoMesaContenido}>
+                  {grupo.pedidos.map((p) => (
+                    <View key={p.id} style={styles.historialCard}>
+                      <View style={styles.historialHeader}>
+                        <Text style={styles.pedidoHora}>{new Date(p.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</Text>
+                        <Text style={styles.historialMonto}>{money(p.total)}</Text>
+                      </View>
+                      <Text style={styles.historialItems}>{p.pedido_items.map((it) => `${it.cantidad}× ${it.productos?.nombre}`).join(', ')}</Text>
+                    </View>
+                  ))}
                 </View>
-                <Text style={styles.historialItems}>{p.pedido_items.map((it) => `${it.cantidad}× ${it.productos?.nombre}`).join(', ')}</Text>
-              </View>
-            ))}
-          </>
-        )}
+              )}
+            </View>
+          ))
+        })()}
       </ScrollView>
 
       <CapaFlotante onAltoCambio={setAltoFlotante}>
@@ -380,9 +400,15 @@ const styles = StyleSheet.create({
   boton: { backgroundColor: '#d4a338', borderRadius: 12, padding: 14, alignItems: 'center' },
   botonTexto: { color: '#14141f', fontSize: 16, fontWeight: '700' },
 
-  historialCard: { backgroundColor: '#1e1e2e', borderRadius: 12, padding: 14, marginHorizontal: 14, marginBottom: 8 },
+  historialCard: { backgroundColor: '#1e1e2e', borderRadius: 12, padding: 14, marginHorizontal: 8, marginBottom: 8 },
   historialHeader: { flexDirection: 'row', justifyContent: 'space-between' },
   historialMesa: { color: '#f2f2f2', fontSize: 15, fontWeight: '700' },
+  grupoMesaHistorial: { marginHorizontal: 14, marginBottom: 10, backgroundColor: '#1a1a26', borderRadius: 14, borderWidth: 1, borderColor: '#2a2a3a', overflow: 'hidden' },
+  grupoMesaHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14 },
+  grupoMesaTitulo: { color: '#f2f2f2', fontSize: 14, fontWeight: '700' },
+  grupoMesaTotal: { color: '#d4a338', fontSize: 14, fontWeight: '800' },
+  grupoMesaContenido: { paddingHorizontal: 6, paddingBottom: 10 },
+  pedidoHora: { color: '#8a8a9a', fontSize: 12, fontWeight: '600' },
   historialMonto: { color: '#3ecf8e', fontSize: 15, fontWeight: '700' },
   historialItems: { color: '#a0a0b0', fontSize: 13, marginTop: 4 },
 
