@@ -10,6 +10,7 @@ import ComisionScreen from './screens/ComisionScreen'
 import ConfiguracionScreen from './screens/ConfiguracionScreen'
 import ReportesScreen from './screens/ReportesScreen'
 import { registrarToken } from './lib/notificaciones'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 const ROLES_PANEL_DUENO = ['dueno', 'administrador']
 
@@ -31,18 +32,20 @@ export default function App() {
 
   if (cargando) {
     return (
-      <View style={styles.cargando}>
-        <ActivityIndicator color="#d4a338" size="large" />
-      </View>
+      <SafeAreaProvider>
+        <View style={styles.cargando}>
+          <ActivityIndicator color="#d4a338" size="large" />
+        </View>
+      </SafeAreaProvider>
     )
   }
 
   if (!usuario) {
     return (
-      <>
+      <SafeAreaProvider>
         <StatusBar style="light" />
         <LoginScreen onLogin={setUsuario} />
-      </>
+      </SafeAreaProvider>
     )
   }
 
@@ -54,7 +57,7 @@ export default function App() {
   const puedeVerPanelDueno = ROLES_PANEL_DUENO.includes(usuario.rol)
 
   return (
-    <>
+    <SafeAreaProvider>
       <StatusBar style="light" />
       {puedeVerPanelDueno && pantalla === 'dashboard' && (
         <DuenoDashboard
@@ -81,7 +84,7 @@ export default function App() {
       {usuario.rol === 'mesero' && (
         <MeseroDashboard usuario={usuario} onCerrarSesion={cerrarSesionYVolver} />
       )}
-    </>
+    </SafeAreaProvider>
   )
 }
 
