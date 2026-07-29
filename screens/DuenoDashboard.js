@@ -5,6 +5,7 @@ import { Audio } from 'expo-av'
 import * as Sharing from 'expo-sharing'
 import { captureRef } from 'react-native-view-shot'
 import { supabase, cerrarSesion } from '../lib/supabase'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import CapaFlotante from '../components/CapaFlotante'
 import TarjetaParpadeante from '../components/TarjetaParpadeante'
 
@@ -116,6 +117,7 @@ const AYUDA_SECCIONES = [
 
 
 export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, onIrMenu, onIrConfiguracion, onIrReportes }) {
+  const insets = useSafeAreaInsets()
   const [bar, setBar] = useState(null)
   const [mesas, setMesas] = useState([])
   const [meserosLista, setMeserosLista] = useState([])
@@ -150,6 +152,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [pedidosRecientes, setPedidosRecientes] = useState([])
   const [mostrarTodosPedidos, setMostrarTodosPedidos] = useState(false)
   const [pedidosVisible, setPedidosVisible] = useState(true)
+  const [ocultarVentas, setOcultarVentas] = useState(false)
   const [mesasHistorialAbiertas, setMesasHistorialAbiertas] = useState({})
 
   function toggleHistorialMesa(mesaId) {
@@ -252,12 +255,15 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
       if (top) setHoraPico({ hora: top[0], total: top[1] })
     }
 
-    // --- Pedidos recientes, agrupados por mesa ---
+    // --- Pedidos recientes, agrupados por mesa (solo la sesión actual de cada mesa) ---
     const { data: recientes } = await supabase
       .from('pedidos')
-      .select('id, mesa_id, estado, total, created_at, cliente_nombre, mesas(numero), pagos(metodo), pedido_items(cantidad, productos(nombre))')
-      .eq('bar_id', usuario.bar_id).order('created_at', { ascending: false }).limit(60)
-    setPedidosRecientes(recientes || [])
+      .select('id, mesa_id, sesion_id, estado, total, created_at, cliente_nombre, mesas(numero), pagos(metodo), pedido_items(cantidad, productos(nombre))')
+      .eq('bar_id', usuario.bar_id).order('created_at', { ascending: false }).limit(120)
+    const sesionActualPorMesa = {}
+    ;(mesasData || []).forEach((m) => { sesionActualPorMesa[m.id] = m.sesion_actual })
+    const recientesDeSesionActual = (recientes || []).filter((p) => p.sesion_id === sesionActualPorMesa[p.mesa_id])
+    setPedidosRecientes(recientesDeSesionActual)
   }, [usuario.bar_id])
 
   useEffect(() => {
@@ -266,6 +272,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
       if (!visto) setMostrarOnboarding(true)
       else if (necesitaPreguntaModoRef.current) setMostrarPreguntaModo(true)
     })
+    AsyncStorage.getItem(`ronda_ocultar_ventas_${usuario.id}`).then((v) => { if (v === '1') setOcultarVentas(true) })
     const canalPedidos = supabase
       .channel(`dueno-pedidos-${usuario.bar_id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos', filter: `bar_id=eq.${usuario.bar_id}` }, cargar)
@@ -522,8 +529,13 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
         )}
 
         <TouchableOpacity style={styles.heroVentas} onPress={() => setDetalleStat('ventas')} activeOpacity={0.85}>
-          <Text style={styles.heroLabel}>VENTAS DE HOY</Text>
-          <Text style={styles.heroValor}>{money(ventasHoy)}</Text>
+          <View style={styles.heroLabelFila}>
+            <Text style={styles.heroLabel}>VENTAS DE HOY</Text>
+            <TouchableOpacity onPress={(e) => { e.stopPropagation?.(); const nuevo = !ocultarVentas; setOcultarVentas(nuevo); AsyncStorage.setItem(`ronda_ocultar_ventas_${usuario.id}`, nuevo ? '1' : '0') }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={styles.heroOjo}>{ocultarVentas ? '🙈' : '👁️'}</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.heroValor}>{ocultarVentas ? '••••••' : money(ventasHoy)}</Text>
           <View style={styles.heroEstadoFila}>
             <Text style={styles.heroEstadoTexto}>🪑 {mesasConEstado.filter((m) => m.pedido).length} mesa{mesasConEstado.filter((m) => m.pedido).length !== 1 ? 's' : ''} activa{mesasConEstado.filter((m) => m.pedido).length !== 1 ? 's' : ''}</Text>
             <Text style={styles.heroEstadoTexto}>·</Text>
@@ -849,7 +861,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
         </View>
       </Modal>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: 10 + insets.bottom }]}>
         <TouchableOpacity style={styles.footerBoton} onPress={onIrMenu}>
           <Text style={styles.footerBotonTexto}>📋 Menú</Text>
         </TouchableOpacity>
@@ -1089,6 +1101,8 @@ const styles = StyleSheet.create({
     padding: 22, alignItems: 'center', borderWidth: 1, borderColor: '#3a3020',
   },
   heroLabel: { color: '#a0a0b0', fontSize: 12, letterSpacing: 1, fontWeight: '700' },
+  heroLabelFila: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  heroOjo: { fontSize: 15 },
   heroValor: { color: '#d4a338', fontSize: 44, fontWeight: '800', marginTop: 4 },
   heroEstadoFila: { flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap', justifyContent: 'center' },
   heroEstadoTexto: { color: '#c9c9d4', fontSize: 13, fontWeight: '600' },
