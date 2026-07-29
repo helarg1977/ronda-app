@@ -85,7 +85,7 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
     mesasPermitidasRef.current = mesasPermitidas
 
     const { data: pedidosData } = await supabase
-      .from('pedidos').select('id, mesa_id, estado, total, created_at')
+      .from('pedidos').select('id, mesa_id, estado, total, created_at, pedido_items(cantidad, productos(nombre))')
       .eq('bar_id', usuario.bar_id).not('estado', 'in', '(entregado,cancelado)')
       .order('created_at', { ascending: true })
 
@@ -213,6 +213,18 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
         </View>
 
         {(() => {
+          const carga = todasLasTareas.length
+          const info = carga === 0
+            ? { texto: '🟢 Todo bajo control', color: '#3ecf8e' }
+            : carga <= 2
+            ? { texto: `🟡 Hay ${carga} mesa${carga !== 1 ? 's' : ''} esperando`, color: '#e0b94c' }
+            : carga <= 4
+            ? { texto: '🟠 Atención: se están acumulando pedidos', color: '#e0954c' }
+            : { texto: '🔴 Necesitas apoyo', color: '#e05c5c' }
+          return <Text style={[styles.indicadorTranquilidad, { color: info.color }]}>{info.texto}</Text>
+        })()}
+
+        {(() => {
           const prioridad = prioridadActual
           const pasoPrioridad = prioridad?.tipo === 'pedido' ? SIGUIENTE_ESTADO[prioridad.item.estado] : null
           return (
@@ -228,6 +240,9 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
                       {tiempoTranscurrido(prioridad.created_at).texto}
                     </Text>
                   </View>
+                  <Text style={styles.prioridadItems}>
+                    {prioridad.item.pedido_items?.map((it) => `${it.cantidad} ${it.productos?.nombre}`).join(' · ')} — {money(prioridad.item.total)}
+                  </Text>
                   {pasoPrioridad && (
                     <TouchableOpacity style={styles.boton} onPress={() => avanzarEstado(prioridad.item)}>
                       <Text style={styles.botonTexto}>{pasoPrioridad.boton}</Text>
@@ -281,7 +296,7 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
                 <Text style={styles.pedidoMesa}>Mesa {mesas[item.mesa_id] || '?'}</Text>
                 <Text style={[styles.pedidoTiempo, { color: tiempo.color }]}>{tiempo.texto}</Text>
               </View>
-              <Text style={styles.pedidoEstado}>{item.estado}</Text>
+              <Text style={styles.pedidoEstado}>{ESTADO_LABEL_MESERO[item.estado] || item.estado}</Text>
               {paso && (
                 <TouchableOpacity style={styles.boton} onPress={(e) => { e.stopPropagation?.(); avanzarEstado(item) }}>
                   <Text style={styles.botonTexto}>{paso.boton}</Text>
@@ -307,23 +322,23 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
 
         <View style={styles.statsGrid}>
           <TouchableOpacity style={styles.statCard} onPress={() => setMostrarHistorial(true)}>
-            <Text style={styles.statValor}>{mesasAtendidasHoy}</Text>
-            <Text style={styles.statLabel}>Mesas atendidas hoy</Text>
+            <Text style={styles.statValor}>🍺 {mesasAtendidasHoy}</Text>
+            <Text style={styles.statLabel}>Mesas felices hoy</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.statCard} onPress={() => setMostrarHistorial(true)}>
-            <Text style={styles.statValor}>{money(propinasHoy)}</Text>
-            <Text style={styles.statLabel}>Propinas recibidas</Text>
+            <Text style={styles.statValor}>💰 {money(propinasHoy)}</Text>
+            <Text style={styles.statLabel}>Propinas</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.statCard} onPress={() => pedidos[0] && abrirDetallePedido(pedidos[0])}>
-            <Text style={styles.statValor}>{pedidos.length}</Text>
-            <Text style={styles.statLabel}>Pedidos activos</Text>
+            <Text style={styles.statValor}>⚡ {pedidos.length}</Text>
+            <Text style={styles.statLabel}>Esperando por ti</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.filaDueno}>
           <TouchableOpacity style={[styles.botonHablarDueno, { flex: 1 }]} onPress={() => abrirChat(`dueno-${usuario.id}`, '🗨️ Chat con el dueño')}>
             <Text style={styles.botonHablarDuenoTexto}>
-              🗨️ Hablar con el dueño{canalesConNuevos[`dueno-${usuario.id}`] ? ' 🔴' : ''}
+              📣 Avisar al dueño{canalesConNuevos[`dueno-${usuario.id}`] ? ' 🔴' : ''}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.botonAyudaUrgente} onPress={() => setMostrarMotivoApoyo(true)}>
@@ -602,6 +617,8 @@ const styles = StyleSheet.create({
   prioridadHeaderFila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   prioridadTiempo: { fontSize: 13, fontWeight: '800' },
   prioridadTexto: { color: '#f2f2f2', fontSize: 16, fontWeight: '700', flex: 1 },
+  prioridadItems: { color: '#a0a0b0', fontSize: 13, marginBottom: 10 },
+  indicadorTranquilidad: { fontSize: 14, fontWeight: '700', marginHorizontal: 14, marginTop: 4, marginBottom: 16 },
   prioridadTextoOk: { color: '#3ecf8e', fontSize: 16, fontWeight: '700' },
   botonSecundarioChico: { alignItems: 'center', padding: 10, marginTop: 8 },
   botonSecundarioChicoTexto: { color: '#a0a0b0', fontSize: 13, fontWeight: '600' },
