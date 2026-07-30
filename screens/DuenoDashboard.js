@@ -596,6 +596,21 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           ))}
         </View>
 
+        {bar?.modo_negocio !== 'solo' && meserosLista.length > 0 && (() => {
+          const hayNuevos = meserosLista.some((m) => canalesConNuevos[`dueno-${m.id}`])
+          return (
+            <View style={[styles.mensajesEquipoBox, hayNuevos && styles.mensajesEquipoBoxAlerta]}>
+              <Text style={styles.subtitulo}>💬 Mensajes del equipo{hayNuevos ? ' 🔴' : ''}</Text>
+              {meserosLista.map((m) => (
+                <TouchableOpacity key={m.id} style={styles.mensajeEquipoFila} onPress={() => abrirChat(`dueno-${m.id}`, `💬 ${m.nombre}`)}>
+                  <Text style={styles.mensajeEquipoNombre}>{m.nombre}</Text>
+                  <Text style={styles.mensajeEquipoAbrir}>{canalesConNuevos[`dueno-${m.id}`] ? '🔴 Nuevo mensaje' : 'Abrir chat'}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )
+        })()}
+
         <View style={styles.seccionHeaderFila}>
           <Text style={[styles.seccionTitulo, { marginTop: 0, marginBottom: 0, paddingHorizontal: 0 }]}>Mapa del bar</Text>
           <TouchableOpacity style={styles.botonAgregarMesa} onPress={agregarMesa}>
@@ -1264,6 +1279,11 @@ const styles = StyleSheet.create({
   chatEnviarBoton: { backgroundColor: '#d4a338', borderRadius: 12, paddingHorizontal: 18, justifyContent: 'center' },
   botonTexto: { color: '#14141f', fontSize: 16, fontWeight: '700' },
   pagoBox: { backgroundColor: '#26263a', borderRadius: 14, padding: 14, marginTop: 14 },
+  mensajesEquipoBox: { backgroundColor: '#1a1a26', borderRadius: 14, padding: 14, marginHorizontal: 14, marginBottom: 14, borderWidth: 1, borderColor: '#2a2a3a' },
+  mensajesEquipoBoxAlerta: { borderColor: '#e0954c' },
+  mensajeEquipoFila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
+  mensajeEquipoNombre: { color: '#f2f2f2', fontSize: 14, fontWeight: '600' },
+  mensajeEquipoAbrir: { color: '#8a8a9a', fontSize: 13, fontWeight: '600' },
   lineaTiempoBox: { backgroundColor: '#26263a', borderRadius: 12, padding: 12, marginTop: 6 },
   lineaTiempoFila: { flexDirection: 'row', gap: 10, paddingVertical: 4 },
   lineaTiempoHora: { color: '#6a6a80', fontSize: 12, fontWeight: '700', width: 70 },
