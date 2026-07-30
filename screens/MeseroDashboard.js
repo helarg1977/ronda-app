@@ -7,12 +7,15 @@ import TarjetaParpadeante from '../components/TarjetaParpadeante'
 
 const SONIDO_NOTIFICACION = 'https://raw.githubusercontent.com/helarg1977/ronda-app/main/assets/ronda-chime.wav'
 
-async function reproducirSonido() {
+async function reproducirSonido(insistente) {
   try {
     const { sound } = await Audio.Sound.createAsync({ uri: SONIDO_NOTIFICACION })
     await sound.playAsync()
     sound.setOnPlaybackStatusUpdate((status) => {
-      if (status.didJustFinish) sound.unloadAsync()
+      if (status.didJustFinish) {
+        sound.unloadAsync()
+        if (insistente) setTimeout(() => reproducirSonido(false), 350)
+      }
     })
   } catch (e) {
     // si falla el sonido, no interrumpe el resto de la app
@@ -136,7 +139,7 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
         if (mesasPermitidasRef.current.has(payload.new.mesa_id)) reproducirSonido()
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'solicitudes', filter: `bar_id=eq.${usuario.bar_id}` }, (payload) => {
-        if (mesasPermitidasRef.current.has(payload.new.mesa_id)) reproducirSonido()
+        if (mesasPermitidasRef.current.has(payload.new.mesa_id)) reproducirSonido(payload.new.tipo === 'cuenta')
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes_chat', filter: `bar_id=eq.${usuario.bar_id}` }, (payload) => {
         if (payload.new.de === 'mesero') return
