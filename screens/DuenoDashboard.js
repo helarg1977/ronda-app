@@ -230,7 +230,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     // --- Pagos por confirmar ---
     const { data: pagosData } = await supabase
       .from('pagos')
-      .select('id, metodo, monto, comprobante_url, pedido_id, created_at, pedidos!inner(bar_id, mesa_id, mesas(numero))')
+      .select('id, metodo, monto, comprobante_url, pedido_id, created_at, monto_efectivo, monto_transferencia, pedidos!inner(bar_id, mesa_id, mesas(numero))')
       .eq('pedidos.bar_id', usuario.bar_id).eq('confirmado', false)
     setPagosPendientes(pagosData || [])
 
@@ -437,7 +437,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     if (mesa.pedido) {
       const { data: itemsData } = await supabase.from('pedido_items').select('id, cantidad, precio_unitario, productos(nombre)').eq('pedido_id', mesa.pedido.id)
       items = itemsData || []
-      const { data: pagoData } = await supabase.from('pagos').select('id, metodo, monto, comprobante_url, confirmado').eq('pedido_id', mesa.pedido.id).maybeSingle()
+      const { data: pagoData } = await supabase.from('pagos').select('id, metodo, monto, comprobante_url, confirmado, monto_efectivo, monto_transferencia').eq('pedido_id', mesa.pedido.id).maybeSingle()
       pago = pagoData || null
       const { data: eventosData } = await supabase.from('pedido_eventos').select('estado, created_at').eq('pedido_id', mesa.pedido.id).order('created_at', { ascending: true })
       eventos = eventosData || []
@@ -680,8 +680,11 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           {pagosPendientes.map((p) => (
             <View key={p.id} style={styles.pagoPendienteFila}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.rankingNombre}>Mesa {p.pedidos?.mesas?.numero} · {p.metodo}</Text>
+                <Text style={styles.rankingNombre}>Mesa {p.pedidos?.mesas?.numero} · {p.metodo === 'mixto' ? 'Mixto' : p.metodo}</Text>
                 <Text style={styles.rankingValor}>{money(p.monto)}</Text>
+                {p.metodo === 'mixto' && (
+                  <Text style={styles.pagoEsperandoTexto}>💵 {money(p.monto_efectivo || 0)} + 📱 {money(p.monto_transferencia || 0)}</Text>
+                )}
                 <Text style={styles.pagoEsperandoTexto}>Reportado {minutosTexto(p.created_at)}</Text>
               </View>
               <TouchableOpacity style={styles.botonConfirmarChico} onPress={() => confirmarPago(p.id)}>
@@ -919,7 +922,13 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
 
                     {detalle.pago && (
                       <View style={styles.pagoBox}>
-                        <Text style={styles.subtitulo}>Pago — {detalle.pago.metodo}</Text>
+                        <Text style={styles.subtitulo}>Pago — {detalle.pago.metodo === 'mixto' ? 'Mixto' : detalle.pago.metodo}</Text>
+                        {detalle.pago.metodo === 'mixto' && (
+                          <View style={styles.desgloseMixtoBox}>
+                            <Text style={styles.desgloseMixtoTexto}>💵 Efectivo: {money(detalle.pago.monto_efectivo || 0)}</Text>
+                            <Text style={styles.desgloseMixtoTexto}>📱 Transferencia: {money(detalle.pago.monto_transferencia || 0)}</Text>
+                          </View>
+                        )}
                         {detalle.pago.comprobante_url && (
                           <Image source={{ uri: detalle.pago.comprobante_url }} style={styles.comprobanteImg} resizeMode="contain" />
                         )}
@@ -1451,6 +1460,8 @@ const styles = StyleSheet.create({
   comprobanteImg: { width: '100%', height: 180, borderRadius: 10, marginBottom: 10, backgroundColor: '#14141f' },
   pagoConfirmado: { color: '#3ecf8e', fontSize: 14, fontWeight: '700', textAlign: 'center' },
   pagoEsperaEntrega: { color: '#8a8a9a', fontSize: 13, textAlign: 'center', fontStyle: 'italic' },
+  desgloseMixtoBox: { backgroundColor: '#1a1a26', borderRadius: 10, padding: 10, marginBottom: 10 },
+  desgloseMixtoTexto: { color: '#c9c9d4', fontSize: 13, fontWeight: '600', marginBottom: 2 },
   botonConfirmarPago: { backgroundColor: '#d4a338', borderRadius: 12, padding: 14, alignItems: 'center' },
   cerrarModal: { padding: 14, alignItems: 'center', marginTop: 6 },
   masOpcion: { backgroundColor: '#26263a', borderRadius: 12, padding: 16, marginBottom: 10 },
