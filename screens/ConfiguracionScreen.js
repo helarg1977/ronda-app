@@ -4,6 +4,13 @@ import * as ImagePicker from 'expo-image-picker'
 import { decode } from 'base64-arraybuffer'
 import { supabase } from '../lib/supabase'
 
+const PLANTILLAS_PROMO = [
+  { label: '2x1', titulo: '2x1 en cócteles hoy', mensaje: 'Solo por hoy, todos los cócteles al 2x1 🍹' },
+  { label: 'Happy Hour', titulo: 'Happy Hour', mensaje: 'De 6 a 8pm todas las cervezas con descuento 🍺' },
+  { label: 'Cumpleaños', titulo: '¿Cumpleaños hoy?', mensaje: 'Si celebras hoy, avísale a tu mesero y te tenemos una sorpresa 🎉' },
+  { label: 'Shot gratis', titulo: 'Shot gratis', mensaje: 'Con tu segunda ronda, un shot de la casa va por cuenta nuestra 🥃' },
+]
+
 function pinAleatorio() {
   return String(Math.floor(1000 + Math.random() * 9000))
 }
@@ -322,6 +329,15 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
                 {clientesFidelizados} cliente{clientesFidelizados !== 1 ? 's' : ''} ya guardaron su número contigo. Cuando creas una promoción, la ven apenas abren tu mini-web.
               </Text>
 
+              <Text style={styles.label}>¿Quieres atraer gente hoy?</Text>
+              <View style={styles.filaPlantillasPromo}>
+                {PLANTILLAS_PROMO.map((pl) => (
+                  <TouchableOpacity key={pl.titulo} style={styles.chipPlantillaPromo} onPress={() => { setTituloPromo(pl.titulo); setMensajePromo(pl.mensaje) }}>
+                    <Text style={styles.chipPlantillaPromoTexto}>{pl.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
               <Text style={styles.label}>Título</Text>
               <TextInput style={styles.input} value={tituloPromo} onChangeText={setTituloPromo} placeholder="Ej: 2x1 en cócteles hoy" placeholderTextColor="#6a6a80" />
               <Text style={styles.label}>Mensaje</Text>
@@ -428,6 +444,9 @@ const styles = StyleSheet.create({
   ejemploMensajeBox: { backgroundColor: '#26263a', borderRadius: 10, padding: 10, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#d4a338' },
   ejemploMensajeTexto: { color: '#c9c9d4', fontSize: 12, fontStyle: 'italic', lineHeight: 17 },
   label: { color: '#a0a0b0', fontSize: 14, marginBottom: 6, marginTop: 10 },
+  filaPlantillasPromo: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 6 },
+  chipPlantillaPromo: { backgroundColor: '#26263a', borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: '#3a3a4a' },
+  chipPlantillaPromoTexto: { color: '#d4a338', fontSize: 13, fontWeight: '700' },
   input: {
     backgroundColor: '#1e1e2e', color: '#f2f2f2', borderRadius: 14, padding: 14,
     fontSize: 16, borderWidth: 1, borderColor: '#2a2a3a', marginBottom: 10,
