@@ -272,42 +272,47 @@ export default function MenuScreen({ usuario, onVolver }) {
         )}
 
         <TextInput style={styles.input} value={nombreProducto} onChangeText={setNombreProducto} placeholder="Nombre del producto (o toca una sugerencia arriba)" placeholderTextColor="#6a6a80" />
-        <TextInput
-          style={styles.input}
-          value={formatearPrecio(precioProducto)}
-          onChangeText={(txt) => setPrecioProducto(txt.replace(/[^0-9]/g, ''))}
-          placeholder="$ Precio"
-          keyboardType="numeric"
-          placeholderTextColor="#6a6a80"
-        />
 
-        <Text style={styles.label}>Foto del producto (opcional)</Text>
-        {fotoProducto ? (
-          <View style={styles.previewFotoBox}>
-            <TouchableOpacity onPress={() => setFotoAmpliada(fotoProducto)}>
-              <Image source={{ uri: fotoProducto }} style={styles.previewFoto} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setFotoProducto('')}><Text style={styles.quitarFotoTexto}>Quitar foto</Text></TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.filaFotoBotones}>
-            <TouchableOpacity style={styles.botonFoto} onPress={() => elegirFoto(true)} disabled={subiendoFoto}>
-              <Text style={styles.botonFotoTexto}>📷 Tomar foto</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.botonFoto} onPress={() => elegirFoto(false)} disabled={subiendoFoto}>
-              <Text style={styles.botonFotoTexto}>🖼️ Elegir de galería</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-        {subiendoFoto && <ActivityIndicator color="#d4a338" style={{ marginVertical: 10 }} />}
+        {nombreProducto.trim().length > 0 && (
+          <>
+            <TextInput
+              style={styles.input}
+              value={formatearPrecio(precioProducto)}
+              onChangeText={(txt) => setPrecioProducto(txt.replace(/[^0-9]/g, ''))}
+              placeholder="$ Precio"
+              keyboardType="numeric"
+              placeholderTextColor="#6a6a80"
+            />
 
-        <TouchableOpacity style={styles.boton} onPress={guardarProducto}>
-          <Text style={styles.botonTexto}>{editandoProducto ? '💾 Guardar cambios' : '+ Agregar producto'}</Text>
-        </TouchableOpacity>
-        {editandoProducto && (
-          <TouchableOpacity onPress={cancelarEdicionProducto}>
-            <Text style={styles.cancelarTexto}>Cancelar edición</Text>
-          </TouchableOpacity>
+            <Text style={styles.label}>Foto del producto (opcional — puedes agregarla después)</Text>
+            {fotoProducto ? (
+              <View style={styles.previewFotoBox}>
+                <TouchableOpacity onPress={() => setFotoAmpliada(fotoProducto)}>
+                  <Image source={{ uri: fotoProducto }} style={styles.previewFoto} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setFotoProducto('')}><Text style={styles.quitarFotoTexto}>Quitar foto</Text></TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.filaFotoBotones}>
+                <TouchableOpacity style={styles.botonFoto} onPress={() => elegirFoto(true)} disabled={subiendoFoto}>
+                  <Text style={styles.botonFotoTexto}>📷 Tomar foto</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.botonFoto} onPress={() => elegirFoto(false)} disabled={subiendoFoto}>
+                  <Text style={styles.botonFotoTexto}>🖼️ Elegir de galería</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {subiendoFoto && <ActivityIndicator color="#d4a338" style={{ marginVertical: 10 }} />}
+
+            <TouchableOpacity style={styles.boton} onPress={guardarProducto} disabled={!precioProducto}>
+              <Text style={styles.botonTexto}>{editandoProducto ? '💾 Guardar cambios' : '+ Agregar producto'}</Text>
+            </TouchableOpacity>
+            {editandoProducto && (
+              <TouchableOpacity onPress={cancelarEdicionProducto}>
+                <Text style={styles.cancelarTexto}>Cancelar edición</Text>
+              </TouchableOpacity>
+            )}
+          </>
         )}
 
         <Text style={styles.seccion}>Productos de esta categoría</Text>
