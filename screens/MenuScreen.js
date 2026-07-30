@@ -162,6 +162,20 @@ export default function MenuScreen({ usuario, onVolver }) {
     cargar()
   }
 
+  async function duplicarProducto(p) {
+    const { error } = await supabase.from('productos').insert({
+      bar_id: usuario.bar_id,
+      categoria_id: p.categoria_id,
+      nombre: `${p.nombre} (copia)`,
+      precio: p.precio,
+      foto_url: p.foto_url || null,
+      disponible: true,
+      orden: productos.length,
+    })
+    if (error) { Alert.alert('Error', 'No se pudo duplicar: ' + error.message); return }
+    cargar()
+  }
+
   function abrirEdicionProducto(producto) {
     setEditandoProducto(producto.id)
     setNombreProducto(producto.nombre)
@@ -327,6 +341,7 @@ export default function MenuScreen({ usuario, onVolver }) {
               <Text style={[styles.productoNombre, !p.disponible && styles.productoOculto]}>{p.nombre} — {formatearPrecio(String(p.precio))}</Text>
               <Text style={styles.productoEstado}>{p.disponible ? 'Disponible (toca para ocultar)' : 'Oculto (toca para activar)'}</Text>
             </TouchableOpacity>
+            <TouchableOpacity onPress={() => duplicarProducto(p)}><Text style={styles.borrarTexto}>📋</Text></TouchableOpacity>
             <TouchableOpacity onPress={() => abrirEdicionProducto(p)}><Text style={styles.borrarTexto}>✏️</Text></TouchableOpacity>
             <TouchableOpacity onPress={() => borrarProducto(p)}><Text style={styles.borrarTexto}>🗑️</Text></TouchableOpacity>
           </View>
