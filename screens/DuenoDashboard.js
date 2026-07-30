@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, Modal, ScrollView, Image, Alert, TextInput, KeyboardAvoidingView, Platform, Share, Switch } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, Modal, ScrollView, Image, Alert, TextInput, KeyboardAvoidingView, Platform, Share, Switch, Vibration } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Audio } from 'expo-av'
 import * as Sharing from 'expo-sharing'
@@ -432,6 +432,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   async function confirmarPago(pagoId) {
     await supabase.from('pagos').update({ confirmado: true }).eq('id', pagoId)
     if (detalle?.pago?.id === pagoId) setDetalle({ ...detalle, pago: { ...detalle.pago, confirmado: true } })
+    Vibration.vibrate(40)
     cargar()
   }
 
@@ -475,6 +476,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   async function cerrarMesa() {
     if (!detalle) return
     await supabase.rpc('cerrar_mesa', { p_mesa_id: detalle.mesa.id })
+    Vibration.vibrate(40)
     setDetalle(null)
     cargar()
   }
@@ -610,6 +612,25 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
             <Text style={styles.statLabelChico}>Dinero esperando</Text>
           </TouchableOpacity>
         </View>
+
+        {(() => {
+          const mesaOlvidada = mesasConEstado.find((m) => estadoMesa(m).texto.startsWith('🟠'))
+          let consejo = null
+          if (mesaOlvidada) {
+            consejo = `La Mesa ${mesaOlvidada.numero} lleva rato sin novedad — puede ser buen momento para acercarte.`
+          } else if (comparativoAyer != null && comparativoAyer <= -20) {
+            consejo = `Hoy vas ${Math.abs(comparativoAyer)}% por debajo de ayer a esta hora.`
+          } else if (productoEstrella) {
+            consejo = `${productoEstrella.nombre} es tu producto más vendido hoy (${productoEstrella.unidades}x) — asegúrate de no quedarte sin stock.`
+          }
+          if (!consejo) return null
+          return (
+            <View style={styles.consejoBox}>
+              <Text style={styles.consejoTitulo}>💡 Consejo de hoy</Text>
+              <Text style={styles.consejoTexto}>{consejo}</Text>
+            </View>
+          )
+        })()}
 
         <Text style={styles.seccionTitulo}>💰 Hay dinero esperando</Text>
         <View style={styles.card}>
@@ -868,6 +889,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                           <View style={styles.lineaTiempoBox}>
                             {detalle.eventos.map((ev, i) => (
                               <View key={i} style={styles.lineaTiempoFila}>
+                                <Text style={styles.lineaTiempoIcono}>{{ pendiente: '🍺', confirmado: '✅', preparando: '🍸', en_camino: '🚶', entregado: '📬' }[ev.estado] || '•'}</Text>
                                 <Text style={styles.lineaTiempoHora}>{new Date(ev.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</Text>
                                 <Text style={styles.lineaTiempoEstado}>{ESTADO_LABEL[ev.estado] || ev.estado}</Text>
                               </View>
@@ -1204,6 +1226,9 @@ const styles = StyleSheet.create({
   heroComparativo: { fontSize: 13, fontWeight: '800', marginTop: 4 },
   heroEstadoTexto: { color: '#c9c9d4', fontSize: 13, fontWeight: '600' },
   heroDineroMesas: { color: '#e0b94c', fontSize: 13, fontWeight: '700', marginTop: 8 },
+  consejoBox: { backgroundColor: '#1e1e2e', borderRadius: 14, padding: 14, marginHorizontal: 14, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#d4a338' },
+  consejoTitulo: { color: '#d4a338', fontSize: 12, fontWeight: '800', marginBottom: 4 },
+  consejoTexto: { color: '#c9c9d4', fontSize: 13, lineHeight: 18 },
   sentadosDesdeTexto: { color: '#8a8a9a', fontSize: 13, marginBottom: 10 },
 
   statsGridSecundario: { flexDirection: 'row', paddingHorizontal: 10, gap: 8, marginBottom: 4 },
@@ -1327,6 +1352,7 @@ const styles = StyleSheet.create({
   mensajeEquipoAbrir: { color: '#8a8a9a', fontSize: 13, fontWeight: '600' },
   lineaTiempoBox: { backgroundColor: '#26263a', borderRadius: 12, padding: 12, marginTop: 6 },
   lineaTiempoFila: { flexDirection: 'row', gap: 10, paddingVertical: 4 },
+  lineaTiempoIcono: { fontSize: 14, width: 22 },
   lineaTiempoHora: { color: '#6a6a80', fontSize: 12, fontWeight: '700', width: 70 },
   lineaTiempoEstado: { color: '#f2f2f2', fontSize: 13 },
   comprobanteImg: { width: '100%', height: 180, borderRadius: 10, marginBottom: 10, backgroundColor: '#14141f' },
