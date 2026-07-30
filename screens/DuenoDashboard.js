@@ -495,9 +495,15 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     if (item.pedido) return { color: colorPorAntiguedad(item.pedido.created_at), texto: minutosTexto(item.pedido.created_at) }
     if (mesasConPagoPendiente.has(item.id)) return { color: '#9b6fd6', texto: '🟣 Pago sin confirmar' }
     if (item.sesion_iniciada_en) {
-      const minSentados = (Date.now() - new Date(item.sesion_iniciada_en).getTime()) / 60000
-      if (minSentados >= 15) return { color: '#e0954c', texto: `🟠 Sin novedad hace ${Math.floor(minSentados)} min` }
-      return { color: '#3ecf8e', texto: `Sentados hace ${Math.floor(minSentados)} min` }
+      const ultimoPedidoDeEstaMesa = pedidosRecientes
+        .filter((p) => p.mesa_id === item.id)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0]
+      const ultimaActividad = ultimoPedidoDeEstaMesa && new Date(ultimoPedidoDeEstaMesa.created_at) > new Date(item.sesion_iniciada_en)
+        ? ultimoPedidoDeEstaMesa.created_at
+        : item.sesion_iniciada_en
+      const minSinNovedad = (Date.now() - new Date(ultimaActividad).getTime()) / 60000
+      if (minSinNovedad >= 15) return { color: '#e0954c', texto: `🟠 Sin novedad hace ${Math.floor(minSinNovedad)} min` }
+      return { color: '#3ecf8e', texto: `Sentados hace ${Math.floor((Date.now() - new Date(item.sesion_iniciada_en).getTime()) / 60000)} min` }
     }
     return { color: '#2a2a3a', texto: 'Libre' }
   }
