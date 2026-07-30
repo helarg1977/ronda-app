@@ -110,6 +110,15 @@ export default function ReportesScreen({ usuario, onVolver }) {
         <Text style={styles.ayuda}>Cargando…</Text>
       ) : (
         <>
+          {periodo === 'hoy' && (
+            <View style={styles.resumenHumanoBox}>
+              <Text style={styles.resumenHumanoTitulo}>
+                {ventasTotal === 0 ? '☕ Todavía no hay ventas hoy' : ventasTotal >= 300000 ? '🔥 ¡Día espectacular!' : ventasTotal >= 100000 ? '😁 Buen día' : '🙂 Vas arrancando'}
+              </Text>
+              {ventasTotal > 0 && <Text style={styles.resumenHumanoTexto}>Hasta ahora vendiste {money(ventasTotal)}</Text>}
+            </View>
+          )}
+
           <View style={styles.statsGrid}>
             <TouchableOpacity style={styles.statCard} onPress={() => setDetalleStat('ventas')}>
               <Text style={styles.statValor}>{money(ventasTotal)}</Text>
@@ -230,6 +239,9 @@ const styles = StyleSheet.create({
   periodoChipTexto: { color: '#f2f2f2', fontSize: 13, fontWeight: '600' },
   periodoChipTextoActivo: { color: '#14141f', fontWeight: '800' },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  resumenHumanoBox: { marginBottom: 16 },
+  resumenHumanoTitulo: { color: '#f2f2f2', fontSize: 20, fontWeight: '800' },
+  resumenHumanoTexto: { color: '#a0a0b0', fontSize: 14, marginTop: 4 },
   statCard: { flexBasis: '47%', backgroundColor: '#1e1e2e', borderRadius: 14, padding: 14 },
   statValor: { color: '#d4a338', fontSize: 18, fontWeight: '800' },
   statLabel: { color: '#a0a0b0', fontSize: 11, marginTop: 4, textTransform: 'uppercase' },
