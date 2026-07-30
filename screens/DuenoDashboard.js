@@ -154,6 +154,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [pasoOnboarding, setPasoOnboarding] = useState(0)
   const [mostrarQr, setMostrarQr] = useState(false)
   const [mostrarLineaTiempo, setMostrarLineaTiempo] = useState(false)
+  const [mostrarMoverMesa, setMostrarMoverMesa] = useState(false)
   const [mostrarPreguntaModo, setMostrarPreguntaModo] = useState(false)
   const necesitaPreguntaModoRef = useRef(false)
   const [altoFlotante, setAltoFlotante] = useState(80)
@@ -486,6 +487,25 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   async function asignarMesero(mesaId, meseroId) {
     await supabase.from('mesas').update({ mesero_asignado_id: meseroId }).eq('id', mesaId)
     setDetalle((d) => (d ? { ...d, mesa: { ...d.mesa, mesero_asignado_id: meseroId } } : d))
+    cargar()
+  }
+
+  async function moverMesaA(mesaDestino) {
+    const origen = detalle.mesa
+    const sesionAMover = origen.sesion_actual
+    await supabase.from('mesas').update({
+      sesion_actual: sesionAMover,
+      sesion_iniciada_en: origen.sesion_iniciada_en,
+      cuenta_abierta: origen.cuenta_abierta,
+    }).eq('id', mesaDestino.id)
+    await supabase.from('pedidos').update({ mesa_id: mesaDestino.id }).eq('mesa_id', origen.id).eq('sesion_id', sesionAMover)
+    await supabase.from('solicitudes').update({ mesa_id: mesaDestino.id }).eq('mesa_id', origen.id)
+    await supabase.rpc('cerrar_mesa', { p_mesa_id: origen.id })
+    await supabase.from('mesas').update({ mesero_asignado_id: null }).eq('id', origen.id)
+    setMostrarMoverMesa(false)
+    setDetalle(null)
+    Vibration.vibrate(40)
+    Alert.alert('Listo', `La cuenta ya quedó en la Mesa ${mesaDestino.numero}.`)
     cargar()
   }
 
@@ -972,6 +992,12 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                   </TouchableOpacity>
                 )}
 
+                {detalle.mesa.sesion_iniciada_en && (
+                  <TouchableOpacity style={styles.botonMoverMesa} onPress={() => setMostrarMoverMesa(true)}>
+                    <Text style={styles.botonMoverMesaTexto}>🔀 Mover esta cuenta a otra mesa</Text>
+                  </TouchableOpacity>
+                )}
+
                 <TouchableOpacity style={styles.cerrarModal} onPress={() => setDetalle(null)}>
                   <Text style={styles.cerrarModalTexto}>Cerrar</Text>
                 </TouchableOpacity>
@@ -1027,6 +1053,28 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           </TouchableOpacity>
         )}
       </View>
+
+      <Modal visible={mostrarMoverMesa} transparent animationType="slide" onRequestClose={() => setMostrarMoverMesa(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalDetalle}>
+            <Text style={styles.modalTitulo}>¿A cuál mesa la movemos?</Text>
+            <Text style={styles.ayudaChica}>Solo se muestran las mesas libres — la cuenta completa (pedidos, sesión y cuenta abierta) se pasa entera.</Text>
+            <ScrollView style={{ maxHeight: 320 }}>
+              {mesasConEstado.filter((m) => detalle && m.id !== detalle.mesa.id && !m.pedido && !m.sesion_iniciada_en).map((m) => (
+                <TouchableOpacity key={m.id} style={styles.opcionMesaDestino} onPress={() => moverMesaA(m)}>
+                  <Text style={styles.opcionMesaDestinoTexto}>Mesa {m.numero}</Text>
+                </TouchableOpacity>
+              ))}
+              {mesasConEstado.filter((m) => detalle && m.id !== detalle.mesa.id && !m.pedido && !m.sesion_iniciada_en).length === 0 && (
+                <Text style={styles.vacioTexto}>No hay mesas libres ahora mismo.</Text>
+              )}
+            </ScrollView>
+            <TouchableOpacity style={styles.cerrarModal} onPress={() => setMostrarMoverMesa(false)}>
+              <Text style={styles.cerrarModalTexto}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={mostrarMas} transparent animationType="slide" onRequestClose={() => setMostrarMas(false)}>
         <View style={styles.modalOverlay}>
@@ -1342,6 +1390,10 @@ const styles = StyleSheet.create({
   totalTexto: { color: '#f2f2f2', fontSize: 17, fontWeight: '700' },
   boton: { backgroundColor: '#d4a338', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 16 },
   botonCerrarMesa: { backgroundColor: '#3ecf8e', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 16 },
+  botonMoverMesa: { backgroundColor: '#26263a', borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 10, borderWidth: 1, borderColor: '#4a90d9' },
+  botonMoverMesaTexto: { color: '#4a90d9', fontSize: 14, fontWeight: '700' },
+  opcionMesaDestino: { backgroundColor: '#26263a', borderRadius: 12, padding: 16, marginBottom: 8 },
+  opcionMesaDestinoTexto: { color: '#f2f2f2', fontSize: 15, fontWeight: '700' },
   botonChatDetalle: { backgroundColor: '#26263a', borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 14, borderWidth: 1, borderColor: '#3a3a4a' },
   filaMeseroChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
   meseroChip: { backgroundColor: '#26263a', borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: '#3a3a4a' },
