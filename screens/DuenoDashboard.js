@@ -596,7 +596,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           ))}
         </View>
 
-        {bar?.modo_negocio !== 'solo' && meserosLista.length > 0 && (() => {
+        {meserosLista.length > 0 && (() => {
           const hayNuevos = meserosLista.some((m) => canalesConNuevos[`dueno-${m.id}`])
           return (
             <View style={[styles.mensajesEquipoBox, hayNuevos && styles.mensajesEquipoBoxAlerta]}>
