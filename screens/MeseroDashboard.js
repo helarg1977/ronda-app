@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Vibration, Animated } from 'react-native'
 import { Audio } from 'expo-av'
 import { supabase, cerrarSesion } from '../lib/supabase'
 import CapaFlotante from '../components/CapaFlotante'
@@ -61,6 +61,18 @@ function inicioDeHoy() {
 }
 
 export default function MeseroDashboard({ usuario, onCerrarSesion }) {
+  const respiracion = useRef(new Animated.Value(1)).current
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(respiracion, { toValue: 0.55, duration: 1400, useNativeDriver: true }),
+        Animated.timing(respiracion, { toValue: 1, duration: 1400, useNativeDriver: true }),
+      ])
+    )
+    loop.start()
+    return () => loop.stop()
+  }, [])
+
   const [pedidos, setPedidos] = useState([])
   const [mesas, setMesas] = useState({})
   const [solicitudes, setSolicitudes] = useState([])
@@ -139,7 +151,10 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
         if (mesasPermitidasRef.current.has(payload.new.mesa_id)) reproducirSonido()
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'solicitudes', filter: `bar_id=eq.${usuario.bar_id}` }, (payload) => {
-        if (mesasPermitidasRef.current.has(payload.new.mesa_id)) reproducirSonido(payload.new.tipo === 'cuenta')
+        if (mesasPermitidasRef.current.has(payload.new.mesa_id)) {
+          reproducirSonido(payload.new.tipo === 'cuenta')
+          if (payload.new.tipo === 'cuenta' || payload.new.tipo === 'mesero') Vibration.vibrate([0, 250, 100, 250])
+        }
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes_chat', filter: `bar_id=eq.${usuario.bar_id}` }, (payload) => {
         if (payload.new.de === 'mesero') return
@@ -314,6 +329,17 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
                 <Text style={[styles.pedidoTiempo, { color: tiempo.color }]}>{tiempo.texto}</Text>
               </View>
               <Text style={styles.pedidoEstado}>{ESTADO_LABEL_MESERO[item.estado] || item.estado}</Text>
+              <View style={styles.barraProgresoFila}>
+                {['pendiente', 'confirmado', 'en_camino', 'entregado'].map((paso_, i, arr) => {
+                  const pasoActualIdx = { pendiente: 0, confirmado: 1, preparando: 1, en_camino: 2, entregado: 3 }[item.estado] ?? 0
+                  const activo = i <= pasoActualIdx
+                  return (
+                    <View key={paso_} style={styles.barraProgresoSegmento}>
+                      <View style={[styles.barraProgresoBarra, activo && styles.barraProgresoBarraActiva]} />
+                    </View>
+                  )
+                })}
+              </View>
               {paso && (
                 <TouchableOpacity style={styles.boton} onPress={(e) => { e.stopPropagation?.(); avanzarEstado(item) }}>
                   <Text style={styles.botonTexto}>{paso.boton}</Text>
@@ -361,9 +387,11 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
               📣 Avisar al dueño{canalesConNuevos[`dueno-${usuario.id}`] ? ' 🔴' : ''}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.botonAyudaUrgente} onPress={() => setMostrarMotivoApoyo(true)}>
-            <Text style={styles.botonAyudaUrgenteTexto}>🚨 Necesito apoyo</Text>
-          </TouchableOpacity>
+          <Animated.View style={[styles.botonAyudaUrgente, { opacity: respiracion }]}>
+            <TouchableOpacity onPress={() => setMostrarMotivoApoyo(true)}>
+              <Text style={styles.botonAyudaUrgenteTexto}>🚨 Necesito apoyo</Text>
+            </TouchableOpacity>
+          </Animated.View>
         </View>
 
         <Text style={styles.seccionTitulo}>Mis mesas</Text>
@@ -593,7 +621,11 @@ const styles = StyleSheet.create({
   pedidoMesa: { color: '#f2f2f2', fontSize: 19, fontWeight: '700' },
   pedidoHeaderFila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   pedidoTiempo: { fontSize: 12, fontWeight: '700' },
-  pedidoEstado: { color: '#a0a0b0', fontSize: 14, marginTop: 4, marginBottom: 12, textTransform: 'capitalize' },
+  pedidoEstado: { color: '#a0a0b0', fontSize: 14, marginTop: 4, marginBottom: 8, textTransform: 'capitalize' },
+  barraProgresoFila: { flexDirection: 'row', gap: 4, marginBottom: 12 },
+  barraProgresoSegmento: { flex: 1 },
+  barraProgresoBarra: { height: 5, borderRadius: 999, backgroundColor: '#2a2a3a' },
+  barraProgresoBarraActiva: { backgroundColor: '#d4a338' },
   boton: { backgroundColor: '#d4a338', borderRadius: 12, padding: 14, alignItems: 'center' },
   botonTexto: { color: '#14141f', fontSize: 16, fontWeight: '700' },
 
