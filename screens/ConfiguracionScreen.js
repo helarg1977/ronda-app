@@ -165,7 +165,21 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
   }
 
   async function toggleActivo(empleado) {
+    const seVaADesactivar = empleado.activo
     await supabase.from('usuarios_bar').update({ activo: !empleado.activo }).eq('id', empleado.id)
+    if (seVaADesactivar) {
+      const { data: susMesas } = await supabase.from('mesas').select('id').eq('mesero_asignado_id', empleado.id)
+      if (susMesas && susMesas.length > 0) {
+        Alert.alert(
+          `${empleado.nombre} tenía ${susMesas.length} mesa${susMesas.length !== 1 ? 's' : ''} asignada${susMesas.length !== 1 ? 's' : ''}`,
+          '¿Quieres dejarlas libres para que cualquier mesero las pueda atender?',
+          [
+            { text: 'No, las dejo así', style: 'cancel' },
+            { text: 'Sí, liberarlas', onPress: async () => { await supabase.from('mesas').update({ mesero_asignado_id: null }).eq('mesero_asignado_id', empleado.id); cargar() } },
+          ]
+        )
+      }
+    }
     cargar()
   }
 
