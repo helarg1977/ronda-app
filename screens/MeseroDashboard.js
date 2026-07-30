@@ -198,7 +198,8 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
   async function abrirChat(canal, titulo) {
     setChatCanal({ canal, titulo })
     setCanalesConNuevos((c) => ({ ...c, [canal]: false }))
-    const { data } = await supabase.from('mensajes_chat').select('id, de, nombre, texto, created_at').eq('canal', canal).order('created_at', { ascending: true })
+    const { data, error } = await supabase.from('mensajes_chat').select('id, de, nombre, texto, created_at').eq('canal', canal).order('created_at', { ascending: true })
+    if (error) Alert.alert('No se pudo cargar el chat', error.message)
     setMensajesChat(data || [])
   }
 
