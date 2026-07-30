@@ -24,7 +24,7 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
   const [empleados, setEmpleados] = useState([])
   const [nombreEmpleado, setNombreEmpleado] = useState('')
   const [telefonoEmpleado, setTelefonoEmpleado] = useState('')
-  const [pinEmpleado, setPinEmpleado] = useState('')
+  const [pinEmpleado, setPinEmpleado] = useState(() => pinAleatorio())
   const [rolEmpleado, setRolEmpleado] = useState('mesero')
   const [verPin, setVerPin] = useState(false)
   const [pestana, setPestana] = useState('general')
@@ -145,7 +145,7 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
     )
     setNombreEmpleado('')
     setTelefonoEmpleado('')
-    setPinEmpleado('')
+    setPinEmpleado(pinAleatorio())
     setRolEmpleado('mesero')
     cargar()
   }
@@ -274,8 +274,11 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
 
               <View style={styles.filaSwitch}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.label}>🔥 Modo estrés (hora pico)</Text>
-                  <Text style={styles.ayudaChica}>Actívalo un viernes a full — tus clientes verán un aviso pidiendo un poco más de paciencia, en vez de sentir que los ignoran.</Text>
+                  <Text style={styles.label}>🔥 Viernes lleno</Text>
+                  <Text style={styles.ayudaChica}>Actívalo un viernes a full. Tus clientes verán este mensaje en su celular:</Text>
+                  <View style={styles.ejemploMensajeBox}>
+                    <Text style={styles.ejemploMensajeTexto}>"Estamos un poco ocupados ❤️ — puede tardar un poco más de lo normal"</Text>
+                  </View>
                 </View>
                 <Switch value={horaPicoActiva} onValueChange={setHoraPicoActiva} trackColor={{ true: '#d4a338' }} />
               </View>
@@ -422,6 +425,8 @@ const styles = StyleSheet.create({
   subseccion: { color: '#a0a0b0', fontSize: 13, fontWeight: '700', marginTop: 18, marginBottom: 8, textTransform: 'uppercase' },
   ayuda: { color: '#6a6a80', fontSize: 13, marginBottom: 16, lineHeight: 18 },
   ayudaChica: { color: '#6a6a80', fontSize: 12, marginTop: 6, marginBottom: 10, lineHeight: 16 },
+  ejemploMensajeBox: { backgroundColor: '#26263a', borderRadius: 10, padding: 10, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#d4a338' },
+  ejemploMensajeTexto: { color: '#c9c9d4', fontSize: 12, fontStyle: 'italic', lineHeight: 17 },
   label: { color: '#a0a0b0', fontSize: 14, marginBottom: 6, marginTop: 10 },
   input: {
     backgroundColor: '#1e1e2e', color: '#f2f2f2', borderRadius: 14, padding: 14,
