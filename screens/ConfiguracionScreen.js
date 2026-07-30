@@ -25,6 +25,7 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
   const [logoUrl, setLogoUrl] = useState('')
   const [fotoPortada, setFotoPortada] = useState('')
   const [modoNegocio, setModoNegocio] = useState('equipo')
+  const [valoresGuardados, setValoresGuardados] = useState(null)
   const [subiendoImagen, setSubiendoImagen] = useState(false)
   const [guardando, setGuardando] = useState(false)
 
@@ -53,6 +54,11 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
       setLogoUrl(data.logo_url || '')
       setFotoPortada(data.foto_portada || '')
       setModoNegocio(data.modo_negocio || 'equipo')
+      setValoresGuardados({
+        nombre: data.nombre || '', llaveNequi: data.llave_nequi || '', llaveDaviplata: data.llave_daviplata || '',
+        llaveBreB: data.llave_bre_b || '', propinasHabilitadas: data.propinas_habilitadas !== false,
+        horaPicoActiva: !!data.hora_pico_activa, modoNegocio: data.modo_negocio || 'equipo',
+      })
     }
     const { data: emp } = await supabase.from('usuarios_bar').select('id, nombre, telefono, rol, activo, pin').eq('bar_id', usuario.bar_id).neq('rol', 'dueno').order('nombre')
     setEmpleados(emp || [])
@@ -129,6 +135,7 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
     }).eq('id', usuario.bar_id)
     setGuardando(false)
     if (error) { Alert.alert('Error', 'No se pudo guardar.'); return }
+    setValoresGuardados({ nombre, llaveNequi, llaveDaviplata, llaveBreB, propinasHabilitadas, horaPicoActiva, modoNegocio })
     Alert.alert('Listo', 'Tu configuración quedó guardada.')
   }
 
@@ -211,6 +218,16 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
     )
   }
 
+  const hayCambios = valoresGuardados && (
+    nombre !== valoresGuardados.nombre ||
+    llaveNequi !== valoresGuardados.llaveNequi ||
+    llaveDaviplata !== valoresGuardados.llaveDaviplata ||
+    llaveBreB !== valoresGuardados.llaveBreB ||
+    propinasHabilitadas !== valoresGuardados.propinasHabilitadas ||
+    horaPicoActiva !== valoresGuardados.horaPicoActiva ||
+    modoNegocio !== valoresGuardados.modoNegocio
+  )
+
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={40}>
       <View style={{ flex: 1, backgroundColor: '#14141f' }}>
@@ -290,15 +307,20 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
                 <Switch value={horaPicoActiva} onValueChange={setHoraPicoActiva} trackColor={{ true: '#d4a338' }} />
               </View>
 
-              <TouchableOpacity style={styles.boton} onPress={guardar} disabled={guardando}>
-                <Text style={styles.botonTexto}>{guardando ? 'Guardando…' : 'Guardar'}</Text>
-              </TouchableOpacity>
+              {hayCambios && (
+                <TouchableOpacity style={styles.boton} onPress={guardar} disabled={guardando}>
+                  <Text style={styles.botonTexto}>{guardando ? 'Guardando…' : 'Guardar'}</Text>
+                </TouchableOpacity>
+              )}
             </>
           )}
 
           {pestana === 'pagos' && (
             <>
-              <Text style={styles.ayuda}>Estos son TUS números — el cliente transfiere directo a ti. Ronda nunca recibe ni administra ese dinero.</Text>
+              <View style={styles.confianzaBox}>
+                <Text style={styles.confianzaTexto}>🔒 Ronda nunca recibe ni administra tu dinero.</Text>
+                <Text style={styles.confianzaSubtexto}>Estos son TUS números — el cliente transfiere directo a ti, siempre.</Text>
+              </View>
 
               <Text style={styles.label}>Nequi</Text>
               <TextInput style={styles.input} value={llaveNequi} onChangeText={(v) => setLlaveNequi(v.replace(/\D/g, '').slice(0, 10))} placeholder="Número de celular" keyboardType="phone-pad" maxLength={10} placeholderTextColor="#6a6a80" />
@@ -317,9 +339,11 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
                 <Switch value={propinasHabilitadas} onValueChange={setPropinasHabilitadas} trackColor={{ true: '#d4a338' }} />
               </View>
 
-              <TouchableOpacity style={styles.boton} onPress={guardar} disabled={guardando}>
-                <Text style={styles.botonTexto}>{guardando ? 'Guardando…' : 'Guardar configuración'}</Text>
-              </TouchableOpacity>
+              {hayCambios && (
+                <TouchableOpacity style={styles.boton} onPress={guardar} disabled={guardando}>
+                  <Text style={styles.botonTexto}>{guardando ? 'Guardando…' : 'Guardar configuración'}</Text>
+                </TouchableOpacity>
+              )}
             </>
           )}
 
@@ -441,6 +465,9 @@ const styles = StyleSheet.create({
   subseccion: { color: '#a0a0b0', fontSize: 13, fontWeight: '700', marginTop: 18, marginBottom: 8, textTransform: 'uppercase' },
   ayuda: { color: '#6a6a80', fontSize: 13, marginBottom: 16, lineHeight: 18 },
   ayudaChica: { color: '#6a6a80', fontSize: 12, marginTop: 6, marginBottom: 10, lineHeight: 16 },
+  confianzaBox: { backgroundColor: '#1a2e26', borderRadius: 14, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#3ecf8e' },
+  confianzaTexto: { color: '#3ecf8e', fontSize: 15, fontWeight: '800', marginBottom: 4 },
+  confianzaSubtexto: { color: '#8fc9b0', fontSize: 12, lineHeight: 17 },
   ejemploMensajeBox: { backgroundColor: '#26263a', borderRadius: 10, padding: 10, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#d4a338' },
   ejemploMensajeTexto: { color: '#c9c9d4', fontSize: 12, fontStyle: 'italic', lineHeight: 17 },
   label: { color: '#a0a0b0', fontSize: 14, marginBottom: 6, marginTop: 10 },
