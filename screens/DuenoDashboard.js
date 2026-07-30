@@ -130,6 +130,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [bar, setBar] = useState(null)
   const [mesas, setMesas] = useState([])
   const [meserosLista, setMeserosLista] = useState([])
+  const [ultimoMensajePorCanal, setUltimoMensajePorCanal] = useState({})
   const [pedidos, setPedidos] = useState([])
   const [solicitudes, setSolicitudes] = useState([])
   const [refrescando, setRefrescando] = useState(false)
@@ -162,7 +163,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [horaPico, setHoraPico] = useState(null)
   const [pedidosRecientes, setPedidosRecientes] = useState([])
   const [mostrarTodosPedidos, setMostrarTodosPedidos] = useState(false)
-  const [pedidosVisible, setPedidosVisible] = useState(true)
+  const [pedidosVisible, setPedidosVisible] = useState(false)
   const [ocultarVentas, setOcultarVentas] = useState(false)
   const [mesasHistorialAbiertas, setMesasHistorialAbiertas] = useState({})
 
@@ -226,13 +227,22 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     // --- Pagos por confirmar ---
     const { data: pagosData } = await supabase
       .from('pagos')
-      .select('id, metodo, monto, comprobante_url, pedido_id, pedidos!inner(bar_id, mesa_id, mesas(numero))')
+      .select('id, metodo, monto, comprobante_url, pedido_id, created_at, pedidos!inner(bar_id, mesa_id, mesas(numero))')
       .eq('pedidos.bar_id', usuario.bar_id).eq('confirmado', false)
     setPagosPendientes(pagosData || [])
 
     // --- Ranking de meseros ---
     const { data: meseros } = await supabase.from('usuarios_bar').select('id, nombre').eq('bar_id', usuario.bar_id).eq('rol', 'mesero').eq('activo', true)
     setMeserosLista(meseros || [])
+    if (meseros && meseros.length > 0) {
+      const canales = meseros.map((m) => `dueno-${m.id}`)
+      const { data: ultimosMensajes } = await supabase
+        .from('mensajes_chat').select('canal, de, texto, created_at')
+        .in('canal', canales).order('created_at', { ascending: false })
+      const mapa = {}
+      ;(ultimosMensajes || []).forEach((msg) => { if (!mapa[msg.canal]) mapa[msg.canal] = msg })
+      setUltimoMensajePorCanal(mapa)
+    }
     const rankingCalculado = await Promise.all(
       (meseros || []).map(async (m) => {
         const { data: suyos } = await supabase.from('pedidos').select('total, estado').eq('mesero_id', m.id)
@@ -572,18 +582,18 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           <Text style={styles.heroValor}>{ocultarVentas ? '••••••' : money(ventasHoy)}</Text>
           {comparativoAyer != null && !ocultarVentas && (
             <Text style={[styles.heroComparativo, { color: comparativoAyer >= 0 ? '#3ecf8e' : '#e05c5c' }]}>
-              {comparativoAyer >= 0 ? '▲' : '▼'} {Math.abs(comparativoAyer)}% vs ayer
+              Hasta esta hora llevas {Math.abs(comparativoAyer)}% {comparativoAyer >= 0 ? 'más' : 'menos'} que ayer
             </Text>
           )}
-          <View style={styles.heroEstadoFila}>
-            {mesasConEstado.filter((m) => m.pedido).length > 0 && (
-              <Text style={styles.heroEstadoTexto}>🟢 {mesasConEstado.filter((m) => m.pedido).length} mesa{mesasConEstado.filter((m) => m.pedido).length !== 1 ? 's' : ''} atendiendo</Text>
-            )}
+          <View style={styles.heroEstadoColumna}>
             {pedidos.filter((p) => p.estado === 'pendiente').length > 0 && (
-              <Text style={styles.heroEstadoTexto}>🟡 {pedidos.filter((p) => p.estado === 'pendiente').length} pedido{pedidos.filter((p) => p.estado === 'pendiente').length !== 1 ? 's' : ''} pendiente{pedidos.filter((p) => p.estado === 'pendiente').length !== 1 ? 's' : ''}</Text>
+              <Text style={styles.heroEstadoTextoUrgente}>🔴 {pedidos.filter((p) => p.estado === 'pendiente').length} pedido{pedidos.filter((p) => p.estado === 'pendiente').length !== 1 ? 's' : ''} pendiente{pedidos.filter((p) => p.estado === 'pendiente').length !== 1 ? 's' : ''} — atiende primero</Text>
             )}
             {pagosPendientes.length > 0 && (
-              <Text style={styles.heroEstadoTexto}>🔵 {pagosPendientes.length} pago{pagosPendientes.length !== 1 ? 's' : ''} pendiente{pagosPendientes.length !== 1 ? 's' : ''}</Text>
+              <Text style={styles.heroEstadoTexto}>🟡 {pagosPendientes.length} pago{pagosPendientes.length !== 1 ? 's' : ''} esperando confirmación</Text>
+            )}
+            {mesasConEstado.filter((m) => m.pedido).length > 0 && (
+              <Text style={styles.heroEstadoTexto}>🟢 {mesasConEstado.filter((m) => m.pedido).length} mesa{mesasConEstado.filter((m) => m.pedido).length !== 1 ? 's' : ''} atendiendo bien</Text>
             )}
             {mesasConEstado.filter((m) => m.pedido).length === 0 && pagosPendientes.length === 0 && pedidos.length === 0 && (
               <Text style={styles.heroEstadoTexto}>🟢 Todo tranquilo por ahora</Text>
@@ -640,6 +650,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
               <View style={{ flex: 1 }}>
                 <Text style={styles.rankingNombre}>Mesa {p.pedidos?.mesas?.numero} · {p.metodo}</Text>
                 <Text style={styles.rankingValor}>{money(p.monto)}</Text>
+                <Text style={styles.pagoEsperandoTexto}>Reportado {minutosTexto(p.created_at)}</Text>
               </View>
               <TouchableOpacity style={styles.botonConfirmarChico} onPress={() => confirmarPago(p.id)}>
                 <Text style={styles.botonConfirmarChicoTexto}>Confirmar</Text>
@@ -653,12 +664,22 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           return (
             <View style={[styles.mensajesEquipoBox, hayNuevos && styles.mensajesEquipoBoxAlerta]}>
               <Text style={styles.subtitulo}>💬 Mensajes del equipo{hayNuevos ? ' 🔴' : ''}</Text>
-              {meserosLista.map((m) => (
-                <TouchableOpacity key={m.id} style={styles.mensajeEquipoFila} onPress={() => abrirChat(`dueno-${m.id}`, `💬 ${m.nombre}`)}>
-                  <Text style={styles.mensajeEquipoNombre}>{m.nombre}</Text>
-                  <Text style={styles.mensajeEquipoAbrir}>{canalesConNuevos[`dueno-${m.id}`] ? '🔴 Nuevo mensaje' : 'Abrir chat'}</Text>
-                </TouchableOpacity>
-              ))}
+              {meserosLista.map((m) => {
+                const ultimo = ultimoMensajePorCanal[`dueno-${m.id}`]
+                return (
+                  <TouchableOpacity key={m.id} style={styles.mensajeEquipoFila} onPress={() => abrirChat(`dueno-${m.id}`, `💬 ${m.nombre}`)}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.mensajeEquipoNombre}>{m.nombre}</Text>
+                      {ultimo && (
+                        <Text style={styles.mensajeEquipoPreview} numberOfLines={1}>
+                          {ultimo.de === 'dueno' ? 'Tú: ' : ''}{ultimo.texto}
+                        </Text>
+                      )}
+                    </View>
+                    {canalesConNuevos[`dueno-${m.id}`] && <Text style={styles.mensajeEquipoAbrir}>🔴 Nuevo</Text>}
+                  </TouchableOpacity>
+                )
+              })}
             </View>
           )
         })()}
@@ -872,6 +893,8 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                         )}
                         {detalle.pago.confirmado ? (
                           <Text style={styles.pagoConfirmado}>✅ Pago confirmado</Text>
+                        ) : detalle.pedido && detalle.pedido.estado !== 'entregado' ? (
+                          <Text style={styles.pagoEsperaEntrega}>Primero entrega el pedido — después podrás confirmar este pago.</Text>
                         ) : (
                           <TouchableOpacity style={styles.botonConfirmarPago} onPress={() => confirmarPago(detalle.pago.id)}>
                             <Text style={styles.botonTexto}>Confirmar que recibí el pago</Text>
@@ -1223,8 +1246,10 @@ const styles = StyleSheet.create({
   heroOjo: { fontSize: 15 },
   heroValor: { color: '#d4a338', fontSize: 44, fontWeight: '800', marginTop: 4 },
   heroEstadoFila: { flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap', justifyContent: 'center' },
+  heroEstadoColumna: { marginTop: 12, gap: 4, alignItems: 'center' },
   heroComparativo: { fontSize: 13, fontWeight: '800', marginTop: 4 },
   heroEstadoTexto: { color: '#c9c9d4', fontSize: 13, fontWeight: '600' },
+  heroEstadoTextoUrgente: { color: '#e05c5c', fontSize: 13, fontWeight: '800' },
   heroDineroMesas: { color: '#e0b94c', fontSize: 13, fontWeight: '700', marginTop: 8 },
   consejoBox: { backgroundColor: '#1e1e2e', borderRadius: 14, padding: 14, marginHorizontal: 14, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#d4a338' },
   consejoTitulo: { color: '#d4a338', fontSize: 12, fontWeight: '800', marginBottom: 4 },
@@ -1259,6 +1284,7 @@ const styles = StyleSheet.create({
   rankingFila: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#2a2a3a' },
   rankingNombre: { color: '#f2f2f2', fontSize: 14, flex: 1, paddingRight: 8 },
   rankingValor: { color: '#a0a0b0', fontSize: 13, fontWeight: '600' },
+  pagoEsperandoTexto: { color: '#e0954c', fontSize: 11, fontWeight: '700', marginTop: 2 },
   vacioTexto: { color: '#6a6a80', fontSize: 14 },
   ayudaChica: { color: '#6a6a80', fontSize: 12, paddingHorizontal: 16, marginTop: -4, marginBottom: 10 },
 
@@ -1349,6 +1375,7 @@ const styles = StyleSheet.create({
   mensajesEquipoBoxAlerta: { borderColor: '#e0954c' },
   mensajeEquipoFila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
   mensajeEquipoNombre: { color: '#f2f2f2', fontSize: 14, fontWeight: '600' },
+  mensajeEquipoPreview: { color: '#8a8a9a', fontSize: 12, marginTop: 2 },
   mensajeEquipoAbrir: { color: '#8a8a9a', fontSize: 13, fontWeight: '600' },
   lineaTiempoBox: { backgroundColor: '#26263a', borderRadius: 12, padding: 12, marginTop: 6 },
   lineaTiempoFila: { flexDirection: 'row', gap: 10, paddingVertical: 4 },
@@ -1357,6 +1384,7 @@ const styles = StyleSheet.create({
   lineaTiempoEstado: { color: '#f2f2f2', fontSize: 13 },
   comprobanteImg: { width: '100%', height: 180, borderRadius: 10, marginBottom: 10, backgroundColor: '#14141f' },
   pagoConfirmado: { color: '#3ecf8e', fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  pagoEsperaEntrega: { color: '#8a8a9a', fontSize: 13, textAlign: 'center', fontStyle: 'italic' },
   botonConfirmarPago: { backgroundColor: '#d4a338', borderRadius: 12, padding: 14, alignItems: 'center' },
   cerrarModal: { padding: 14, alignItems: 'center', marginTop: 6 },
   masOpcion: { backgroundColor: '#26263a', borderRadius: 12, padding: 16, marginBottom: 10 },
