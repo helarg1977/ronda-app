@@ -49,6 +49,15 @@ function inicioDeHoy() {
   return d.toISOString()
 }
 
+function rangoDeAyer() {
+  const inicio = new Date()
+  inicio.setDate(inicio.getDate() - 1)
+  inicio.setHours(0, 0, 0, 0)
+  const fin = new Date(inicio)
+  fin.setHours(23, 59, 59, 999)
+  return { inicio: inicio.toISOString(), fin: fin.toISOString() }
+}
+
 function colorPorAntiguedad(createdAt) {
   const minutos = (Date.now() - new Date(createdAt).getTime()) / 60000
   if (minutos < 5) return '#3ecf8e'
@@ -128,6 +137,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [cargandoDetalle, setCargandoDetalle] = useState(false)
 
   const [ventasHoy, setVentasHoy] = useState(0)
+  const [comparativoAyer, setComparativoAyer] = useState(null)
   const [ventasHoyDetalle, setVentasHoyDetalle] = useState([])
   const [propinasHoy, setPropinasHoy] = useState(0)
   const [propinasHoyDetalle, setPropinasHoyDetalle] = useState([])
@@ -194,6 +204,13 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     const totalHoy = (entregadosHoy || []).reduce((s, p) => s + Number(p.total), 0)
     setVentasHoy(totalHoy)
     setVentasHoyDetalle(entregadosHoy || [])
+
+    const { inicio: inicioAyer, fin: finAyer } = rangoDeAyer()
+    const { data: entregadosAyer } = await supabase
+      .from('pedidos').select('total')
+      .eq('bar_id', usuario.bar_id).eq('estado', 'entregado').gte('created_at', inicioAyer).lte('created_at', finAyer)
+    const totalAyer = (entregadosAyer || []).reduce((s, p) => s + Number(p.total), 0)
+    setComparativoAyer(totalAyer > 0 ? Math.round(((totalHoy - totalAyer) / totalAyer) * 100) : null)
 
     // --- Propinas de hoy ---
     const { data: meserosParaPropinas } = await supabase.from('usuarios_bar').select('id, nombre').eq('bar_id', usuario.bar_id).eq('rol', 'mesero')
@@ -551,10 +568,24 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
             </TouchableOpacity>
           </View>
           <Text style={styles.heroValor}>{ocultarVentas ? '••••••' : money(ventasHoy)}</Text>
+          {comparativoAyer != null && !ocultarVentas && (
+            <Text style={[styles.heroComparativo, { color: comparativoAyer >= 0 ? '#3ecf8e' : '#e05c5c' }]}>
+              {comparativoAyer >= 0 ? '▲' : '▼'} {Math.abs(comparativoAyer)}% vs ayer
+            </Text>
+          )}
           <View style={styles.heroEstadoFila}>
-            <Text style={styles.heroEstadoTexto}>🪑 {mesasConEstado.filter((m) => m.pedido).length} mesa{mesasConEstado.filter((m) => m.pedido).length !== 1 ? 's' : ''} activa{mesasConEstado.filter((m) => m.pedido).length !== 1 ? 's' : ''}</Text>
-            <Text style={styles.heroEstadoTexto}>·</Text>
-            <Text style={styles.heroEstadoTexto}>🧾 {pedidos.length} pedido{pedidos.length !== 1 ? 's' : ''} en curso</Text>
+            {mesasConEstado.filter((m) => m.pedido).length > 0 && (
+              <Text style={styles.heroEstadoTexto}>🟢 {mesasConEstado.filter((m) => m.pedido).length} mesa{mesasConEstado.filter((m) => m.pedido).length !== 1 ? 's' : ''} atendiendo</Text>
+            )}
+            {pedidos.filter((p) => p.estado === 'pendiente').length > 0 && (
+              <Text style={styles.heroEstadoTexto}>🟡 {pedidos.filter((p) => p.estado === 'pendiente').length} pedido{pedidos.filter((p) => p.estado === 'pendiente').length !== 1 ? 's' : ''} pendiente{pedidos.filter((p) => p.estado === 'pendiente').length !== 1 ? 's' : ''}</Text>
+            )}
+            {pagosPendientes.length > 0 && (
+              <Text style={styles.heroEstadoTexto}>🔵 {pagosPendientes.length} pago{pagosPendientes.length !== 1 ? 's' : ''} pendiente{pagosPendientes.length !== 1 ? 's' : ''}</Text>
+            )}
+            {mesasConEstado.filter((m) => m.pedido).length === 0 && pagosPendientes.length === 0 && pedidos.length === 0 && (
+              <Text style={styles.heroEstadoTexto}>🟢 Todo tranquilo por ahora</Text>
+            )}
           </View>
           {pedidos.length > 0 && (
             <Text style={styles.heroDineroMesas}>💰 {money(pedidos.reduce((s, p) => s + Number(p.total), 0))} pendiente de servir</Text>
@@ -576,11 +607,11 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           )}
           <TouchableOpacity style={styles.statCardChico} onPress={() => setDetalleStat('pagos')}>
             <Text style={styles.statValorChico}>{pagosPendientes.length}</Text>
-            <Text style={styles.statLabelChico}>Pagos x confirmar</Text>
+            <Text style={styles.statLabelChico}>Dinero esperando</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.seccionTitulo}>💳 Pagos por confirmar</Text>
+        <Text style={styles.seccionTitulo}>💰 Hay dinero esperando</Text>
         <View style={styles.card}>
           {pagosPendientes.length === 0 && <Text style={styles.vacioTexto}>Todos los pagos están confirmados ✅</Text>}
           {pagosPendientes.map((p) => (
@@ -780,7 +811,15 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                 <View style={styles.filaSwitchCuenta}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.subtitulo}>🤝 Cuenta abierta</Text>
-                    <Text style={styles.ayudaCuentaAbierta}>Actívala solo si conoces al cliente — puede pedir varias rondas sin pagar cada una, y paga todo junto al final.</Text>
+                    {detalle.mesa.cuenta_abierta ? (
+                      <>
+                        <Text style={styles.ayudaCuentaAbiertaActiva}>✔ Cliente conocido</Text>
+                        <Text style={styles.ayudaCuentaAbiertaActiva}>✔ Pagará todo al final</Text>
+                        <Text style={styles.ayudaCuentaAbierta}>Puedes desactivarla cuando quieras.</Text>
+                      </>
+                    ) : (
+                      <Text style={styles.ayudaCuentaAbierta}>Actívala solo si conoces al cliente — puede pedir varias rondas sin pagar cada una, y paga todo junto al final.</Text>
+                    )}
                   </View>
                   <Switch value={!!detalle.mesa.cuenta_abierta} onValueChange={() => toggleCuentaAbierta(detalle.mesa)} trackColor={{ true: '#d4a338' }} />
                 </View>
@@ -1162,6 +1201,7 @@ const styles = StyleSheet.create({
   heroOjo: { fontSize: 15 },
   heroValor: { color: '#d4a338', fontSize: 44, fontWeight: '800', marginTop: 4 },
   heroEstadoFila: { flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap', justifyContent: 'center' },
+  heroComparativo: { fontSize: 13, fontWeight: '800', marginTop: 4 },
   heroEstadoTexto: { color: '#c9c9d4', fontSize: 13, fontWeight: '600' },
   heroDineroMesas: { color: '#e0b94c', fontSize: 13, fontWeight: '700', marginTop: 8 },
   sentadosDesdeTexto: { color: '#8a8a9a', fontSize: 13, marginBottom: 10 },
@@ -1250,6 +1290,7 @@ const styles = StyleSheet.create({
   opcionModoNegocioTitulo: { color: '#f2f2f2', fontSize: 16, fontWeight: '700' },
   opcionModoNegocioSub: { color: '#8a8a9a', fontSize: 13, marginTop: 4 },
   ayudaCuentaAbierta: { color: '#8a8a9a', fontSize: 12, marginTop: 4, lineHeight: 16 },
+  ayudaCuentaAbiertaActiva: { color: '#3ecf8e', fontSize: 13, fontWeight: '600', marginTop: 2 },
   botonDescargarQr: { backgroundColor: '#3ecf8e', borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 14 },
   ayudaQr: { color: '#a0a0b0', fontSize: 13, textAlign: 'center', marginVertical: 10, paddingHorizontal: 10 },
   qrImagen: { width: 220, height: 220, backgroundColor: '#fff', borderRadius: 12, marginVertical: 10 },
