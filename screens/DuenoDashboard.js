@@ -138,6 +138,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [cargandoDetalle, setCargandoDetalle] = useState(false)
 
   const [ventasHoy, setVentasHoy] = useState(0)
+  const [sinConexion, setSinConexion] = useState(false)
   const [comparativoAyer, setComparativoAyer] = useState(null)
   const [ventasHoyDetalle, setVentasHoyDetalle] = useState([])
   const [propinasHoy, setPropinasHoy] = useState(0)
@@ -176,6 +177,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [seleccionados, setSeleccionados] = useState([])
 
   const cargar = useCallback(async () => {
+    try {
     const { data: barData } = await supabase.from('bares').select('nombre, comision_pct, modo_negocio').eq('id', usuario.bar_id).maybeSingle()
     setBar(barData)
     if (usuario.rol === 'dueno' && barData && !barData.modo_negocio) {
@@ -292,6 +294,10 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     ;(mesasData || []).forEach((m) => { sesionActualPorMesa[m.id] = m.sesion_actual })
     const recientesDeSesionActual = (recientes || []).filter((p) => p.sesion_id === sesionActualPorMesa[p.mesa_id])
     setPedidosRecientes(recientesDeSesionActual)
+      setSinConexion(false)
+    } catch (e) {
+      setSinConexion(true)
+    }
   }, [usuario.bar_id])
 
   useEffect(() => {
@@ -545,6 +551,12 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
         refreshControl={<RefreshControl refreshing={refrescando} onRefresh={async () => { setRefrescando(true); await cargar(); setRefrescando(false) }} />}
         contentContainerStyle={{ paddingBottom: altoFlotante + 20 }}
       >
+        {sinConexion && (
+          <View style={styles.sinConexionBanner}>
+            <Text style={styles.sinConexionTexto}>⚠️ Sin conexión — mostrando la última información que tenemos</Text>
+          </View>
+        )}
+
         <View style={styles.header}>
           <View>
             <Text style={styles.titulo}>{bar?.nombre || 'Ronda'}</Text>
@@ -1223,6 +1235,8 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#14141f' },
+  sinConexionBanner: { backgroundColor: '#3a2a12', paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center' },
+  sinConexionTexto: { color: '#e0954c', fontSize: 12, fontWeight: '700' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 18, paddingTop: 50 },
   titulo: { fontSize: 22, fontWeight: '800', color: '#f2f2f2' },
   subtituloHeader: { fontSize: 13, color: '#d4a338', marginTop: 2 },
