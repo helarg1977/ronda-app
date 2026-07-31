@@ -7,8 +7,6 @@
     "userInterfaceStyle": "dark",
     "icon": "./assets/icon.png",
     "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
       "backgroundColor": "#14141f"
     },
     "assetBundlePatterns": ["**/*"],
@@ -32,12 +30,6 @@
     "web": {
       "bundler": "metro",
       "favicon": "./assets/favicon.png"
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/04ba6be4-1701-4e29-aac1-3dfd355e0a92"
     },
     "extra": {
       "eas": {
