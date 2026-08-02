@@ -16,17 +16,17 @@ export default function LoginScreen({ onLogin, onIrARegistro, onIrAUnirse }) {
       return
     }
     setCargando(true)
-    const { data, error } = await supabase.rpc('login_usuario_bar', {
-      p_telefono: telefono.trim(),
-      p_pin: pin.trim(),
+    const { data, error } = await supabase.functions.invoke('login-pin', {
+      body: { telefono: telefono.trim(), pin: pin.trim() },
     })
     setCargando(false)
 
-    if (error || !data || data.length === 0) {
-      Alert.alert('No pudimos entrar', 'El celular o el PIN no son correctos. Verifica con el administrador.')
+    if (error || data?.error || !data?.usuario) {
+      Alert.alert('No pudimos entrar', data?.error || 'El celular o el PIN no son correctos. Verifica con el administrador.')
       return
     }
-    const usuario = data[0]
+    await supabase.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token })
+    const usuario = data.usuario
     await guardarSesion(usuario)
     onLogin(usuario)
   }
