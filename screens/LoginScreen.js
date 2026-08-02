@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal, KeyboardAvoidingView, ScrollView, Platform, Keyboard, TouchableWithoutFeedback, ImageBackground } from 'react-native'
 import { supabase, guardarSesion } from '../lib/supabase'
 
-export default function LoginScreen({ onLogin }) {
+export default function LoginScreen({ onLogin, onIrARegistro, onIrAUnirse }) {
   const [telefono, setTelefono] = useState('')
   const [pin, setPin] = useState('')
   const [verPin, setVerPin] = useState(false)
@@ -85,6 +85,15 @@ export default function LoginScreen({ onLogin }) {
         {cargando ? <ActivityIndicator color="#14141f" /> : <Text style={styles.botonTexto}>Entrar</Text>}
       </TouchableOpacity>
 
+      <View style={styles.filaEnlaces}>
+        <TouchableOpacity onPress={onIrARegistro}>
+          <Text style={styles.enlaceTexto}>¿Tienes un bar? <Text style={styles.enlaceResaltado}>Regístralo gratis</Text></Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onIrAUnirse}>
+          <Text style={styles.enlaceTexto}>¿Eres empleado? <Text style={styles.enlaceResaltado}>Tengo un código</Text></Text>
+        </TouchableOpacity>
+      </View>
+
       <Modal visible={mostrarAyudaPin} transparent animationType="fade" onRequestClose={() => setMostrarAyudaPin(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCaja}>
@@ -125,6 +134,9 @@ const styles = StyleSheet.create({
   botonOjo: { backgroundColor: '#1e1e2e', borderRadius: 12, borderWidth: 1, borderColor: '#2a2a3a', padding: 14 },
   botonOjoTexto: { fontSize: 20 },
   olvidoTexto: { color: '#a0a0b0', fontSize: 14, textAlign: 'right', marginTop: 10 },
+  filaEnlaces: { marginTop: 24, gap: 14, alignItems: 'center' },
+  enlaceTexto: { color: '#a0a0b0', fontSize: 14, textAlign: 'center' },
+  enlaceResaltado: { color: '#d4a338', fontWeight: '700' },
   boton: {
     backgroundColor: '#d4a338',
     borderRadius: 14,
