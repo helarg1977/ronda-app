@@ -25,6 +25,7 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
   const [logoUrl, setLogoUrl] = useState('')
   const [fotoPortada, setFotoPortada] = useState('')
   const [modoNegocio, setModoNegocio] = useState('equipo')
+  const [codigoNegocio, setCodigoNegocio] = useState('')
   const [valoresGuardados, setValoresGuardados] = useState(null)
   const [subiendoImagen, setSubiendoImagen] = useState(false)
   const [guardando, setGuardando] = useState(false)
@@ -43,7 +44,7 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
   const [clientesFidelizados, setClientesFidelizados] = useState(0)
 
   const cargar = useCallback(async () => {
-    const { data } = await supabase.from('bares').select('nombre, llave_nequi, llave_daviplata, llave_bre_b, propinas_habilitadas, hora_pico_activa, logo_url, foto_portada, modo_negocio').eq('id', usuario.bar_id).maybeSingle()
+    const { data } = await supabase.from('bares').select('nombre, llave_nequi, llave_daviplata, llave_bre_b, propinas_habilitadas, hora_pico_activa, logo_url, foto_portada, modo_negocio, codigo_negocio').eq('id', usuario.bar_id).maybeSingle()
     if (data) {
       setNombre(data.nombre || '')
       setLlaveNequi(data.llave_nequi || '')
@@ -54,6 +55,7 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
       setLogoUrl(data.logo_url || '')
       setFotoPortada(data.foto_portada || '')
       setModoNegocio(data.modo_negocio || 'equipo')
+      setCodigoNegocio(data.codigo_negocio || '')
       setValoresGuardados({
         nombre: data.nombre || '', llaveNequi: data.llave_nequi || '', llaveDaviplata: data.llave_daviplata || '',
         llaveBreB: data.llave_bre_b || '', propinasHabilitadas: data.propinas_habilitadas !== false,
@@ -398,7 +400,15 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
 
           {pestana === 'empleados' && (
             <>
-              <Text style={styles.ayuda}>Crea el acceso de cada persona de tu equipo: elige su nombre, celular y un PIN — con eso entra directo a la app.</Text>
+              {codigoNegocio ? (
+                <View style={styles.codigoBox}>
+                  <Text style={styles.codigoLabel}>Tu código de negocio</Text>
+                  <Text style={styles.codigoTexto}>{codigoNegocio}</Text>
+                  <Text style={styles.ayudaChica}>Dale este código a tu empleado — en el login de la app toca "¿Eres empleado? Tengo un código" y se une solo.</Text>
+                </View>
+              ) : null}
+
+              <Text style={styles.ayuda}>O si prefieres, créale tú mismo el acceso: elige su nombre, celular y un PIN — con eso entra directo a la app.</Text>
 
               <Text style={styles.label}>¿Qué rol cumple?</Text>
               <View style={styles.filaRoles}>
@@ -479,6 +489,9 @@ const styles = StyleSheet.create({
   subseccion: { color: '#a0a0b0', fontSize: 13, fontWeight: '700', marginTop: 18, marginBottom: 8, textTransform: 'uppercase' },
   ayuda: { color: '#6a6a80', fontSize: 13, marginBottom: 16, lineHeight: 18 },
   ayudaChica: { color: '#6a6a80', fontSize: 12, marginTop: 6, marginBottom: 10, lineHeight: 16 },
+  codigoBox: { backgroundColor: '#26263a', borderRadius: 14, padding: 16, marginBottom: 16, alignItems: 'center', borderWidth: 1, borderColor: '#d4a338' },
+  codigoLabel: { color: '#a0a0b0', fontSize: 13 },
+  codigoTexto: { color: '#d4a338', fontSize: 28, fontWeight: '800', letterSpacing: 4, marginVertical: 6 },
   confianzaBox: { backgroundColor: '#1a2e26', borderRadius: 14, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#3ecf8e' },
   confianzaTexto: { color: '#3ecf8e', fontSize: 15, fontWeight: '800', marginBottom: 4 },
   confianzaSubtexto: { color: '#8fc9b0', fontSize: 12, lineHeight: 17 },
