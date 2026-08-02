@@ -7,14 +7,16 @@
     "userInterfaceStyle": "dark",
     "icon": "./assets/icon.png",
     "splash": {
-      "backgroundColor": "#14141f"
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
     },
     "assetBundlePatterns": ["**/*"],
     "android": {
       "package": "com.ronda.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#14141f"
+        "backgroundColor": "#000000"
       },
       "permissions": ["android.permission.POST_NOTIFICATIONS"]
     },
