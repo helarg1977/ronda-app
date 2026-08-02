@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal, KeyboardAvoidingView, ScrollView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal, KeyboardAvoidingView, ScrollView, Platform, Keyboard, TouchableWithoutFeedback, ImageBackground } from 'react-native'
 import { supabase, guardarSesion } from '../lib/supabase'
 
 export default function LoginScreen({ onLogin }) {
@@ -33,7 +33,8 @@ export default function LoginScreen({ onLogin }) {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-    <View style={{ flex: 1, backgroundColor: '#14141f' }}>
+    <ImageBackground source={require('../assets/login-fondo.jpg')} style={{ flex: 1 }} resizeMode="cover">
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.15)' }}>
       <ScrollView
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
@@ -41,8 +42,7 @@ export default function LoginScreen({ onLogin }) {
         automaticallyAdjustKeyboardInsets={true}
         keyboardDismissMode="interactive"
       >
-      <Text style={styles.titulo}>Ronda</Text>
-      <Text style={styles.subtitulo}>La siguiente ronda está a un toque</Text>
+      <View style={{ height: 420 }} />
 
       <Text style={styles.label}>Número de celular</Text>
       <TextInput
@@ -101,13 +101,14 @@ export default function LoginScreen({ onLogin }) {
         </View>
       </Modal>
       </ScrollView>
-    </View>
+      </View>
+    </ImageBackground>
     </TouchableWithoutFeedback>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: '#14141f', paddingTop: 80, paddingHorizontal: 28, paddingBottom: 200 },
+  container: { flexGrow: 1, paddingTop: 20, paddingHorizontal: 28, paddingBottom: 200 },
   titulo: { fontSize: 40, fontWeight: '800', color: '#f2f2f2', textAlign: 'center' },
   subtitulo: { fontSize: 16, color: '#d4a338', textAlign: 'center', marginBottom: 40 },
   label: { color: '#a0a0b0', fontSize: 15, marginBottom: 8, marginTop: 18 },
