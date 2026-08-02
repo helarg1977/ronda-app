@@ -3,6 +3,8 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
 import { leerSesion } from './lib/supabase'
 import LoginScreen from './screens/LoginScreen'
+import RegistroNegocioScreen from './screens/RegistroNegocioScreen'
+import UnirseEmpleadoScreen from './screens/UnirseEmpleadoScreen'
 import DuenoDashboard from './screens/DuenoDashboard'
 import MeseroDashboard from './screens/MeseroDashboard'
 import MenuScreen from './screens/MenuScreen'
@@ -17,6 +19,7 @@ const ROLES_PANEL_DUENO = ['dueno', 'administrador']
 export default function App() {
   const [cargando, setCargando] = useState(true)
   const [usuario, setUsuario] = useState(null)
+  const [pantallaLogin, setPantallaLogin] = useState('login') // login | registro | unirse
   const [pantalla, setPantalla] = useState('dashboard') // dashboard | menu | comision | configuracion
 
   useEffect(() => {
@@ -44,7 +47,19 @@ export default function App() {
     return (
       <SafeAreaProvider>
         <StatusBar style="light" />
-        <LoginScreen onLogin={setUsuario} />
+        {pantallaLogin === 'registro' && (
+          <RegistroNegocioScreen onLogin={setUsuario} onVolver={() => setPantallaLogin('login')} />
+        )}
+        {pantallaLogin === 'unirse' && (
+          <UnirseEmpleadoScreen onLogin={setUsuario} onVolver={() => setPantallaLogin('login')} />
+        )}
+        {pantallaLogin === 'login' && (
+          <LoginScreen
+            onLogin={setUsuario}
+            onIrARegistro={() => setPantallaLogin('registro')}
+            onIrAUnirse={() => setPantallaLogin('unirse')}
+          />
+        )}
       </SafeAreaProvider>
     )
   }
