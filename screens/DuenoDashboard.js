@@ -155,6 +155,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [mostrarQr, setMostrarQr] = useState(false)
   const [mostrarLineaTiempo, setMostrarLineaTiempo] = useState(false)
   const [mostrarMoverMesa, setMostrarMoverMesa] = useState(false)
+  const [mostrarUnirMesa, setMostrarUnirMesa] = useState(false)
   const [mostrarPreguntaModo, setMostrarPreguntaModo] = useState(false)
   const necesitaPreguntaModoRef = useRef(false)
   const [altoFlotante, setAltoFlotante] = useState(80)
@@ -187,7 +188,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
       if (onboardingYaVisto) setMostrarPreguntaModo(true)
     }
 
-    const { data: mesasData } = await supabase.from('mesas').select('id, numero, sesion_actual, mesero_asignado_id, qr_code, cuenta_abierta, sesion_iniciada_en').eq('bar_id', usuario.bar_id).eq('activa', true).order('numero')
+    const { data: mesasData } = await supabase.from('mesas').select('id, numero, sesion_actual, mesero_asignado_id, qr_code, cuenta_abierta, sesion_iniciada_en, mesa_union_id').eq('bar_id', usuario.bar_id).eq('activa', true).order('numero')
     const { data: pedidosData } = await supabase
       .from('pedidos').select('id, mesa_id, estado, total, created_at')
       .eq('bar_id', usuario.bar_id).not('estado', 'in', '(entregado,cancelado)')
@@ -509,6 +510,37 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     cargar()
   }
 
+  async function unirMesa(mesaAUnir) {
+    const anfitriona = detalle.mesa
+    // si la mesa a unir ya tenía pedidos propios, se pasan a la sesión compartida de la anfitriona
+    await supabase.from('pedidos').update({ sesion_id: anfitriona.sesion_actual }).eq('mesa_id', mesaAUnir.id).eq('sesion_id', mesaAUnir.sesion_actual)
+    await supabase.from('mesas').update({
+      sesion_actual: anfitriona.sesion_actual,
+      sesion_iniciada_en: anfitriona.sesion_iniciada_en,
+      cuenta_abierta: anfitriona.cuenta_abierta,
+      mesa_union_id: anfitriona.id,
+    }).eq('id', mesaAUnir.id)
+    setMostrarUnirMesa(false)
+    Vibration.vibrate(40)
+    Alert.alert('Listo', `Mesa ${mesaAUnir.numero} ya quedó unida a esta cuenta.`)
+    const { data: detalleActualizado } = await supabase.from('mesas').select('*').eq('id', anfitriona.id).maybeSingle()
+    if (detalleActualizado) setDetalle((d) => ({ ...d, mesa: detalleActualizado }))
+    cargar()
+  }
+
+  async function separarMesa(mesaId, numero) {
+    Alert.alert(`¿Separar Mesa ${numero}?`, 'Vuelve a quedar independiente, con su propia cuenta desde cero.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Separar', onPress: async () => {
+          await supabase.rpc('cerrar_mesa', { p_mesa_id: mesaId })
+          await supabase.from('mesas').update({ mesa_union_id: null }).eq('id', mesaId)
+          cargar()
+        },
+      },
+    ])
+  }
+
   async function cerrarMesa() {
     if (!detalle) return
     await supabase.rpc('cerrar_mesa', { p_mesa_id: detalle.mesa.id })
@@ -549,6 +581,10 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     if (mesasConCuentaSolicitada.has(item.id)) return { color: '#4a90d9', texto: '🔵 Pidió la cuenta' }
     if (item.pedido) return { color: colorPorAntiguedad(item.pedido.created_at), texto: minutosTexto(item.pedido.created_at) }
     if (mesasConPagoPendiente.has(item.id)) return { color: '#9b6fd6', texto: '🟣 Pago sin confirmar' }
+    if (item.mesa_union_id) {
+      const anfitriona = mesas.find((m) => m.id === item.mesa_union_id)
+      return { color: '#9b6fd6', texto: `🔗 Unida a Mesa ${anfitriona?.numero || '?'}` }
+    }
     if (item.sesion_iniciada_en) {
       const ultimoPedidoDeEstaMesa = pedidosRecientes
         .filter((p) => p.mesa_id === item.id)
@@ -1007,6 +1043,19 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                   </TouchableOpacity>
                 )}
 
+                {detalle.mesa.mesa_union_id ? (
+                  <View style={styles.mesaUnidaBox}>
+                    <Text style={styles.mesaUnidaTexto}>🔗 Esta mesa está unida a otra cuenta</Text>
+                    <TouchableOpacity onPress={() => separarMesa(detalle.mesa.id, detalle.mesa.numero)}>
+                      <Text style={styles.botonSepararTexto}>Separar esta mesa</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity style={styles.botonMoverMesa} onPress={() => setMostrarUnirMesa(true)}>
+                    <Text style={styles.botonMoverMesaTexto}>🔗 Unir otra mesa a esta cuenta</Text>
+                  </TouchableOpacity>
+                )}
+
                 <TouchableOpacity style={styles.cerrarModal} onPress={() => setDetalle(null)}>
                   <Text style={styles.cerrarModalTexto}>Cerrar</Text>
                 </TouchableOpacity>
@@ -1079,6 +1128,25 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
               )}
             </ScrollView>
             <TouchableOpacity style={styles.cerrarModal} onPress={() => setMostrarMoverMesa(false)}>
+              <Text style={styles.cerrarModalTexto}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={mostrarUnirMesa} transparent animationType="slide" onRequestClose={() => setMostrarUnirMesa(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalDetalle}>
+            <Text style={styles.modalTitulo}>¿Cuál mesa unimos aquí?</Text>
+            <Text style={styles.ayudaChica}>Todo lo que pidan desde el QR de esa mesa (y lo que ya llevaba, si tenía algo) se junta en esta misma cuenta.</Text>
+            <ScrollView style={{ maxHeight: 320 }}>
+              {mesasConEstado.filter((m) => detalle && m.id !== detalle.mesa.id && !m.mesa_union_id).map((m) => (
+                <TouchableOpacity key={m.id} style={styles.opcionMesaDestino} onPress={() => unirMesa(m)}>
+                  <Text style={styles.opcionMesaDestinoTexto}>Mesa {m.numero}{m.sesion_iniciada_en ? ' (ya tiene actividad)' : ''}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity style={styles.cerrarModal} onPress={() => setMostrarUnirMesa(false)}>
               <Text style={styles.cerrarModalTexto}>Cancelar</Text>
             </TouchableOpacity>
           </View>
@@ -1401,6 +1469,9 @@ const styles = StyleSheet.create({
   botonCerrarMesa: { backgroundColor: '#3ecf8e', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 16 },
   botonMoverMesa: { backgroundColor: '#26263a', borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 10, borderWidth: 1, borderColor: '#4a90d9' },
   botonMoverMesaTexto: { color: '#4a90d9', fontSize: 14, fontWeight: '700' },
+  mesaUnidaBox: { backgroundColor: '#2a1f3a', borderRadius: 14, padding: 14, marginTop: 10, borderWidth: 1, borderColor: '#9b6fd6', alignItems: 'center' },
+  mesaUnidaTexto: { color: '#c4a8e8', fontSize: 14, fontWeight: '700', marginBottom: 8 },
+  botonSepararTexto: { color: '#9b6fd6', fontSize: 13, fontWeight: '700', textDecorationLine: 'underline' },
   opcionMesaDestino: { backgroundColor: '#26263a', borderRadius: 12, padding: 16, marginBottom: 8 },
   opcionMesaDestinoTexto: { color: '#f2f2f2', fontSize: 15, fontWeight: '700' },
   botonChatDetalle: { backgroundColor: '#26263a', borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 14, borderWidth: 1, borderColor: '#3a3a4a' },
