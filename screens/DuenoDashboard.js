@@ -941,6 +941,35 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                   {detalle.pedido ? (ESTADO_LABEL[detalle.pedido.estado] || detalle.pedido.estado) : 'Sin pedido activo'}
                 </Text>
 
+                <View style={styles.seccionAccionesMesa}>
+                  <Text style={styles.seccionAccionesTitulo}>🔀 Grupo grande o cambio de mesa</Text>
+                  <Text style={styles.seccionAccionesAyuda}>
+                    ¿Llegó un grupo y unieron mesas físicas? ¿O el cliente se cambió de puesto? Usa esto:
+                  </Text>
+                  <Text style={styles.seccionAccionesDiagnostico}>
+                    (diagnóstico: sesión={detalle.mesa.sesion_iniciada_en ? 'sí' : 'no'} · unida={detalle.mesa.mesa_union_id ? 'sí' : 'no'})
+                  </Text>
+
+                  {detalle.mesa.sesion_iniciada_en && (
+                    <TouchableOpacity style={styles.botonMoverMesa} onPress={() => setMostrarMoverMesa(true)}>
+                      <Text style={styles.botonMoverMesaTexto}>🔀 Mover esta cuenta a otra mesa</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {detalle.mesa.mesa_union_id ? (
+                    <View style={styles.mesaUnidaBox}>
+                      <Text style={styles.mesaUnidaTexto}>🔗 Esta mesa está unida a otra cuenta</Text>
+                      <TouchableOpacity onPress={() => separarMesa(detalle.mesa.id, detalle.mesa.numero)}>
+                        <Text style={styles.botonSepararTexto}>Separar esta mesa</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity style={styles.botonMoverMesa} onPress={() => setMostrarUnirMesa(true)}>
+                      <Text style={styles.botonMoverMesaTexto}>🔗 Unir otra mesa a esta cuenta</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
                 {detalle.pedido && (
                   <>
                     <Text style={styles.subtitulo}>Pedido actual</Text>
@@ -1036,32 +1065,6 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                     <Text style={styles.botonTexto}>🧾 Cerrar mesa (cuenta pagada)</Text>
                   </TouchableOpacity>
                 )}
-
-                <View style={styles.seccionAccionesMesa}>
-                  <Text style={styles.seccionAccionesTitulo}>🔀 Grupo grande o cambio de mesa</Text>
-                  <Text style={styles.seccionAccionesAyuda}>
-                    ¿Llegó un grupo y unieron mesas físicas? ¿O el cliente se cambió de puesto? Usa esto:
-                  </Text>
-
-                  {detalle.mesa.sesion_iniciada_en && (
-                    <TouchableOpacity style={styles.botonMoverMesa} onPress={() => setMostrarMoverMesa(true)}>
-                      <Text style={styles.botonMoverMesaTexto}>🔀 Mover esta cuenta a otra mesa</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {detalle.mesa.mesa_union_id ? (
-                    <View style={styles.mesaUnidaBox}>
-                      <Text style={styles.mesaUnidaTexto}>🔗 Esta mesa está unida a otra cuenta</Text>
-                      <TouchableOpacity onPress={() => separarMesa(detalle.mesa.id, detalle.mesa.numero)}>
-                        <Text style={styles.botonSepararTexto}>Separar esta mesa</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <TouchableOpacity style={styles.botonMoverMesa} onPress={() => setMostrarUnirMesa(true)}>
-                      <Text style={styles.botonMoverMesaTexto}>🔗 Unir otra mesa a esta cuenta</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
 
                 <TouchableOpacity style={styles.cerrarModal} onPress={() => setDetalle(null)}>
                   <Text style={styles.cerrarModalTexto}>Cerrar</Text>
@@ -1474,9 +1477,10 @@ const styles = StyleSheet.create({
   totalTexto: { color: '#f2f2f2', fontSize: 17, fontWeight: '700' },
   boton: { backgroundColor: '#d4a338', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 16 },
   botonCerrarMesa: { backgroundColor: '#3ecf8e', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 16 },
-  seccionAccionesMesa: { backgroundColor: '#1a1a26', borderRadius: 16, padding: 14, marginTop: 16, borderWidth: 1, borderColor: '#2a2a3a' },
-  seccionAccionesTitulo: { color: '#f2f2f2', fontSize: 15, fontWeight: '800', marginBottom: 4 },
-  seccionAccionesAyuda: { color: '#8a8a9a', fontSize: 12, marginBottom: 10, lineHeight: 16 },
+  seccionAccionesMesa: { backgroundColor: '#1a1a26', borderRadius: 16, padding: 16, marginTop: 14, marginBottom: 6, borderWidth: 2, borderColor: '#d4a338' },
+  seccionAccionesTitulo: { color: '#f2f2f2', fontSize: 17, fontWeight: '800', marginBottom: 4 },
+  seccionAccionesAyuda: { color: '#a0a0b0', fontSize: 13, marginBottom: 6, lineHeight: 17 },
+  seccionAccionesDiagnostico: { color: '#e0954c', fontSize: 11, marginBottom: 10, fontStyle: 'italic' },
   botonMoverMesa: { backgroundColor: '#26263a', borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 10, borderWidth: 1, borderColor: '#4a90d9' },
   botonMoverMesaTexto: { color: '#4a90d9', fontSize: 14, fontWeight: '700' },
   mesaUnidaBox: { backgroundColor: '#2a1f3a', borderRadius: 14, padding: 14, marginTop: 10, borderWidth: 1, borderColor: '#9b6fd6', alignItems: 'center' },
