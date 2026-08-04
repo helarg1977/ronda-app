@@ -8,6 +8,7 @@ export default function RegistroNegocioScreen({ onLogin, onVolver }) {
   const [telefono, setTelefono] = useState('')
   const [pin, setPin] = useState('')
   const [pinConfirmar, setPinConfirmar] = useState('')
+  const [verPin, setVerPin] = useState(false)
   const [numeroMesas, setNumeroMesas] = useState('6')
   const [cargando, setCargando] = useState(false)
 
@@ -61,7 +62,12 @@ export default function RegistroNegocioScreen({ onLogin, onVolver }) {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
     <View style={{ flex: 1, backgroundColor: '#14141f' }}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets={true}
+        keyboardDismissMode="interactive"
+      >
         <TouchableOpacity onPress={onVolver}><Text style={styles.volver}>← Volver</Text></TouchableOpacity>
         <Text style={styles.titulo}>Crea tu negocio</Text>
         <Text style={styles.subtitulo}>En un minuto tienes tus mesas listas con su QR para imprimir.</Text>
@@ -80,10 +86,15 @@ export default function RegistroNegocioScreen({ onLogin, onVolver }) {
         />
 
         <Text style={styles.label}>Elige un PIN</Text>
-        <TextInput style={styles.input} value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry placeholder="••••" placeholderTextColor="#6a6a80" maxLength={6} />
+        <View style={styles.filaPin}>
+          <TextInput style={[styles.input, { flex: 1 }]} value={pin} onChangeText={setPin} keyboardType="number-pad" secureTextEntry={!verPin} placeholder="••••" placeholderTextColor="#6a6a80" maxLength={6} />
+          <TouchableOpacity style={styles.botonOjo} onPress={() => setVerPin(!verPin)}>
+            <Text style={styles.botonOjoTexto}>{verPin ? '🙈' : '👁️'}</Text>
+          </TouchableOpacity>
+        </View>
 
         <Text style={styles.label}>Confirma tu PIN</Text>
-        <TextInput style={styles.input} value={pinConfirmar} onChangeText={setPinConfirmar} keyboardType="number-pad" secureTextEntry placeholder="••••" placeholderTextColor="#6a6a80" maxLength={6} />
+        <TextInput style={styles.input} value={pinConfirmar} onChangeText={setPinConfirmar} keyboardType="number-pad" secureTextEntry={!verPin} placeholder="••••" placeholderTextColor="#6a6a80" maxLength={6} />
 
         <Text style={styles.label}>¿Cuántas mesas tiene tu bar?</Text>
         <TextInput
@@ -110,7 +121,7 @@ export default function RegistroNegocioScreen({ onLogin, onVolver }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: '#14141f', paddingTop: 60, paddingHorizontal: 28, paddingBottom: 80 },
+  container: { flexGrow: 1, backgroundColor: '#14141f', paddingTop: 60, paddingHorizontal: 28, paddingBottom: 250 },
   volver: { color: '#d4a338', fontSize: 15, marginBottom: 20 },
   titulo: { fontSize: 28, fontWeight: '800', color: '#f2f2f2' },
   subtitulo: { fontSize: 14, color: '#a0a0b0', marginBottom: 20, lineHeight: 20 },
@@ -120,6 +131,9 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#2a2a3a',
   },
   ayudaChica: { color: '#6a6a80', fontSize: 12, marginTop: 6 },
+  filaPin: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  botonOjo: { backgroundColor: '#1e1e2e', borderRadius: 12, borderWidth: 1, borderColor: '#2a2a3a', padding: 14 },
+  botonOjoTexto: { fontSize: 20 },
   olvidoTexto: { color: '#a0a0b0', fontSize: 13, textAlign: 'center', marginTop: 26 },
   boton: { backgroundColor: '#d4a338', borderRadius: 14, padding: 18, marginTop: 30, alignItems: 'center' },
   botonTexto: { color: '#14141f', fontSize: 18, fontWeight: '700' },
