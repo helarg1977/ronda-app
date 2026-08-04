@@ -93,6 +93,13 @@ export default function RegistroNegocioScreen({ onLogin, onVolver }) {
         />
         <Text style={styles.ayudaChica}>No te preocupes, puedes agregar o quitar mesas después.</Text>
 
+        <TouchableOpacity onPress={() => Alert.alert(
+          '¿Olvidaste tu PIN?',
+          'Por ahora Ronda no envía códigos por SMS. Si ya tenías una cuenta y perdiste el acceso, escríbenos y te ayudamos a recuperarlo.'
+        )}>
+          <Text style={styles.olvidoTexto}>¿Ya tienes cuenta y olvidaste tu PIN?</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.boton} onPress={registrar} disabled={cargando}>
           {cargando ? <ActivityIndicator color="#14141f" /> : <Text style={styles.botonTexto}>Crear mi negocio</Text>}
         </TouchableOpacity>
@@ -113,6 +120,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#2a2a3a',
   },
   ayudaChica: { color: '#6a6a80', fontSize: 12, marginTop: 6 },
+  olvidoTexto: { color: '#a0a0b0', fontSize: 13, textAlign: 'center', marginTop: 26 },
   boton: { backgroundColor: '#d4a338', borderRadius: 14, padding: 18, marginTop: 30, alignItems: 'center' },
   botonTexto: { color: '#14141f', fontSize: 18, fontWeight: '700' },
 })
