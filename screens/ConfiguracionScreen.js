@@ -63,7 +63,7 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
         horaPicoActiva: !!data.hora_pico_activa, modoNegocio: data.modo_negocio || 'equipo',
       })
     }
-    const { data: emp } = await supabase.from('usuarios_bar').select('id, nombre, telefono, rol, activo, pin').eq('bar_id', usuario.bar_id).neq('rol', 'dueno').order('nombre')
+    const { data: emp } = await supabase.from('usuarios_bar').select('id, nombre, telefono, rol, activo').eq('bar_id', usuario.bar_id).neq('rol', 'dueno').order('nombre')
     setEmpleados(emp || [])
 
     const { data: promos } = await supabase.from('promociones').select('id, titulo, mensaje, activa').eq('bar_id', usuario.bar_id).order('created_at', { ascending: false })
