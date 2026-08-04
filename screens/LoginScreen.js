@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
 import * as Updates from 'expo-updates'
 import { supabase, guardarSesion } from '../lib/supabase'
 
-export default function LoginScreen({ onLogin, onIrARegistro, onIrAUnirse }) {
+export default function LoginScreen({ onLogin, onIrARegistro, onIrAUnirse, onIrARecuperar }) {
   const [telefono, setTelefono] = useState('')
   const [pin, setPin] = useState('')
   const [verPin, setVerPin] = useState(false)
@@ -78,7 +78,7 @@ export default function LoginScreen({ onLogin, onIrARegistro, onIrAUnirse }) {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity onPress={() => setMostrarAyudaPin(true)}>
+      <TouchableOpacity onPress={onIrARecuperar}>
         <Text style={styles.olvidoTexto}>¿Olvidaste tu PIN?</Text>
       </TouchableOpacity>
 
