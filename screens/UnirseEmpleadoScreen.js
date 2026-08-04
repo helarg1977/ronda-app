@@ -87,6 +87,13 @@ export default function UnirseEmpleadoScreen({ onLogin, onVolver }) {
         <Text style={styles.label}>Confirma tu PIN</Text>
         <TextInput style={styles.input} value={pinConfirmar} onChangeText={setPinConfirmar} keyboardType="number-pad" secureTextEntry placeholder="••••" placeholderTextColor="#6a6a80" maxLength={6} />
 
+        <TouchableOpacity onPress={() => Alert.alert(
+          '¿Olvidaste tu PIN?',
+          'Pídele al dueño del bar que te genere un PIN nuevo desde "⚙️ Config → Empleados".'
+        )}>
+          <Text style={styles.olvidoTexto}>¿Ya tienes cuenta y olvidaste tu PIN?</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.boton} onPress={unirse} disabled={cargando}>
           {cargando ? <ActivityIndicator color="#14141f" /> : <Text style={styles.botonTexto}>Unirme</Text>}
         </TouchableOpacity>
@@ -112,6 +119,7 @@ const styles = StyleSheet.create({
   rolChipActivo: { backgroundColor: '#d4a338', borderColor: '#d4a338' },
   rolChipTexto: { color: '#a0a0b0', fontWeight: '700' },
   rolChipTextoActivo: { color: '#14141f' },
+  olvidoTexto: { color: '#a0a0b0', fontSize: 13, textAlign: 'center', marginTop: 26 },
   boton: { backgroundColor: '#d4a338', borderRadius: 14, padding: 18, marginTop: 30, alignItems: 'center' },
   botonTexto: { color: '#14141f', fontSize: 18, fontWeight: '700' },
 })
