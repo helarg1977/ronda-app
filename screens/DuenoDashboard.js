@@ -160,7 +160,6 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [mostrarMoverMesa, setMostrarMoverMesa] = useState(false)
   const [mostrarUnirMesa, setMostrarUnirMesa] = useState(false)
   const [comprobanteAmpliado, setComprobanteAmpliado] = useState(null)
-  const [comprobanteAmpliado, setComprobanteAmpliado] = useState(null)
   const [mostrarPreguntaModo, setMostrarPreguntaModo] = useState(false)
   const necesitaPreguntaModoRef = useRef(false)
   const [altoFlotante, setAltoFlotante] = useState(80)
@@ -1013,10 +1012,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                         )}
                         {detalle.pago.comprobante_url && (
                           <TouchableOpacity onPress={() => setComprobanteAmpliado(detalle.pago.comprobante_url)}>
-                            <TouchableOpacity onPress={() => setComprobanteAmpliado(detalle.pago.comprobante_url)}>
-                              <Image source={{ uri: detalle.pago.comprobante_url }} style={styles.comprobanteImg} resizeMode="contain" />
-                              <Text style={styles.comprobanteAmpliarTexto}>🔍 Toca para ampliar</Text>
-                            </TouchableOpacity>
+                            <Image source={{ uri: detalle.pago.comprobante_url }} style={styles.comprobanteImg} resizeMode="contain" />
                             <Text style={styles.comprobanteAmpliarTexto}>🔍 Toca para ampliar</Text>
                           </TouchableOpacity>
                         )}
@@ -1190,13 +1186,6 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
         <TouchableOpacity style={styles.comprobanteAmpliadoOverlay} activeOpacity={1} onPress={() => setComprobanteAmpliado(null)}>
           <Image source={{ uri: comprobanteAmpliado }} style={styles.comprobanteAmpliadoImg} resizeMode="contain" />
           <Text style={styles.comprobanteAmpliadoCerrar}>Toca en cualquier parte para cerrar</Text>
-        </TouchableOpacity>
-      </Modal>
-
-      <Modal visible={!!comprobanteAmpliado} transparent animationType="fade" onRequestClose={() => setComprobanteAmpliado(null)}>
-        <TouchableOpacity style={styles.fondoImagenAmpliada} activeOpacity={1} onPress={() => setComprobanteAmpliado(null)}>
-          <Image source={{ uri: comprobanteAmpliado }} style={styles.imagenAmpliada} resizeMode="contain" />
-          <Text style={styles.cerrarImagenAmpliadaTexto}>Toca en cualquier parte para cerrar</Text>
         </TouchableOpacity>
       </Modal>
 
@@ -1587,10 +1576,6 @@ const styles = StyleSheet.create({
   lineaTiempoHora: { color: '#6a6a80', fontSize: 12, fontWeight: '700', width: 70 },
   lineaTiempoEstado: { color: '#f2f2f2', fontSize: 13 },
   comprobanteImg: { width: '100%', height: 180, borderRadius: 10, marginBottom: 4, backgroundColor: '#14141f' },
-  comprobanteAmpliarTexto: { color: '#d4a338', fontSize: 12, textAlign: 'center', marginBottom: 10 },
-  fondoImagenAmpliada: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  imagenAmpliada: { width: '100%', height: '80%' },
-  cerrarImagenAmpliadaTexto: { color: '#a0a0b0', fontSize: 13, marginTop: 16 },
   comprobanteAmpliarTexto: { color: '#4a90d9', fontSize: 12, textAlign: 'center', marginTop: -6, marginBottom: 10 },
   comprobanteAmpliadoOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   comprobanteAmpliadoImg: { width: '100%', height: '80%' },
