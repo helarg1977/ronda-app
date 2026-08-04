@@ -35,7 +35,7 @@ export default function LoginScreen({ onLogin, onIrARegistro, onIrAUnirse }) {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
     <View style={{ flex: 1, backgroundColor: '#14141f' }}>
-      <Image source={require('../assets/login-fondo.jpg')} style={styles.imagenSuperior} resizeMode="cover" />
+      <Image source={require('../assets/login-fondo.jpg')} style={styles.imagenSuperior} resizeMode="contain" />
       <ScrollView
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
