@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal, KeyboardAvoidingView, ScrollView, Platform, Keyboard, TouchableWithoutFeedback, ImageBackground } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal, KeyboardAvoidingView, ScrollView, Platform, Keyboard, TouchableWithoutFeedback, Image } from 'react-native'
 import { supabase, guardarSesion } from '../lib/supabase'
 
 export default function LoginScreen({ onLogin, onIrARegistro, onIrAUnirse }) {
@@ -33,8 +33,8 @@ export default function LoginScreen({ onLogin, onIrARegistro, onIrAUnirse }) {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-    <ImageBackground source={require('../assets/login-fondo.jpg')} style={{ flex: 1 }} resizeMode="cover">
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.15)' }}>
+    <View style={{ flex: 1, backgroundColor: '#14141f' }}>
+      <Image source={require('../assets/login-fondo.jpg')} style={styles.imagenSuperior} resizeMode="cover" />
       <ScrollView
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
@@ -42,7 +42,7 @@ export default function LoginScreen({ onLogin, onIrARegistro, onIrAUnirse }) {
         automaticallyAdjustKeyboardInsets={true}
         keyboardDismissMode="interactive"
       >
-      <View style={{ height: 420 }} />
+      <View style={{ height: 300 }} />
 
       <Text style={styles.label}>Número de celular</Text>
       <TextInput
@@ -110,13 +110,13 @@ export default function LoginScreen({ onLogin, onIrARegistro, onIrAUnirse }) {
         </View>
       </Modal>
       </ScrollView>
-      </View>
-    </ImageBackground>
+    </View>
     </TouchableWithoutFeedback>
   )
 }
 
 const styles = StyleSheet.create({
+  imagenSuperior: { position: 'absolute', top: 0, left: 0, right: 0, height: '48%' },
   container: { flexGrow: 1, paddingTop: 20, paddingHorizontal: 28, paddingBottom: 200 },
   titulo: { fontSize: 40, fontWeight: '800', color: '#f2f2f2', textAlign: 'center' },
   subtitulo: { fontSize: 16, color: '#d4a338', textAlign: 'center', marginBottom: 40 },
