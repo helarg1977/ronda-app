@@ -962,9 +962,6 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                   <Text style={styles.seccionAccionesAyuda}>
                     ¿Llegó un grupo y unieron mesas físicas? ¿O el cliente se cambió de puesto? Usa esto:
                   </Text>
-                  <Text style={styles.seccionAccionesDiagnostico}>
-                    (diagnóstico: sesión={detalle.mesa.sesion_iniciada_en ? 'sí' : 'no'} · unida={detalle.mesa.mesa_union_id ? 'sí' : 'no'})
-                  </Text>
 
                   {detalle.mesa.sesion_iniciada_en && (
                     <TouchableOpacity style={styles.botonMoverMesa} onPress={() => setMostrarMoverMesa(true)}>
