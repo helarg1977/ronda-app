@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native'
 import { supabase, guardarSesion } from '../lib/supabase'
 
-export default function RegistroNegocioScreen({ onLogin, onVolver }) {
+export default function RegistroNegocioScreen({ onLogin, onVolver, onIrARecuperar }) {
   const [nombreBar, setNombreBar] = useState('')
   const [nombreDueno, setNombreDueno] = useState('')
   const [telefono, setTelefono] = useState('')
@@ -104,10 +104,7 @@ export default function RegistroNegocioScreen({ onLogin, onVolver }) {
         />
         <Text style={styles.ayudaChica}>No te preocupes, puedes agregar o quitar mesas después.</Text>
 
-        <TouchableOpacity onPress={() => Alert.alert(
-          '¿Olvidaste tu PIN?',
-          'Por ahora Ronda no envía códigos por SMS. Si ya tenías una cuenta y perdiste el acceso, escríbenos y te ayudamos a recuperarlo.'
-        )}>
+        <TouchableOpacity onPress={onIrARecuperar}>
           <Text style={styles.olvidoTexto}>¿Ya tienes cuenta y olvidaste tu PIN?</Text>
         </TouchableOpacity>
 
