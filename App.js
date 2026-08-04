@@ -5,6 +5,7 @@ import { leerSesion } from './lib/supabase'
 import LoginScreen from './screens/LoginScreen'
 import RegistroNegocioScreen from './screens/RegistroNegocioScreen'
 import UnirseEmpleadoScreen from './screens/UnirseEmpleadoScreen'
+import RecuperarPinScreen from './screens/RecuperarPinScreen'
 import DuenoDashboard from './screens/DuenoDashboard'
 import MeseroDashboard from './screens/MeseroDashboard'
 import MenuScreen from './screens/MenuScreen'
@@ -48,16 +49,20 @@ export default function App() {
       <SafeAreaProvider>
         <StatusBar style="light" />
         {pantallaLogin === 'registro' && (
-          <RegistroNegocioScreen onLogin={setUsuario} onVolver={() => setPantallaLogin('login')} />
+          <RegistroNegocioScreen onLogin={setUsuario} onVolver={() => setPantallaLogin('login')} onIrARecuperar={() => setPantallaLogin('recuperar')} />
         )}
         {pantallaLogin === 'unirse' && (
-          <UnirseEmpleadoScreen onLogin={setUsuario} onVolver={() => setPantallaLogin('login')} />
+          <UnirseEmpleadoScreen onLogin={setUsuario} onVolver={() => setPantallaLogin('login')} onIrARecuperar={() => setPantallaLogin('recuperar')} />
+        )}
+        {pantallaLogin === 'recuperar' && (
+          <RecuperarPinScreen onVolver={() => setPantallaLogin('login')} />
         )}
         {pantallaLogin === 'login' && (
           <LoginScreen
             onLogin={setUsuario}
             onIrARegistro={() => setPantallaLogin('registro')}
             onIrAUnirse={() => setPantallaLogin('unirse')}
+            onIrARecuperar={() => setPantallaLogin('recuperar')}
           />
         )}
       </SafeAreaProvider>
