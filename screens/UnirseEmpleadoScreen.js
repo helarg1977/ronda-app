@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, Keyboard, TouchableWithoutFeedback } from 'react-native'
 import { supabase, guardarSesion } from '../lib/supabase'
 
-export default function UnirseEmpleadoScreen({ onLogin, onVolver }) {
+export default function UnirseEmpleadoScreen({ onLogin, onVolver, onIrARecuperar }) {
   const [codigo, setCodigo] = useState('')
   const [nombre, setNombre] = useState('')
   const [telefono, setTelefono] = useState('')
@@ -98,10 +98,7 @@ export default function UnirseEmpleadoScreen({ onLogin, onVolver }) {
         <Text style={styles.label}>Confirma tu PIN</Text>
         <TextInput style={styles.input} value={pinConfirmar} onChangeText={setPinConfirmar} keyboardType="number-pad" secureTextEntry={!verPin} placeholder="••••" placeholderTextColor="#6a6a80" maxLength={6} />
 
-        <TouchableOpacity onPress={() => Alert.alert(
-          '¿Olvidaste tu PIN?',
-          'Pídele al dueño del bar que te genere un PIN nuevo desde "⚙️ Config → Empleados".'
-        )}>
+        <TouchableOpacity onPress={onIrARecuperar}>
           <Text style={styles.olvidoTexto}>¿Ya tienes cuenta y olvidaste tu PIN?</Text>
         </TouchableOpacity>
 
