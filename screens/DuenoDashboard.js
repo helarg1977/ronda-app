@@ -5,6 +5,7 @@ import { Audio } from 'expo-av'
 import * as Sharing from 'expo-sharing'
 import { captureRef } from 'react-native-view-shot'
 import { supabase, cerrarSesion } from '../lib/supabase'
+import GuiaPantalla from '../components/GuiaPantalla'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import CapaFlotante from '../components/CapaFlotante'
 import TarjetaParpadeante from '../components/TarjetaParpadeante'
@@ -633,6 +634,16 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
         refreshControl={<RefreshControl refreshing={refrescando} onRefresh={async () => { setRefrescando(true); await cargar(); setRefrescando(false) }} />}
         contentContainerStyle={{ paddingBottom: altoFlotante + 20 }}
       >
+        <GuiaPantalla
+          id="panel_principal"
+          barId={usuario.bar_id}
+          pasos={[
+            { icono: '👋', titulo: 'Este es tu panel', texto: 'Aquí ves tus ventas de hoy y todo lo urgente, apenas abres la app.' },
+            { icono: '🗺️', titulo: 'El mapa de tus mesas', texto: 'Los colores te dicen todo sin tener que leer: gris libre, dorado con pedido esperando, morado pago sin confirmar.' },
+            { icono: '💬', titulo: 'Mensajes de tu equipo', texto: 'Si un mesero necesita ayuda, te avisa aquí — con sonido y vibración.' },
+          ]}
+        />
+
         {sinConexion && (
           <View style={styles.sinConexionBanner}>
             <Text style={styles.sinConexionTexto}>⚠️ Sin conexión — mostrando la última información que tenemos</Text>
