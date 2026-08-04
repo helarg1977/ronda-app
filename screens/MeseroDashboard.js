@@ -221,6 +221,18 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
     setMensajesChat((m) => [...m, data])
   }
 
+  async function borrarMensajeChat(id) {
+    Alert.alert('Borrar mensaje', '¿Borrar este mensaje?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Borrar', style: 'destructive', onPress: async () => {
+          await supabase.from('mensajes_chat').delete().eq('id', id)
+          setMensajesChat((m) => m.filter((x) => x.id !== id))
+        },
+      },
+    ])
+  }
+
   const mesasAtendidasHoy = new Set(historialHoy.map((p) => p.mesa_id)).size
 
   const todasLasTareas = [
@@ -536,7 +548,14 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
                 {mensajesChat.length === 0 && <Text style={styles.vacio}>Sin mensajes todavía.</Text>}
                 {mensajesChat.map((m) => (
                   <View key={m.id} style={[styles.chatBurbuja, m.de === 'mesero' ? styles.chatPropia : styles.chatOtra]}>
-                    <Text style={[styles.chatAutor, m.de === 'mesero' ? styles.chatAutorPropia : styles.chatAutorOtra]}>{m.de === 'mesero' ? 'Tú' : (m.nombre || m.de)}</Text>
+                    <View style={styles.chatBurbujaFila}>
+                      <Text style={[styles.chatAutor, m.de === 'mesero' ? styles.chatAutorPropia : styles.chatAutorOtra]}>{m.de === 'mesero' ? 'Tú' : (m.nombre || m.de)}</Text>
+                      {m.de === 'mesero' && (
+                        <TouchableOpacity onPress={() => borrarMensajeChat(m.id)}>
+                          <Text style={styles.chatBorrarTexto}>🗑️</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                     <Text style={[styles.chatTexto, m.de === 'mesero' ? styles.chatTextoPropia : styles.chatTextoOtra]}>{m.texto}</Text>
                   </View>
                 ))}
@@ -698,6 +717,8 @@ const styles = StyleSheet.create({
   chatPropia: { backgroundColor: '#d4a338', alignSelf: 'flex-end', borderBottomRightRadius: 4 },
   chatOtra: { backgroundColor: '#26263a', alignSelf: 'flex-start', borderBottomLeftRadius: 4 },
   chatAutor: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', opacity: 0.7, marginBottom: 2 },
+  chatBurbujaFila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  chatBorrarTexto: { fontSize: 13, opacity: 0.6 },
   chatAutorPropia: { color: '#14141f' },
   chatAutorOtra: { color: '#a0a0b0' },
   chatTexto: { fontSize: 14 },
