@@ -156,6 +156,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [mostrarLineaTiempo, setMostrarLineaTiempo] = useState(false)
   const [mostrarMoverMesa, setMostrarMoverMesa] = useState(false)
   const [mostrarUnirMesa, setMostrarUnirMesa] = useState(false)
+  const [comprobanteAmpliado, setComprobanteAmpliado] = useState(null)
   const [mostrarPreguntaModo, setMostrarPreguntaModo] = useState(false)
   const necesitaPreguntaModoRef = useRef(false)
   const [altoFlotante, setAltoFlotante] = useState(80)
@@ -358,6 +359,18 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     const { data, error } = await supabase.from('mensajes_chat').insert({ bar_id: usuario.bar_id, canal: chatCanal.canal, de: 'dueno', nombre: 'Dueño', texto }).select().single()
     if (error) { console.log('Error enviando mensaje:', error.message); return }
     setMensajesChat((m) => [...m, data])
+  }
+
+  async function borrarMensajeChat(id) {
+    Alert.alert('Borrar mensaje', '¿Borrar este mensaje del chat?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Borrar', style: 'destructive', onPress: async () => {
+          await supabase.from('mensajes_chat').delete().eq('id', id)
+          setMensajesChat((m) => m.filter((x) => x.id !== id))
+        },
+      },
+    ])
   }
 
   async function terminarOnboarding() {
@@ -995,7 +1008,10 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                           </View>
                         )}
                         {detalle.pago.comprobante_url && (
-                          <Image source={{ uri: detalle.pago.comprobante_url }} style={styles.comprobanteImg} resizeMode="contain" />
+                          <TouchableOpacity onPress={() => setComprobanteAmpliado(detalle.pago.comprobante_url)}>
+                            <Image source={{ uri: detalle.pago.comprobante_url }} style={styles.comprobanteImg} resizeMode="contain" />
+                            <Text style={styles.comprobanteAmpliarTexto}>🔍 Toca para ampliar</Text>
+                          </TouchableOpacity>
                         )}
                         {detalle.pago.confirmado ? (
                           <Text style={styles.pagoConfirmado}>✅ Pago confirmado</Text>
@@ -1163,6 +1179,13 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
         </View>
       </Modal>
 
+      <Modal visible={!!comprobanteAmpliado} transparent animationType="fade" onRequestClose={() => setComprobanteAmpliado(null)}>
+        <TouchableOpacity style={styles.comprobanteAmpliadoOverlay} activeOpacity={1} onPress={() => setComprobanteAmpliado(null)}>
+          <Image source={{ uri: comprobanteAmpliado }} style={styles.comprobanteAmpliadoImg} resizeMode="contain" />
+          <Text style={styles.comprobanteAmpliadoCerrar}>Toca en cualquier parte para cerrar</Text>
+        </TouchableOpacity>
+      </Modal>
+
       <Modal visible={mostrarMas} transparent animationType="slide" onRequestClose={() => setMostrarMas(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalDetalle}>
@@ -1266,7 +1289,12 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                 {mensajesChat.length === 0 && <Text style={styles.vacioTexto}>Sin mensajes todavía.</Text>}
                 {mensajesChat.map((m) => (
                   <View key={m.id} style={[styles.chatBurbuja, m.de === 'dueno' ? styles.chatPropia : styles.chatOtra]}>
-                    <Text style={[styles.chatAutor, m.de === 'dueno' ? styles.chatAutorPropia : styles.chatAutorOtra]}>{m.de === 'dueno' ? 'Tú' : (m.nombre || m.de)}</Text>
+                    <View style={styles.chatBurbujaFila}>
+                      <Text style={[styles.chatAutor, m.de === 'dueno' ? styles.chatAutorPropia : styles.chatAutorOtra]}>{m.de === 'dueno' ? 'Tú' : (m.nombre || m.de)}</Text>
+                      <TouchableOpacity onPress={() => borrarMensajeChat(m.id)}>
+                        <Text style={styles.chatBorrarTexto}>🗑️</Text>
+                      </TouchableOpacity>
+                    </View>
                     <Text style={[styles.chatTexto, m.de === 'dueno' ? styles.chatTextoPropia : styles.chatTextoOtra]}>{m.texto}</Text>
                   </View>
                 ))}
@@ -1521,6 +1549,8 @@ const styles = StyleSheet.create({
   chatPropia: { backgroundColor: '#d4a338', alignSelf: 'flex-end', borderBottomRightRadius: 4 },
   chatOtra: { backgroundColor: '#26263a', alignSelf: 'flex-start', borderBottomLeftRadius: 4 },
   chatAutor: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', opacity: 0.7, marginBottom: 2 },
+  chatBurbujaFila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  chatBorrarTexto: { fontSize: 13, opacity: 0.6 },
   chatAutorPropia: { color: '#14141f' },
   chatAutorOtra: { color: '#a0a0b0' },
   chatTexto: { fontSize: 14 },
@@ -1543,6 +1573,10 @@ const styles = StyleSheet.create({
   lineaTiempoHora: { color: '#6a6a80', fontSize: 12, fontWeight: '700', width: 70 },
   lineaTiempoEstado: { color: '#f2f2f2', fontSize: 13 },
   comprobanteImg: { width: '100%', height: 180, borderRadius: 10, marginBottom: 10, backgroundColor: '#14141f' },
+  comprobanteAmpliarTexto: { color: '#4a90d9', fontSize: 12, textAlign: 'center', marginTop: -6, marginBottom: 10 },
+  comprobanteAmpliadoOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  comprobanteAmpliadoImg: { width: '100%', height: '80%' },
+  comprobanteAmpliadoCerrar: { color: '#8a8a9a', fontSize: 13, marginTop: 16 },
   pagoConfirmado: { color: '#3ecf8e', fontSize: 14, fontWeight: '700', textAlign: 'center' },
   pagoEsperaEntrega: { color: '#8a8a9a', fontSize: 13, textAlign: 'center', fontStyle: 'italic' },
   desgloseMixtoBox: { backgroundColor: '#1a1a26', borderRadius: 10, padding: 10, marginBottom: 10 },
