@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert,
 import * as ImagePicker from 'expo-image-picker'
 import { decode } from 'base64-arraybuffer'
 import { supabase } from '../lib/supabase'
+import GuiaPantalla from '../components/GuiaPantalla'
 
 const PLANTILLAS_PROMO = [
   { label: '2x1', titulo: '2x1 en cócteles hoy', mensaje: 'Solo por hoy, todos los cócteles al 2x1 🍹' },
@@ -246,6 +247,15 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={40}>
+      <GuiaPantalla
+        id="configuracion"
+        barId={usuario.bar_id}
+        pasos={[
+          { icono: '⚙️', titulo: 'Aquí ajustas tu negocio', texto: 'Nombre, logo, pagos, empleados y promociones — todo vive en estas pestañas de arriba.' },
+          { icono: '💳', titulo: 'Lo más importante: Pagos', texto: 'Sin configurar esto, tus clientes no van a poder pagarte desde la app. Es lo primero que deberías hacer.' },
+          { icono: '👥', titulo: 'Empleados', texto: 'Comparte tu código de negocio para que tu equipo se una solo, o agrégalos tú mismo con su nombre y celular.' },
+        ]}
+      />
       <View style={{ flex: 1, backgroundColor: '#14141f' }}>
         <View style={styles.headerFijo}>
           <TouchableOpacity onPress={onVolver}><Text style={styles.volver}>← Volver</Text></TouchableOpacity>
