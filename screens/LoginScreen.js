@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal, KeyboardAvoidingView, ScrollView, Platform, Keyboard, TouchableWithoutFeedback, Image } from 'react-native'
+import * as Updates from 'expo-updates'
 import { supabase, guardarSesion } from '../lib/supabase'
 
 export default function LoginScreen({ onLogin, onIrARegistro, onIrAUnirse }) {
@@ -94,6 +95,10 @@ export default function LoginScreen({ onLogin, onIrARegistro, onIrAUnirse }) {
         </TouchableOpacity>
       </View>
 
+      <Text style={styles.diagnosticoTexto}>
+        v: {Updates.updateId ? Updates.updateId.slice(0, 8) : 'incorporada de fábrica'} · canal: {Updates.channel || 'ninguno'}
+      </Text>
+
       <Modal visible={mostrarAyudaPin} transparent animationType="fade" onRequestClose={() => setMostrarAyudaPin(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCaja}>
@@ -135,6 +140,7 @@ const styles = StyleSheet.create({
   botonOjoTexto: { fontSize: 20 },
   olvidoTexto: { color: '#a0a0b0', fontSize: 14, textAlign: 'right', marginTop: 10 },
   filaEnlaces: { marginTop: 24, gap: 14, alignItems: 'center' },
+  diagnosticoTexto: { color: '#4a4a5a', fontSize: 10, textAlign: 'center', marginTop: 20 },
   enlaceTexto: { color: '#a0a0b0', fontSize: 14, textAlign: 'center' },
   enlaceResaltado: { color: '#d4a338', fontWeight: '700' },
   boton: {
