@@ -375,6 +375,14 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
 
           {pestana === 'promos' && (
             <>
+              <GuiaPantalla
+                id="promos"
+                barId={usuario.bar_id}
+                pasos={[
+                  { icono: '🎉', titulo: 'Atrae más gente hoy', texto: 'Toca una plantilla rápida (2x1, Happy Hour...) y ya se rellena sola — o escribe la tuya.' },
+                  { icono: '📢', titulo: '¿Quién la ve?', texto: 'Tus clientes que ya guardaron su número contigo la ven apenas abren tu mini-web.' },
+                ]}
+              />
               <Text style={styles.ayuda}>
                 {clientesFidelizados} cliente{clientesFidelizados !== 1 ? 's' : ''} ya guardaron su número contigo. Cuando creas una promoción, la ven apenas abren tu mini-web.
               </Text>
@@ -410,6 +418,14 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
 
           {pestana === 'empleados' && (
             <>
+              <GuiaPantalla
+                id="empleados"
+                barId={usuario.bar_id}
+                pasos={[
+                  { icono: '🔑', titulo: 'Comparte tu código', texto: 'Tu código de 6 letras/números está aquí abajo — dáselo a tu mesero y él mismo se une desde el login.' },
+                  { icono: '✍️', titulo: '¿Prefieres hacerlo tú?', texto: 'También puedes agregarlo a mano, con su nombre, celular, y el PIN se genera solo.' },
+                ]}
+              />
               {codigoNegocio ? (
                 <View style={styles.codigoBox}>
                   <Text style={styles.codigoLabel}>Tu código de negocio</Text>
