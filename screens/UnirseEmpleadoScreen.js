@@ -41,10 +41,19 @@ export default function UnirseEmpleadoScreen({ onLogin, onVolver, onIrARecuperar
       return
     }
 
-    const usuario = data[0]
-    await guardarSesion(usuario)
-    Alert.alert('¡Listo!', `Ya quedaste conectado como ${rol === 'mesero' ? 'mesero' : 'administrador'}.`)
-    onLogin(usuario)
+    const { data: sesionData, error: errorSesion } = await supabase.functions.invoke('login-pin', {
+      body: { telefono: telefono.trim(), pin: pin.trim() },
+    })
+    if (errorSesion || sesionData?.error || !sesionData?.usuario) {
+      Alert.alert('Tu cuenta se creó, pero hubo un problema iniciando tu sesión', 'Intenta entrar de nuevo con tu celular y PIN.')
+      onVolver()
+      return
+    }
+    await supabase.auth.setSession({ access_token: sesionData.access_token, refresh_token: sesionData.refresh_token })
+    await guardarSesion(sesionData.usuario)
+    Alert.alert('¡Listo!', `Ya quedaste conectado como ${rol === 'mesero' ? 'mesero' : 'administrador'}.`, [
+      { text: 'Entrar', onPress: () => onLogin(sesionData.usuario) },
+    ])
   }
 
   return (
@@ -96,7 +105,12 @@ export default function UnirseEmpleadoScreen({ onLogin, onVolver, onIrARecuperar
         </View>
 
         <Text style={styles.label}>Confirma tu PIN</Text>
-        <TextInput style={styles.input} value={pinConfirmar} onChangeText={setPinConfirmar} keyboardType="number-pad" secureTextEntry={!verPin} placeholder="••••" placeholderTextColor="#6a6a80" maxLength={6} />
+        <View style={styles.filaPin}>
+          <TextInput style={[styles.input, { flex: 1 }]} value={pinConfirmar} onChangeText={setPinConfirmar} keyboardType="number-pad" secureTextEntry={!verPin} placeholder="••••" placeholderTextColor="#6a6a80" maxLength={6} />
+          <TouchableOpacity style={styles.botonOjo} onPress={() => setVerPin(!verPin)}>
+            <Text style={styles.botonOjoTexto}>{verPin ? '🙈' : '👁️'}</Text>
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity onPress={onIrARecuperar}>
           <Text style={styles.olvidoTexto}>¿Ya tienes cuenta y olvidaste tu PIN?</Text>
