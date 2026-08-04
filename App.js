@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { View, ActivityIndicator, StyleSheet } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
-import { leerSesion } from './lib/supabase'
+import { leerSesion, cerrarSesion } from './lib/supabase'
 import LoginScreen from './screens/LoginScreen'
 import RegistroNegocioScreen from './screens/RegistroNegocioScreen'
 import UnirseEmpleadoScreen from './screens/UnirseEmpleadoScreen'
@@ -70,6 +70,7 @@ export default function App() {
   }
 
   function cerrarSesionYVolver() {
+    cerrarSesion()
     setUsuario(null)
     setPantalla('dashboard')
   }
