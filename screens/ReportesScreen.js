@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native'
 import { supabase } from '../lib/supabase'
+import GuiaPantalla from '../components/GuiaPantalla'
 
 function money(n) {
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n || 0)
@@ -93,6 +94,14 @@ export default function ReportesScreen({ usuario, onVolver }) {
 
   return (
     <>
+    <GuiaPantalla
+      id="informes"
+      barId={usuario.bar_id}
+      pasos={[
+        { icono: '📊', titulo: 'Aquí ves cómo te está yendo', texto: 'Cuánto has vendido, tu producto más fuerte, y cómo comparas con ayer — todo en un solo lugar.' },
+        { icono: '📅', titulo: 'Cambia el período arriba', texto: 'Puedes ver hoy, la semana, o el mes — toca las pestañas de arriba para cambiar.' },
+      ]}
+    />
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 18, paddingTop: 50, paddingBottom: 40 }}>
       <TouchableOpacity onPress={onVolver}><Text style={styles.volver}>← Volver</Text></TouchableOpacity>
       <Text style={styles.titulo}>Informes</Text>
