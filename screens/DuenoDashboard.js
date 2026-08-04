@@ -142,6 +142,8 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
 
   const [ventasHoy, setVentasHoy] = useState(0)
   const [sinConexion, setSinConexion] = useState(false)
+  const [tieneProductos, setTieneProductos] = useState(true)
+  const [ocultarPrimerosPasos, setOcultarPrimerosPasos] = useState(true)
   const [comparativoAyer, setComparativoAyer] = useState(null)
   const [ventasHoyDetalle, setVentasHoyDetalle] = useState([])
   const [propinasHoy, setPropinasHoy] = useState(0)
@@ -184,7 +186,9 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
 
   const cargar = useCallback(async () => {
     try {
-    const { data: barData } = await supabase.from('bares').select('nombre, comision_pct, modo_negocio').eq('id', usuario.bar_id).maybeSingle()
+    const { data: barData } = await supabase.from('bares').select('nombre, comision_pct, modo_negocio, llave_nequi, llave_daviplata, llave_bre_b, created_at').eq('id', usuario.bar_id).maybeSingle()
+    const { count: totalProductos } = await supabase.from('productos').select('id', { count: 'exact', head: true }).eq('bar_id', usuario.bar_id)
+    setTieneProductos((totalProductos || 0) > 0)
     setBar(barData)
     if (usuario.rol === 'dueno' && barData && !barData.modo_negocio) {
       necesitaPreguntaModoRef.current = true
@@ -313,6 +317,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
       else if (necesitaPreguntaModoRef.current) setMostrarPreguntaModo(true)
     })
     AsyncStorage.getItem(`ronda_ocultar_ventas_${usuario.id}`).then((v) => { if (v === '1') setOcultarVentas(true) })
+    AsyncStorage.getItem(`ronda_primeros_pasos_oculto_${usuario.bar_id}`).then((v) => setOcultarPrimerosPasos(v === '1'))
     const canalPedidos = supabase
       .channel(`dueno-pedidos-${usuario.bar_id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos', filter: `bar_id=eq.${usuario.bar_id}` }, cargar)
@@ -484,6 +489,11 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     }
   }
 
+  async function cerrarPrimerosPasos() {
+    await AsyncStorage.setItem(`ronda_primeros_pasos_oculto_${usuario.bar_id}`, '1')
+    setOcultarPrimerosPasos(true)
+  }
+
   async function elegirModoNegocio(modo) {
     const { error } = await supabase.from('bares').update({ modo_negocio: modo }).eq('id', usuario.bar_id)
     if (error) {
@@ -626,6 +636,40 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
         {sinConexion && (
           <View style={styles.sinConexionBanner}>
             <Text style={styles.sinConexionTexto}>⚠️ Sin conexión — mostrando la última información que tenemos</Text>
+          </View>
+        )}
+
+        {!ocultarPrimerosPasos && (!tieneProductos || !(bar?.llave_nequi || bar?.llave_daviplata || bar?.llave_bre_b)) && (
+          <View style={styles.primerosPasosBox}>
+            <View style={styles.primerosPasosHeader}>
+              <Text style={styles.primerosPasosTitulo}>👋 Bienvenido a Ronda — te falta poco</Text>
+              <TouchableOpacity onPress={cerrarPrimerosPasos}><Text style={styles.primerosPasosCerrar}>✕</Text></TouchableOpacity>
+            </View>
+            <Text style={styles.primerosPasosAyuda}>Completa esto y tu bar queda listo para recibir pedidos de verdad:</Text>
+
+            <TouchableOpacity style={styles.primerosPasosItem} onPress={onIrMenu}>
+              <Text style={styles.primerosPasosItemIcono}>{tieneProductos ? '✅' : '⬜'}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.primerosPasosItemTitulo}>Sube tu menú</Text>
+                <Text style={styles.primerosPasosItemTexto}>Agrega tus productos con precio — toca aquí para ir</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.primerosPasosItem} onPress={onIrConfiguracion}>
+              <Text style={styles.primerosPasosItemIcono}>{(bar?.llave_nequi || bar?.llave_daviplata || bar?.llave_bre_b) ? '✅' : '⬜'}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.primerosPasosItemTitulo}>Configura cómo te pagan</Text>
+                <Text style={styles.primerosPasosItemTexto}>Guarda tu Nequi, Daviplata o Bre-B</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.primerosPasosItem} onPress={onIrMenu}>
+              <Text style={styles.primerosPasosItemIcono}>🖨️</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.primerosPasosItemTitulo}>Imprime tus códigos QR</Text>
+                <Text style={styles.primerosPasosItemTexto}>Ya se crearon automáticamente — descárgalos e imprímelos para cada mesa</Text>
+              </View>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -1400,6 +1444,15 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#14141f' },
   sinConexionBanner: { backgroundColor: '#3a2a12', paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center' },
   sinConexionTexto: { color: '#e0954c', fontSize: 12, fontWeight: '700' },
+  primerosPasosBox: { backgroundColor: '#1a2e26', borderRadius: 18, padding: 16, marginHorizontal: 14, marginTop: 14, borderWidth: 1, borderColor: '#3ecf8e' },
+  primerosPasosHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  primerosPasosTitulo: { color: '#f2f2f2', fontSize: 16, fontWeight: '800', flex: 1 },
+  primerosPasosCerrar: { color: '#8a8a9a', fontSize: 18, paddingLeft: 10 },
+  primerosPasosAyuda: { color: '#a0c9b8', fontSize: 13, marginTop: 4, marginBottom: 12, lineHeight: 18 },
+  primerosPasosItem: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#14241e', borderRadius: 12, padding: 12, marginBottom: 8 },
+  primerosPasosItemIcono: { fontSize: 20 },
+  primerosPasosItemTitulo: { color: '#f2f2f2', fontSize: 14, fontWeight: '700' },
+  primerosPasosItemTexto: { color: '#8a8a9a', fontSize: 12, marginTop: 2, lineHeight: 16 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 18, paddingTop: 50 },
   titulo: { fontSize: 22, fontWeight: '800', color: '#f2f2f2' },
   subtituloHeader: { fontSize: 13, color: '#d4a338', marginTop: 2 },
