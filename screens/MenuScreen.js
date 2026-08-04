@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert,
 import * as ImagePicker from 'expo-image-picker'
 import { decode } from 'base64-arraybuffer'
 import { supabase } from '../lib/supabase'
+import GuiaPantalla from '../components/GuiaPantalla'
 
 const CATEGORIAS_SUGERIDAS = [
   { nombre: 'Cervezas', icono: '🍺' },
@@ -219,6 +220,16 @@ export default function MenuScreen({ usuario, onVolver }) {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={40}>
+      <GuiaPantalla
+        id="menu"
+        barId={usuario.bar_id}
+        pasos={[
+          { icono: '🍺', titulo: 'Aquí vive tu menú', texto: 'Todo lo que subas aquí es exactamente lo que tus clientes van a poder pedir desde su celular.' },
+          { icono: '📋', titulo: 'Primero crea una categoría', texto: 'Por ejemplo "Cervezas" o "Cócteles". Después, dentro de cada una, agregas los productos.' },
+          { icono: '💰', titulo: 'Agrega tus productos', texto: 'Elige la categoría, escribe el nombre y el precio. La foto es opcional, la puedes agregar después.' },
+          { icono: '🪑', titulo: 'Tus mesas están más abajo', texto: 'Cada mesa ya tiene su propio código QR listo — solo tienes que descargarlo e imprimirlo.' },
+        ]}
+      />
       <ScrollView style={styles.container} contentContainerStyle={{ padding: 18, paddingTop: 50, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
         <TouchableOpacity onPress={onVolver}><Text style={styles.volver}>← Volver</Text></TouchableOpacity>
         <Text style={styles.titulo}>Tu menú</Text>
