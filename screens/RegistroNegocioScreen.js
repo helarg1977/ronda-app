@@ -43,20 +43,24 @@ export default function RegistroNegocioScreen({ onLogin, onVolver, onIrARecupera
     }
 
     const resultado = data[0]
-    const usuario = {
-      id: resultado.usuario_id,
-      bar_id: resultado.bar_id,
-      nombre: nombreDueno.trim(),
-      telefono: telefono.trim(),
-      rol: 'dueno',
-      activo: true,
+
+    // Conseguir una sesión real (no solo datos locales) para que las funciones de dueño trabajen bien
+    const { data: sesionData, error: errorSesion } = await supabase.functions.invoke('login-pin', {
+      body: { telefono: telefono.trim(), pin: pin.trim() },
+    })
+    if (errorSesion || sesionData?.error || !sesionData?.usuario) {
+      Alert.alert('Tu negocio se creó, pero hubo un problema iniciando tu sesión', 'Intenta entrar de nuevo con tu celular y PIN.')
+      onVolver()
+      return
     }
-    await guardarSesion(usuario)
+    await supabase.auth.setSession({ access_token: sesionData.access_token, refresh_token: sesionData.refresh_token })
+    await guardarSesion(sesionData.usuario)
+
     Alert.alert(
       '¡Tu bar ya está listo! 🎉',
-      `Se crearon ${mesas} mesas con su código QR. Tu código de negocio (para agregar empleados) es: ${resultado.codigo_negocio}`
+      `Se crearon ${mesas} mesas con su código QR. Tu código de negocio (para agregar empleados) es: ${resultado.codigo_negocio}`,
+      [{ text: 'Entrar a mi panel', onPress: () => onLogin(sesionData.usuario) }]
     )
-    onLogin(usuario)
   }
 
   return (
@@ -94,7 +98,12 @@ export default function RegistroNegocioScreen({ onLogin, onVolver, onIrARecupera
         </View>
 
         <Text style={styles.label}>Confirma tu PIN</Text>
-        <TextInput style={styles.input} value={pinConfirmar} onChangeText={setPinConfirmar} keyboardType="number-pad" secureTextEntry={!verPin} placeholder="••••" placeholderTextColor="#6a6a80" maxLength={6} />
+        <View style={styles.filaPin}>
+          <TextInput style={[styles.input, { flex: 1 }]} value={pinConfirmar} onChangeText={setPinConfirmar} keyboardType="number-pad" secureTextEntry={!verPin} placeholder="••••" placeholderTextColor="#6a6a80" maxLength={6} />
+          <TouchableOpacity style={styles.botonOjo} onPress={() => setVerPin(!verPin)}>
+            <Text style={styles.botonOjoTexto}>{verPin ? '🙈' : '👁️'}</Text>
+          </TouchableOpacity>
+        </View>
 
         <Text style={styles.label}>¿Cuántas mesas tiene tu bar?</Text>
         <TextInput
