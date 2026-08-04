@@ -117,10 +117,13 @@ const ONBOARDING_PASOS = [
 const AYUDA_SECCIONES = [
   { titulo: '📋 ¿Cómo subo mi menú?', texto: 'Ve a "Menú" en la parte de abajo. Primero crea categorías (ej: Cervezas), luego dentro de cada una agrega productos con nombre, precio y opcionalmente una foto (pega el link de una imagen).' },
   { titulo: '🪑 ¿Cómo agrego mesas?', texto: 'Dentro de "Menú", baja hasta la sección "Mesas" y toca "+ Agregar mesa". Cada mesa genera su propio código QR — ese código es el que debes imprimir o pegar físicamente en cada mesa del bar.' },
-  { titulo: '👥 ¿Cómo agrego a mis meseros?', texto: 'Ve a "⚙️ Config" → "Agregar empleado". Escribe su nombre, celular y un PIN de 4 dígitos. Con esos datos, el mesero entra a su propio panel desde su celular.' },
+  { titulo: '👥 ¿Cómo agrego a mis meseros?', texto: 'Tienes dos formas: en "⚙️ Config → Empleados" le compartes tu código de negocio (6 letras/números) y tu empleado se une solo desde el login tocando "¿Eres empleado? Tengo un código" — o si prefieres, lo agregas tú mismo con su nombre, celular y un PIN.' },
   { titulo: '💳 ¿Cómo configuro mis pagos?', texto: 'En "⚙️ Config" guarda tu Nequi, Daviplata o Bre-B. Ronda nunca cobra por adelantado ni maneja tu plata — el cliente te paga directo a ti.' },
-  { titulo: '✅ ¿Cómo confirmo que me llegó un pago?', texto: 'Toca la mesa correspondiente, revisa el comprobante que subió el cliente, y toca "Confirmar que recibí el pago". También puedes hacerlo desde "Pagos por confirmar" en el panel principal.' },
+  { titulo: '✅ ¿Cómo confirmo que me llegó un pago?', texto: 'Toca la mesa correspondiente, toca el comprobante para ampliarlo y verificarlo bien, y toca "Confirmar que recibí el pago". También puedes hacerlo desde "💰 Hay dinero esperando" en el panel principal.' },
   { titulo: '🧾 ¿Cómo cierro una mesa cuando el grupo se va?', texto: 'Toca la mesa (debe estar sin pedido activo) y toca "Cerrar mesa (cuenta pagada)". Eso deja la mesa lista y limpia para el siguiente grupo, sin mezclar cuentas.' },
+  { titulo: '🔗 ¿Llegó un grupo grande y unieron mesas?', texto: 'Toca cualquiera de las mesas físicas que unieron y busca la sección "🔀 Grupo grande o cambio de mesa" — toca "Unir otra mesa a esta cuenta" y elige cuál. Todo lo que pidan desde cualquiera de esas mesas se junta en una sola cuenta. Cuando se vayan, toca "Separar esta mesa" en la que uniste.' },
+  { titulo: '🔀 ¿Un cliente se cambió de mesa?', texto: 'Toca la mesa donde estaba sentado y busca "Mover esta cuenta a otra mesa" — elige la mesa nueva (debe estar libre) y toda su cuenta se pasa completa, sin perder nada.' },
+  { titulo: '🗑️ ¿Puedo borrar un mensaje del chat?', texto: 'Sí — dentro de cualquier chat, toca el ícono 🗑️ junto al mensaje que quieras quitar. Funciona con mensajes tuyos y de tu equipo.' },
   { titulo: '💰 ¿Cómo pago la comisión a Ronda?', texto: 'En "💳 Pagar a Ronda" ves cuánto has generado y cuánto le corresponde a Ronda (3%). Ahí reportas manualmente tu pago — nunca es automático.' },
 ]
 
@@ -156,6 +159,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [mostrarLineaTiempo, setMostrarLineaTiempo] = useState(false)
   const [mostrarMoverMesa, setMostrarMoverMesa] = useState(false)
   const [mostrarUnirMesa, setMostrarUnirMesa] = useState(false)
+  const [comprobanteAmpliado, setComprobanteAmpliado] = useState(null)
   const [comprobanteAmpliado, setComprobanteAmpliado] = useState(null)
   const [mostrarPreguntaModo, setMostrarPreguntaModo] = useState(false)
   const necesitaPreguntaModoRef = useRef(false)
@@ -1009,7 +1013,10 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                         )}
                         {detalle.pago.comprobante_url && (
                           <TouchableOpacity onPress={() => setComprobanteAmpliado(detalle.pago.comprobante_url)}>
-                            <Image source={{ uri: detalle.pago.comprobante_url }} style={styles.comprobanteImg} resizeMode="contain" />
+                            <TouchableOpacity onPress={() => setComprobanteAmpliado(detalle.pago.comprobante_url)}>
+                              <Image source={{ uri: detalle.pago.comprobante_url }} style={styles.comprobanteImg} resizeMode="contain" />
+                              <Text style={styles.comprobanteAmpliarTexto}>🔍 Toca para ampliar</Text>
+                            </TouchableOpacity>
                             <Text style={styles.comprobanteAmpliarTexto}>🔍 Toca para ampliar</Text>
                           </TouchableOpacity>
                         )}
@@ -1183,6 +1190,13 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
         <TouchableOpacity style={styles.comprobanteAmpliadoOverlay} activeOpacity={1} onPress={() => setComprobanteAmpliado(null)}>
           <Image source={{ uri: comprobanteAmpliado }} style={styles.comprobanteAmpliadoImg} resizeMode="contain" />
           <Text style={styles.comprobanteAmpliadoCerrar}>Toca en cualquier parte para cerrar</Text>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal visible={!!comprobanteAmpliado} transparent animationType="fade" onRequestClose={() => setComprobanteAmpliado(null)}>
+        <TouchableOpacity style={styles.fondoImagenAmpliada} activeOpacity={1} onPress={() => setComprobanteAmpliado(null)}>
+          <Image source={{ uri: comprobanteAmpliado }} style={styles.imagenAmpliada} resizeMode="contain" />
+          <Text style={styles.cerrarImagenAmpliadaTexto}>Toca en cualquier parte para cerrar</Text>
         </TouchableOpacity>
       </Modal>
 
@@ -1572,7 +1586,11 @@ const styles = StyleSheet.create({
   lineaTiempoIcono: { fontSize: 14, width: 22 },
   lineaTiempoHora: { color: '#6a6a80', fontSize: 12, fontWeight: '700', width: 70 },
   lineaTiempoEstado: { color: '#f2f2f2', fontSize: 13 },
-  comprobanteImg: { width: '100%', height: 180, borderRadius: 10, marginBottom: 10, backgroundColor: '#14141f' },
+  comprobanteImg: { width: '100%', height: 180, borderRadius: 10, marginBottom: 4, backgroundColor: '#14141f' },
+  comprobanteAmpliarTexto: { color: '#d4a338', fontSize: 12, textAlign: 'center', marginBottom: 10 },
+  fondoImagenAmpliada: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  imagenAmpliada: { width: '100%', height: '80%' },
+  cerrarImagenAmpliadaTexto: { color: '#a0a0b0', fontSize: 13, marginTop: 16 },
   comprobanteAmpliarTexto: { color: '#4a90d9', fontSize: 12, textAlign: 'center', marginTop: -6, marginBottom: 10 },
   comprobanteAmpliadoOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   comprobanteAmpliadoImg: { width: '100%', height: '80%' },
