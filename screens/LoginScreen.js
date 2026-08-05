@@ -39,6 +39,7 @@ export default function LoginScreen({ onLogin, onIrARegistro, onIrAUnirse, onIrA
         <Image source={require('../assets/login-fondo.jpg')} style={styles.imagenSuperior} resizeMode="contain" />
       </View>
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
         alwaysBounceVertical={true}
