@@ -44,6 +44,15 @@ function money(n) {
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n || 0)
 }
 
+// La misma tarifa que usa la base de datos (calcular_costo_ronda) — si cambia, cambiarla en los dos lados
+function costoRonda(monto) {
+  if (monto <= 10000) return 100
+  if (monto <= 50000) return 200
+  if (monto <= 100000) return 300
+  if (monto <= 200000) return 400
+  return 500
+}
+
 function inicioDeHoy() {
   const d = new Date()
   d.setHours(0, 0, 0, 0)
@@ -125,7 +134,7 @@ const AYUDA_SECCIONES = [
   { titulo: '🔗 ¿Llegó un grupo grande y unieron mesas?', texto: 'Toca cualquiera de las mesas físicas que unieron y busca la sección "🔀 Grupo grande o cambio de mesa" — toca "Unir otra mesa a esta cuenta" y elige cuál. Todo lo que pidan desde cualquiera de esas mesas se junta en una sola cuenta. Cuando se vayan, toca "Separar esta mesa" en la que uniste.' },
   { titulo: '🔀 ¿Un cliente se cambió de mesa?', texto: 'Toca la mesa donde estaba sentado y busca "Mover esta cuenta a otra mesa" — elige la mesa nueva (debe estar libre) y toda su cuenta se pasa completa, sin perder nada.' },
   { titulo: '🗑️ ¿Puedo borrar un mensaje del chat?', texto: 'Sí — dentro de cualquier chat, toca el ícono 🗑️ junto al mensaje que quieras quitar. Funciona con mensajes tuyos y de tu equipo.' },
-  { titulo: '💰 ¿Cómo pago la comisión a Ronda?', texto: 'En "💳 Pagar a Ronda" ves cuánto has generado y cuánto le corresponde a Ronda (3%). Ahí reportas manualmente tu pago — nunca es automático.' },
+  { titulo: '💰 ¿Cómo pago a Ronda?', texto: 'En "💳 Pagar a Ronda" ves cuánto has generado y cuánto pagar — un costo fijo pequeño por cada pedido (entre $100 y $500), nunca un porcentaje. Ahí reportas manualmente tu pago — nunca es automático.' },
 ]
 
 
@@ -747,8 +756,8 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           {bar?.modo_negocio !== 'solo' && (
             <>
               <TouchableOpacity style={styles.statCardChico} onPress={() => setDetalleStat('comision')}>
-                <Text style={styles.statValorChico}>{money(ventasHoy * (bar?.comision_pct || 0.03))}</Text>
-                <Text style={styles.statLabelChico}>Comisión Ronda</Text>
+                <Text style={styles.statValorChico}>{money(ventasHoyDetalle.reduce((s, p) => s + costoRonda(Number(p.total)), 0))}</Text>
+                <Text style={styles.statLabelChico}>Costo por pedido</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.statCardChico} onPress={() => setDetalleStat('propinas')}>
                 <Text style={styles.statValorChico}>{money(propinasHoy)}</Text>
@@ -1253,7 +1262,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           <View style={styles.modalDetalle}>
             <Text style={styles.modalTitulo}>Más opciones</Text>
             <TouchableOpacity style={styles.masOpcion} onPress={() => { setMostrarMas(false); onIrComision() }}>
-              <Text style={styles.masOpcionTexto}>💳 Pagar comisión a Ronda</Text>
+              <Text style={styles.masOpcionTexto}>💳 Pagar a Ronda</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.masOpcion} onPress={() => { setMostrarMas(false); onIrConfiguracion() }}>
               <Text style={styles.masOpcionTexto}>⚙️ Configuración del negocio</Text>
@@ -1295,13 +1304,13 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
             )}
             {detalleStat === 'comision' && (
               <>
-                <Text style={styles.modalTitulo}>Comisión Ronda ({Math.round((bar?.comision_pct || 0.03) * 100)}%)</Text>
+                <Text style={styles.modalTitulo}>Costo por pedido de hoy</Text>
                 <ScrollView style={{ maxHeight: 400, marginTop: 10 }}>
                   {ventasHoyDetalle.length === 0 && <Text style={styles.itemTexto}>Todavía no hay ventas entregadas hoy.</Text>}
                   {ventasHoyDetalle.map((p) => (
                     <View key={p.id} style={styles.itemFila}>
                       <Text style={styles.itemTexto}>Mesa {p.mesas?.numero} — {money(p.total)}</Text>
-                      <Text style={styles.itemTextoBold}>{money(p.total * (bar?.comision_pct || 0.03))}</Text>
+                      <Text style={styles.itemTextoBold}>{money(costoRonda(Number(p.total)))}</Text>
                     </View>
                   ))}
                 </ScrollView>
