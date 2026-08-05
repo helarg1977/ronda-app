@@ -34,7 +34,7 @@ export default function LoginScreen({ onLogin, onIrARegistro, onIrAUnirse, onIrA
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#14141f' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#14141f', justifyContent: 'center' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.imagenSuperiorContenedor}>
         <Image source={require('../assets/login-fondo.jpg')} style={styles.imagenSuperior} resizeMode="contain" />
       </View>
@@ -116,7 +116,7 @@ export default function LoginScreen({ onLogin, onIrARegistro, onIrAUnirse, onIrA
 }
 
 const styles = StyleSheet.create({
-  imagenSuperiorContenedor: { width: '100%', height: 230, backgroundColor: '#14141f' },
+  imagenSuperiorContenedor: { width: '100%', height: 280, backgroundColor: '#14141f' },
   imagenSuperior: { width: '100%', height: '100%' },
   container: { flexGrow: 1, paddingTop: 6, paddingHorizontal: 28 },
   titulo: { fontSize: 40, fontWeight: '800', color: '#f2f2f2', textAlign: 'center' },
