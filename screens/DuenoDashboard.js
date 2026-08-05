@@ -793,6 +793,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                   <Text style={styles.pagoEsperandoTexto}>💵 {money(p.monto_efectivo || 0)} + 📱 {money(p.monto_transferencia || 0)}</Text>
                 )}
                 <Text style={styles.pagoEsperandoTexto}>Reportado {minutosTexto(p.created_at)}</Text>
+                <Text style={styles.pagoRevisarTexto}>👉 Toca la Mesa {p.pedidos?.mesas?.numero} para ver el comprobante y confirmar</Text>
               </View>
               <TouchableOpacity style={styles.botonConfirmarChico} onPress={() => confirmarPago(p.id)}>
                 <Text style={styles.botonConfirmarChicoTexto}>Confirmar</Text>
@@ -1316,13 +1317,19 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
             )}
             {detalleStat === 'pagos' && (
               <>
-                <Text style={styles.modalTitulo}>Pagos por confirmar</Text>
+                <Text style={styles.modalTitulo}>💰 Hay dinero esperando</Text>
                 <ScrollView style={{ maxHeight: 400, marginTop: 10 }}>
                   {pagosPendientes.length === 0 && <Text style={styles.itemTexto}>Todos los pagos están confirmados ✅</Text>}
                   {pagosPendientes.map((p) => (
-                    <View key={p.id} style={styles.itemFila}>
-                      <Text style={styles.itemTexto}>Mesa {p.pedidos?.mesas?.numero} · {p.metodo}</Text>
-                      <Text style={styles.itemTextoBold}>{money(p.monto)}</Text>
+                    <View key={p.id} style={styles.pagoPendienteFila}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.rankingNombre}>Mesa {p.pedidos?.mesas?.numero} · {p.metodo === 'mixto' ? 'Mixto' : p.metodo}</Text>
+                        <Text style={styles.rankingValor}>{money(p.monto)}</Text>
+                        {p.metodo === 'mixto' && (
+                          <Text style={styles.pagoEsperandoTexto}>💵 {money(p.monto_efectivo || 0)} + 📱 {money(p.monto_transferencia || 0)}</Text>
+                        )}
+                        <Text style={styles.pagoEsperandoTexto}>👉 Ve a la Mesa {p.pedidos?.mesas?.numero} para revisar el comprobante y confirmar</Text>
+                      </View>
                     </View>
                   ))}
                 </ScrollView>
@@ -1526,6 +1533,7 @@ const styles = StyleSheet.create({
   rankingNombre: { color: '#f2f2f2', fontSize: 14, flex: 1, paddingRight: 8 },
   rankingValor: { color: '#a0a0b0', fontSize: 13, fontWeight: '600' },
   pagoEsperandoTexto: { color: '#e0954c', fontSize: 11, fontWeight: '700', marginTop: 2 },
+  pagoRevisarTexto: { color: '#4a90d9', fontSize: 12, fontWeight: '700', marginTop: 4 },
   vacioTexto: { color: '#6a6a80', fontSize: 14 },
   ayudaChica: { color: '#6a6a80', fontSize: 12, paddingHorizontal: 16, marginTop: -4, marginBottom: 10 },
 
