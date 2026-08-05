@@ -23,8 +23,14 @@ export default function RecuperarPinScreen({ onVolver }) {
       Alert.alert('No pudimos generar el código', error.message)
       return
     }
-    Linking.openURL(`https://wa.me/57${telefono}?text=${encodeURIComponent(`Tu código de Ronda para recuperar tu PIN es: ${codigoGenerado}`)}`)
-    setPaso(2)
+    Alert.alert(
+      'Tu código es: ' + codigoGenerado,
+      'Guárdalo — lo vas a necesitar en el siguiente paso. También te lo podemos abrir en WhatsApp si prefieres.',
+      [
+        { text: 'Abrir en WhatsApp', onPress: () => Linking.openURL(`https://wa.me/57${telefono}?text=${encodeURIComponent(`Tu código de Ronda para recuperar tu PIN es: ${codigoGenerado}`)}`) },
+        { text: 'Continuar', onPress: () => setPaso(2) },
+      ]
+    )
   }
 
   async function cambiarPin() {
@@ -63,7 +69,7 @@ export default function RecuperarPinScreen({ onVolver }) {
 
         {paso === 1 ? (
           <>
-            <Text style={styles.subtitulo}>Escribe el celular de tu cuenta — te vamos a abrir WhatsApp con un código para confirmar que eres tú.</Text>
+            <Text style={styles.subtitulo}>Escribe el celular de tu cuenta — te vamos a mostrar un código para confirmar que eres tú.</Text>
             <Text style={styles.label}>Tu celular</Text>
             <TextInput
               style={styles.input} value={telefono}
