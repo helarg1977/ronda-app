@@ -4,6 +4,7 @@ import { Audio } from 'expo-av'
 import { supabase, cerrarSesion } from '../lib/supabase'
 import CapaFlotante from '../components/CapaFlotante'
 import TarjetaParpadeante from '../components/TarjetaParpadeante'
+import GuiaPantalla from '../components/GuiaPantalla'
 
 const SONIDO_NOTIFICACION = 'https://raw.githubusercontent.com/helarg1977/ronda-app/main/assets/ronda-chime.wav'
 
@@ -243,6 +244,16 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
 
   return (
     <View style={styles.container}>
+      <GuiaPantalla
+        id="mesero_panel"
+        barId={usuario.bar_id}
+        pasos={[
+          { icono: '🎯', titulo: 'Tu prioridad ahora', texto: 'Arriba de todo siempre ves qué mesa atender primero — no tienes que ir revisando una por una.' },
+          { icono: '🪑', titulo: 'Mis mesas', texto: 'Agrupadas por color: 🟡 necesitan atención, 🔵 en proceso, ⚪ libres. Toca cualquiera para ver el detalle.' },
+          { icono: '🚨', titulo: '¿Necesitas ayuda?', texto: 'El botón "Necesito apoyo" le avisa al dueño de inmediato, con el motivo — mucha gente, falta producto, cliente complicado, lo que sea.' },
+          { icono: '💬', titulo: 'Habla con el dueño o con una mesa', texto: 'El chat está siempre a la mano — para avisar algo puntual o responder a un cliente.' },
+        ]}
+      />
       <ScrollView
         refreshControl={<RefreshControl refreshing={refrescando} onRefresh={async () => { setRefrescando(true); await cargar(); setRefrescando(false) }} />}
         contentContainerStyle={{ paddingBottom: altoFlotante + 20 }}
