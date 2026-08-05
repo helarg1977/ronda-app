@@ -123,7 +123,7 @@ export default function LoginScreen({ onLogin, onIrARegistro, onIrAUnirse, onIrA
 }
 
 const styles = StyleSheet.create({
-  imagenSuperiorContenedor: { width: '100%', height: 260, backgroundColor: '#14141f' },
+  imagenSuperiorContenedor: { width: '100%', height: 340, backgroundColor: '#14141f' },
   imagenSuperior: { width: '100%', height: '100%' },
   container: { flexGrow: 1, paddingTop: 20, paddingHorizontal: 28, paddingBottom: 200 },
   titulo: { fontSize: 40, fontWeight: '800', color: '#f2f2f2', textAlign: 'center' },
