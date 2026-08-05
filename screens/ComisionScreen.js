@@ -95,10 +95,10 @@ export default function ComisionScreen({ usuario, onVolver }) {
       </View>
       <TextInput
         style={styles.input}
-        value={monto}
-        onChangeText={setMonto}
+        value={monto ? Number(monto).toLocaleString('es-CO') : ''}
+        onChangeText={(v) => setMonto(v.replace(/\D/g, ''))}
         keyboardType="numeric"
-        placeholder="Monto pagado, ej: 50000"
+        placeholder="Monto pagado, ej: 50.000"
         placeholderTextColor="#6a6a80"
       />
       <TouchableOpacity style={styles.boton} onPress={reportarPago} disabled={enviando}>
