@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, Image } from 'react-native'
 import { supabase } from '../lib/supabase'
 import GuiaPantalla from '../components/GuiaPantalla'
 
@@ -44,6 +44,9 @@ export default function ReportesScreen({ usuario, onVolver }) {
   const [pedidosLista, setPedidosLista] = useState([])
   const [propinasLista, setPropinasLista] = useState([])
   const [detalleStat, setDetalleStat] = useState(null)
+  const [pagosHistorial, setPagosHistorial] = useState([])
+  const [mostrarHistorialPagos, setMostrarHistorialPagos] = useState(false)
+  const [comprobanteVer, setComprobanteVer] = useState(null)
 
   const cargar = useCallback(async () => {
     setCargando(true)
@@ -86,6 +89,13 @@ export default function ReportesScreen({ usuario, onVolver }) {
     }))
     const top = Object.entries(conteoProductos).sort((a, b) => b[1] - a[1])[0]
     setProductoTop(top ? { nombre: top[0], unidades: top[1] } : null)
+
+    const { data: pagosConfirmados } = await supabase
+      .from('pagos')
+      .select('id, metodo, monto, monto_efectivo, monto_transferencia, comprobante_url, created_at, pedidos!inner(bar_id, mesas(numero))')
+      .eq('pedidos.bar_id', usuario.bar_id).eq('confirmado', true).gte('created_at', desde)
+      .order('created_at', { ascending: false })
+    setPagosHistorial(pagosConfirmados || [])
 
     setCargando(false)
   }, [usuario.bar_id, periodo])
@@ -163,9 +173,42 @@ export default function ReportesScreen({ usuario, onVolver }) {
               <Text style={styles.diaTotal}>{money(d.total)}</Text>
             </View>
           ))}
+
+          <TouchableOpacity style={styles.historialPagosHeader} onPress={() => setMostrarHistorialPagos(!mostrarHistorialPagos)}>
+            <Text style={styles.seccion}>{mostrarHistorialPagos ? '▾' : '▸'} 🧾 Historial de pagos confirmados</Text>
+          </TouchableOpacity>
+          {mostrarHistorialPagos && (
+            <>
+              <Text style={styles.ayuda}>Para revisar cualquier reclamo — cada pago confirmado, con su comprobante.</Text>
+              {pagosHistorial.length === 0 && <Text style={styles.ayuda}>Sin pagos confirmados en este periodo.</Text>}
+              {pagosHistorial.map((p) => (
+                <View key={p.id} style={styles.pagoHistorialFila}>
+                  {p.comprobante_url ? (
+                    <TouchableOpacity onPress={() => setComprobanteVer(p.comprobante_url)}>
+                      <Image source={{ uri: p.comprobante_url }} style={styles.pagoHistorialMiniatura} />
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={styles.pagoHistorialSinFoto}><Text style={{ fontSize: 18 }}>💵</Text></View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.diaFecha}>Mesa {p.pedidos?.mesas?.numero} · {p.metodo === 'mixto' ? 'Mixto' : p.metodo}</Text>
+                    <Text style={styles.pagoHistorialFecha}>{new Date(p.created_at).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</Text>
+                  </View>
+                  <Text style={styles.diaTotal}>{money(p.monto)}</Text>
+                </View>
+              ))}
+            </>
+          )}
         </>
       )}
     </ScrollView>
+
+    <Modal visible={!!comprobanteVer} transparent animationType="fade" onRequestClose={() => setComprobanteVer(null)}>
+      <TouchableOpacity style={styles.comprobanteVerOverlay} activeOpacity={1} onPress={() => setComprobanteVer(null)}>
+        <Image source={{ uri: comprobanteVer }} style={styles.comprobanteVerImg} resizeMode="contain" />
+        <Text style={styles.comprobanteVerCerrar}>Toca en cualquier parte para cerrar</Text>
+      </TouchableOpacity>
+    </Modal>
 
     <Modal visible={!!detalleStat} transparent animationType="slide" onRequestClose={() => setDetalleStat(null)}>
       <View style={styles.modalOverlay}>
@@ -262,6 +305,14 @@ const styles = StyleSheet.create({
   diaFecha: { color: '#f2f2f2', fontSize: 14, fontWeight: '600', flex: 1.4, textTransform: 'capitalize' },
   diaPedidos: { color: '#a0a0b0', fontSize: 13, flex: 1 },
   diaTotal: { color: '#3ecf8e', fontSize: 14, fontWeight: '700' },
+  historialPagosHeader: { marginTop: 20 },
+  pagoHistorialFila: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#1e1e2e', borderRadius: 12, padding: 10, marginBottom: 8 },
+  pagoHistorialMiniatura: { width: 48, height: 48, borderRadius: 8, backgroundColor: '#14141f' },
+  pagoHistorialSinFoto: { width: 48, height: 48, borderRadius: 8, backgroundColor: '#14141f', alignItems: 'center', justifyContent: 'center' },
+  pagoHistorialFecha: { color: '#6a6a80', fontSize: 12, marginTop: 2 },
+  comprobanteVerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  comprobanteVerImg: { width: '100%', height: '80%' },
+  comprobanteVerCerrar: { color: '#a0a0b0', fontSize: 13, marginTop: 16 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalDetalle: { backgroundColor: '#1e1e2e', borderRadius: 20, padding: 20, paddingBottom: 34, maxHeight: '85%' },
   modalTitulo: { fontSize: 18, fontWeight: '800', color: '#f2f2f2', marginBottom: 12 },
