@@ -793,7 +793,13 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                   <Text style={styles.pagoEsperandoTexto}>💵 {money(p.monto_efectivo || 0)} + 📱 {money(p.monto_transferencia || 0)}</Text>
                 )}
                 <Text style={styles.pagoEsperandoTexto}>Reportado {minutosTexto(p.created_at)}</Text>
-                <Text style={styles.pagoRevisarTexto}>👉 Toca la Mesa {p.pedidos?.mesas?.numero} para ver el comprobante y confirmar</Text>
+                {p.comprobante_url ? (
+                  <TouchableOpacity onPress={() => setComprobanteAmpliado(p.comprobante_url)}>
+                    <Text style={styles.pagoRevisarTexto}>🔍 Ver comprobante para verificar</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <Text style={styles.pagoEsperandoTexto}>Sin comprobante (efectivo)</Text>
+                )}
               </View>
               <TouchableOpacity style={styles.botonConfirmarChico} onPress={() => confirmarPago(p.id)}>
                 <Text style={styles.botonConfirmarChicoTexto}>Confirmar</Text>
