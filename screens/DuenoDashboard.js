@@ -196,7 +196,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
 
   const cargar = useCallback(async () => {
     try {
-    const { data: barData } = await supabase.from('bares').select('nombre, comision_pct, modo_negocio, llave_nequi, llave_daviplata, llave_bre_b, created_at').eq('id', usuario.bar_id).maybeSingle()
+    const { data: barData } = await supabase.from('bares').select('nombre, comision_pct, modo_negocio, llave_nequi, llave_daviplata, llave_bre_b, created_at, logo_url').eq('id', usuario.bar_id).maybeSingle()
     const { count: totalProductos } = await supabase.from('productos').select('id', { count: 'exact', head: true }).eq('bar_id', usuario.bar_id)
     setTieneProductos((totalProductos || 0) > 0)
     setBar(barData)
@@ -694,9 +694,12 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
         )}
 
         <View style={styles.header}>
-          <View>
-            <Text style={styles.titulo}>{bar?.nombre || 'Ronda'}</Text>
-            <Text style={styles.subtituloHeader}>Panel del dueño</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            {bar?.logo_url && <Image source={{ uri: bar.logo_url }} style={styles.logoHeader} />}
+            <View>
+              <Text style={styles.titulo}>{bar?.nombre || 'Ronda'}</Text>
+              <Text style={styles.subtituloHeader}>Panel del dueño</Text>
+            </View>
           </View>
           <View style={{ alignItems: 'flex-end', gap: 8 }}>
             <TouchableOpacity onPress={async () => { await cerrarSesion(); onCerrarSesion() }}>
@@ -1488,6 +1491,7 @@ const styles = StyleSheet.create({
   primerosPasosItemTexto: { color: '#8a8a9a', fontSize: 12, marginTop: 2, lineHeight: 16 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 18, paddingTop: 50 },
   titulo: { fontSize: 22, fontWeight: '800', color: '#f2f2f2' },
+  logoHeader: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#1e1e2e' },
   subtituloHeader: { fontSize: 13, color: '#d4a338', marginTop: 2 },
   salir: { color: '#a0a0b0', fontSize: 15 },
   compartirTexto: { color: '#d4a338', fontSize: 12, fontWeight: '700' },
