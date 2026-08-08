@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Vibration, Animated } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Vibration, Animated, Image } from 'react-native'
 import { Audio } from 'expo-av'
 import { supabase, cerrarSesion } from '../lib/supabase'
 import CapaFlotante from '../components/CapaFlotante'
@@ -75,6 +75,8 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
   }, [])
 
   const [pedidos, setPedidos] = useState([])
+  const [bar, setBar] = useState(null)
+  const [pagoPorPedido, setPagoPorPedido] = useState({})
   const [mesas, setMesas] = useState({})
   const [solicitudes, setSolicitudes] = useState([])
   const [refrescando, setRefrescando] = useState(false)
@@ -95,6 +97,9 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
   const [mostrarMotivoApoyo, setMostrarMotivoApoyo] = useState(false)
 
   const cargar = useCallback(async () => {
+    const { data: barData } = await supabase.from('bares').select('nombre, logo_url').eq('id', usuario.bar_id).maybeSingle()
+    setBar(barData)
+
     const { data: mesasData } = await supabase.from('mesas').select('id, numero, mesero_asignado_id').eq('bar_id', usuario.bar_id)
     const mesasPermitidas = new Set(
       (mesasData || []).filter((m) => !m.mesero_asignado_id || m.mesero_asignado_id === usuario.id).map((m) => m.id)
@@ -117,6 +122,16 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
     setMesas(mesasMap)
     setSolicitudes((solicitudesData || []).filter((s) => mesasPermitidas.has(s.mesa_id)))
     setMisMesas((mesasData || []).filter((m) => mesasPermitidas.has(m.id)).sort((a, b) => Number(a.numero) - Number(b.numero)))
+
+    const idsPedidosActivos = (pedidosData || []).map((p) => p.id)
+    if (idsPedidosActivos.length > 0) {
+      const { data: pagosData } = await supabase.from('pagos').select('pedido_id, metodo, confirmado').in('pedido_id', idsPedidosActivos)
+      const mapaPagos = {}
+      ;(pagosData || []).forEach((p) => { mapaPagos[p.pedido_id] = p })
+      setPagoPorPedido(mapaPagos)
+    } else {
+      setPagoPorPedido({})
+    }
 
     const { data: entregadosHoy } = await supabase
       .from('pedidos').select('id, mesa_id, total, created_at, pedido_items(cantidad, productos(nombre))')
@@ -148,6 +163,7 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
       .channel(`mesero-${usuario.bar_id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos', filter: `bar_id=eq.${usuario.bar_id}` }, cargar)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitudes', filter: `bar_id=eq.${usuario.bar_id}` }, cargar)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pagos' }, cargar)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos', filter: `bar_id=eq.${usuario.bar_id}` }, (payload) => {
         if (mesasPermitidasRef.current.has(payload.new.mesa_id)) reproducirSonido()
       })
@@ -259,9 +275,12 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
         contentContainerStyle={{ paddingBottom: altoFlotante + 20 }}
       >
         <View style={styles.header}>
-          <View>
-            <Text style={styles.titulo}>Hola, {usuario.nombre?.split(' ')[0] || 'mesero'}</Text>
-            <Text style={styles.subtituloHeader}>Panel de mesero</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            {bar?.logo_url && <Image source={{ uri: bar.logo_url }} style={styles.logoHeader} />}
+            <View>
+              <Text style={styles.titulo}>Hola, {usuario.nombre?.split(' ')[0] || 'mesero'}</Text>
+              <Text style={styles.subtituloHeader}>{bar?.nombre ? `${bar.nombre} — Panel de mesero` : 'Panel de mesero'}</Text>
+            </View>
           </View>
           <TouchableOpacity onPress={async () => { await cerrarSesion(); onCerrarSesion() }}>
             <Text style={styles.salir}>Salir</Text>
@@ -299,6 +318,13 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
                   <Text style={styles.prioridadItems}>
                     {prioridad.item.pedido_items?.map((it) => `${it.cantidad} ${it.productos?.nombre}`).join(' · ')} — {money(prioridad.item.total)}
                   </Text>
+                  {pagoPorPedido[prioridad.item.id] && (
+                    <Text style={pagoPorPedido[prioridad.item.id].confirmado ? styles.pagoConfirmadoTexto : styles.pagoPendienteTextoChico}>
+                      {pagoPorPedido[prioridad.item.id].confirmado
+                        ? `✅ Pago confirmado (${pagoPorPedido[prioridad.item.id].metodo})`
+                        : `⏳ Pago sin confirmar (${pagoPorPedido[prioridad.item.id].metodo})`}
+                    </Text>
+                  )}
                   {pasoPrioridad && (
                     <TouchableOpacity style={styles.boton} onPress={() => avanzarEstado(prioridad.item)}>
                       <Text style={styles.botonTexto}>{pasoPrioridad.boton}</Text>
@@ -633,6 +659,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#14141f' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 18, paddingTop: 50 },
   titulo: { fontSize: 22, fontWeight: '800', color: '#f2f2f2' },
+  logoHeader: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#1e1e2e' },
   subtituloHeader: { fontSize: 13, color: '#d4a338', marginTop: 2 },
   salir: { color: '#a0a0b0', fontSize: 15 },
 
@@ -701,6 +728,8 @@ const styles = StyleSheet.create({
   prioridadTiempo: { fontSize: 13, fontWeight: '800' },
   prioridadTexto: { color: '#f2f2f2', fontSize: 16, fontWeight: '700', flex: 1 },
   prioridadItems: { color: '#a0a0b0', fontSize: 13, marginBottom: 10 },
+  pagoConfirmadoTexto: { color: '#3ecf8e', fontSize: 12, fontWeight: '700', marginBottom: 8 },
+  pagoPendienteTextoChico: { color: '#e0954c', fontSize: 12, fontWeight: '700', marginBottom: 8 },
   indicadorTranquilidad: { fontSize: 14, fontWeight: '700', marginHorizontal: 14, marginTop: 4, marginBottom: 16 },
   prioridadTextoOk: { color: '#3ecf8e', fontSize: 16, fontWeight: '700' },
   botonSecundarioChico: { alignItems: 'center', padding: 10, marginTop: 8 },
