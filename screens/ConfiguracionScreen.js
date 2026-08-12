@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { decode } from 'base64-arraybuffer'
 import { supabase } from '../lib/supabase'
 import GuiaPantalla from '../components/GuiaPantalla'
+import { mensajeAmigable } from '../lib/erroresAmigables'
 
 const PLANTILLAS_PROMO = [
   { label: '2x1', titulo: '2x1 en cócteles hoy', mensaje: 'Solo por hoy, todos los cócteles al 2x1 🍹' },
@@ -155,7 +156,7 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
       rol: rolEmpleado,
       activo: true,
     })
-    if (error) { Alert.alert('Error', 'No se pudo crear el empleado: ' + error.message); return }
+    if (error) { Alert.alert('Error', mensajeAmigable(error, 'No se pudo crear el empleado.')); return }
     Alert.alert(
       'Listo',
       `${nombreEmpleado.trim()} ya puede entrar con:\n\nCelular: ${telefonoEmpleado.trim()}\nPIN: ${pinEmpleado.trim()}\n\nGuárdalo, no se lo mostramos de nuevo tan fácil.`
