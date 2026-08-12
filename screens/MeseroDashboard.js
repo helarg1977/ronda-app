@@ -203,7 +203,20 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
   async function avanzarEstado(pedido) {
     const paso = SIGUIENTE_ESTADO[pedido.estado]
     if (!paso) return
-    await supabase.from('pedidos').update({ estado: paso.siguiente, mesero_id: usuario.id, updated_at: new Date().toISOString() }).eq('id', pedido.id)
+    const { data, error } = await supabase
+      .from('pedidos')
+      .update({ estado: paso.siguiente, mesero_id: usuario.id, updated_at: new Date().toISOString() })
+      .eq('id', pedido.id)
+      .eq('estado', pedido.estado)
+      .select()
+    if (error) {
+      Alert.alert('No se pudo actualizar', error.message)
+      return
+    }
+    if (!data || data.length === 0) {
+      Alert.alert('Este pedido ya cambió', 'Alguien más (otro mesero, o el dueño) ya lo actualizó. Refrescando...')
+      cargar()
+    }
   }
 
   async function atenderSolicitud(id) {
