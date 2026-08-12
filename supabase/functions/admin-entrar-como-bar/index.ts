@@ -1,5 +1,6 @@
 // Modo soporte: el super-admin entra a ver un bar específico
 // con una sesión real (no solo los datos), para poder ayudar de verdad.
+// Se verifica por sesión real (JWT), no por telefono+pin reenviado — y queda registrado.
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
@@ -14,22 +15,22 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: headersCors })
 
   try {
-    const { telefono, pin, bar_id } = await req.json()
-    if (!telefono || !pin || !bar_id) {
+    const { bar_id } = await req.json()
+    if (!bar_id) {
       return new Response(JSON.stringify({ error: 'Faltan datos' }), { status: 400, headers: headersCors })
     }
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
-    // 1. Verificar que quien pide esto es de verdad un super-admin
-    const { data: adminValido, error: errorAdmin } = await admin
-      .from('super_admins').select('id').eq('telefono', telefono)
-      .then(async (r) => {
-        if (r.error || !r.data || r.data.length === 0) return { data: null, error: 'No autorizado' }
-        const { data: chequeo } = await admin.rpc('login_super_admin', { p_telefono: telefono, p_pin: pin })
-        return { data: chequeo && chequeo.length > 0 ? chequeo[0] : null, error: null }
-      })
-    if (!adminValido) {
+    // 1. Verificar que quien llama tiene una sesión real de super-admin
+    const authHeader = req.headers.get('Authorization') || ''
+    const jwt = authHeader.replace('Bearer ', '')
+    const { data: userData, error: errorUser } = await admin.auth.getUser(jwt)
+    if (errorUser || !userData?.user) {
+      return new Response(JSON.stringify({ error: 'No autorizado' }), { status: 401, headers: headersCors })
+    }
+    const { data: superAdminRow } = await admin.from('super_admins').select('id').eq('auth_user_id', userData.user.id).maybeSingle()
+    if (!superAdminRow) {
       return new Response(JSON.stringify({ error: 'No autorizado' }), { status: 401, headers: headersCors })
     }
 
@@ -73,6 +74,9 @@ Deno.serve(async (req) => {
     if (errorSesion || !sesion.session) {
       return new Response(JSON.stringify({ error: 'No se pudo activar la sesión: ' + (errorSesion?.message || '') }), { status: 500, headers: headersCors })
     }
+
+    // 3. Dejar rastro — quién entró, a qué bar, cuándo
+    await admin.from('super_admin_auditoria').insert({ super_admin_id: superAdminRow.id, bar_id, accion: 'ver_como_negocio' })
 
     return new Response(JSON.stringify({
       usuario: { id: dueno.id, bar_id: dueno.bar_id, nombre: dueno.nombre, telefono: dueno.telefono, rol: dueno.rol, activo: dueno.activo },
