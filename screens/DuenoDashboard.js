@@ -1584,8 +1584,8 @@ const styles = StyleSheet.create({
   rankingValor: { color: '#a0a0b0', fontSize: 13, fontWeight: '600' },
   pagoEsperandoTexto: { color: '#e0954c', fontSize: 11, fontWeight: '700', marginTop: 2 },
   pagoRevisarTexto: { color: '#4a90d9', fontSize: 12, fontWeight: '700', marginTop: 4 },
-  vacioTexto: { color: '#6a6a80', fontSize: 14 },
-  ayudaChica: { color: '#6a6a80', fontSize: 12, paddingHorizontal: 16, marginTop: -4, marginBottom: 10 },
+  vacioTexto: { color: '#9494a8', fontSize: 14 },
+  ayudaChica: { color: '#9494a8', fontSize: 12, paddingHorizontal: 16, marginTop: -4, marginBottom: 10 },
 
   pagoPendienteFila: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#2a2a3a' },
   botonConfirmarChico: { backgroundColor: '#d4a338', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 18, minWidth: 100, alignItems: 'center' },
@@ -1663,7 +1663,7 @@ const styles = StyleSheet.create({
   qrImagenGrande: { width: 240, height: 240, marginBottom: 18 },
   tarjetaQrPasosTitulo: { color: '#14141f', fontSize: 16, fontWeight: '800', marginBottom: 8, alignSelf: 'flex-start' },
   tarjetaQrPaso: { color: '#2a2a2a', fontSize: 14, marginBottom: 4, alignSelf: 'flex-start', lineHeight: 20 },
-  qrEnlaceTexto: { color: '#6a6a80', fontSize: 11, textAlign: 'center', marginBottom: 10 },
+  qrEnlaceTexto: { color: '#9494a8', fontSize: 11, textAlign: 'center', marginBottom: 10 },
   botonChatDetalleTexto: { color: '#f2f2f2', fontSize: 14, fontWeight: '700' },
 
   chatMensajes: { maxHeight: 300, marginVertical: 10 },
@@ -1694,7 +1694,7 @@ const styles = StyleSheet.create({
   lineaTiempoBox: { backgroundColor: '#26263a', borderRadius: 12, padding: 12, marginTop: 6 },
   lineaTiempoFila: { flexDirection: 'row', gap: 10, paddingVertical: 4 },
   lineaTiempoIcono: { fontSize: 14, width: 22 },
-  lineaTiempoHora: { color: '#6a6a80', fontSize: 12, fontWeight: '700', width: 70 },
+  lineaTiempoHora: { color: '#9494a8', fontSize: 12, fontWeight: '700', width: 70 },
   lineaTiempoEstado: { color: '#f2f2f2', fontSize: 13 },
   comprobanteImg: { width: '100%', height: 180, borderRadius: 10, marginBottom: 4, backgroundColor: '#14141f' },
   comprobanteAmpliarTexto: { color: '#4a90d9', fontSize: 12, textAlign: 'center', marginTop: -6, marginBottom: 10 },
@@ -1730,5 +1730,5 @@ const styles = StyleSheet.create({
   onboardingBotones: { flexDirection: 'row', gap: 10, marginTop: 22 },
   botonSecundarioOnboarding: { flex: 1, backgroundColor: '#26263a', borderRadius: 14, padding: 16, alignItems: 'center' },
   botonSecundarioOnboardingTexto: { color: '#f2f2f2', fontSize: 15, fontWeight: '600' },
-  omitirTexto: { color: '#6a6a80', fontSize: 13, textAlign: 'center', marginTop: 16 },
+  omitirTexto: { color: '#9494a8', fontSize: 13, textAlign: 'center', marginTop: 16 },
 })
