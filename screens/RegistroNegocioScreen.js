@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1e1e2e', color: '#f2f2f2', borderRadius: 14, padding: 15, fontSize: 17,
     borderWidth: 1, borderColor: '#2a2a3a',
   },
-  ayudaChica: { color: '#6a6a80', fontSize: 12, marginTop: 6 },
+  ayudaChica: { color: '#9494a8', fontSize: 12, marginTop: 6 },
   filaPin: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   botonOjo: { backgroundColor: '#1e1e2e', borderRadius: 12, borderWidth: 1, borderColor: '#2a2a3a', padding: 14 },
   botonOjoTexto: { fontSize: 20 },
