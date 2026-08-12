@@ -6,6 +6,13 @@ import GuiaPantalla from '../components/GuiaPantalla'
 function money(n) {
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n || 0)
 }
+function costoRonda(monto) {
+  if (monto <= 10000) return 100
+  if (monto <= 50000) return 200
+  if (monto <= 100000) return 300
+  if (monto <= 200000) return 400
+  return 500
+}
 
 function inicioDe(periodo) {
   const d = new Date()
@@ -34,7 +41,6 @@ const PERIODOS = [
 
 export default function ReportesScreen({ usuario, onVolver }) {
   const [periodo, setPeriodo] = useState('hoy')
-  const [comisionPct, setComisionPct] = useState(0.03)
   const [ventasTotal, setVentasTotal] = useState(0)
   const [numPedidos, setNumPedidos] = useState(0)
   const [propinasTotal, setPropinasTotal] = useState(0)
@@ -50,8 +56,6 @@ export default function ReportesScreen({ usuario, onVolver }) {
 
   const cargar = useCallback(async () => {
     setCargando(true)
-    const { data: bar } = await supabase.from('bares').select('comision_pct').eq('id', usuario.bar_id).maybeSingle()
-    if (bar) setComisionPct(Number(bar.comision_pct))
 
     const desde = inicioDe(periodo).toISOString()
 
@@ -148,8 +152,8 @@ export default function ReportesScreen({ usuario, onVolver }) {
               <Text style={styles.statLabel}>Pedidos entregados</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.statCard} onPress={() => setDetalleStat('comision')}>
-              <Text style={styles.statValor}>{money(ventasTotal * comisionPct)}</Text>
-              <Text style={styles.statLabel}>Comisión Ronda ({Math.round(comisionPct * 100)}%)</Text>
+              <Text style={styles.statValor}>{money(pedidosLista.reduce((s, p) => s + costoRonda(Number(p.total)), 0))}</Text>
+              <Text style={styles.statLabel}>Costo por pedido</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.statCard} onPress={() => setDetalleStat('propinas')}>
               <Text style={styles.statValor}>{money(propinasTotal)}</Text>
@@ -245,12 +249,12 @@ export default function ReportesScreen({ usuario, onVolver }) {
           )}
           {detalleStat === 'comision' && (
             <>
-              <Text style={styles.modalTitulo}>Comisión por pedido ({Math.round(comisionPct * 100)}%)</Text>
+              <Text style={styles.modalTitulo}>Costo por pedido</Text>
               <ScrollView style={{ maxHeight: 400 }}>
                 {pedidosLista.map((p) => (
                   <View key={p.id} style={styles.itemDetalleFila}>
                     <Text style={styles.itemDetalleTitulo}>Mesa {p.mesas?.numero} — {money(p.total)}</Text>
-                    <Text style={styles.itemDetalleValor}>{money(p.total * comisionPct)}</Text>
+                    <Text style={styles.itemDetalleValor}>{money(costoRonda(Number(p.total)))}</Text>
                   </View>
                 ))}
               </ScrollView>
