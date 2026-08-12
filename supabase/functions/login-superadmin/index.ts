@@ -48,7 +48,8 @@ Deno.serve(async (req) => {
         user_metadata: { super_admin_id: superAdminRow.id },
       })
       if (errorCrear) {
-        return new Response(JSON.stringify({ error: 'No se pudo preparar el acceso: ' + errorCrear.message }), { status: 500, headers: headersCors })
+        console.error('Error creando usuario en Auth (super-admin):', errorCrear.message)
+        return new Response(JSON.stringify({ error: 'No pudimos preparar el acceso. Intenta de nuevo en un momento.' }), { status: 500, headers: headersCors })
       }
       authUserId = nuevoAuth.user.id
       await admin.from('super_admins').update({ auth_user_id: authUserId }).eq('id', superAdminRow.id)
@@ -59,7 +60,8 @@ Deno.serve(async (req) => {
       email: emailInterno,
     })
     if (errorEnlace) {
-      return new Response(JSON.stringify({ error: 'No se pudo crear la sesión: ' + errorEnlace.message }), { status: 500, headers: headersCors })
+      console.error('Error generando enlace de sesión (super-admin):', errorEnlace.message)
+      return new Response(JSON.stringify({ error: 'No pudimos crear la sesión. Intenta de nuevo en un momento.' }), { status: 500, headers: headersCors })
     }
 
     const tokenHash = enlace.properties.hashed_token
