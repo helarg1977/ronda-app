@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert,
 import * as ImagePicker from 'expo-image-picker'
 import { decode } from 'base64-arraybuffer'
 import { supabase } from '../lib/supabase'
+import { mensajeAmigable } from '../lib/erroresAmigables'
 import GuiaPantalla from '../components/GuiaPantalla'
 
 const CATEGORIAS_SUGERIDAS = [
@@ -60,7 +61,7 @@ export default function MenuScreen({ usuario, onVolver }) {
 
   async function crearCategoria(nombre, icono) {
     const { error } = await supabase.from('categorias').insert({ bar_id: usuario.bar_id, nombre, icono, orden: categorias.length })
-    if (error) { Alert.alert('Error', 'No se pudo crear la categoría: ' + error.message); return }
+    if (error) { Alert.alert('Error', mensajeAmigable(error, 'No se pudo crear la categoría.')); return }
     setNombreCategoria('')
     setIconoCategoria('')
     setMostrarCategoriaCustom(false)
@@ -143,7 +144,7 @@ export default function MenuScreen({ usuario, onVolver }) {
         precio: Number(precioProducto),
         foto_url: fotoProducto.trim() || null,
       }).eq('id', editandoProducto)
-      if (error) { Alert.alert('Error', 'No se pudo guardar el cambio: ' + error.message); return }
+      if (error) { Alert.alert('Error', mensajeAmigable(error, 'No se pudo guardar el cambio.')); return }
       setEditandoProducto(null)
     } else {
       const { error } = await supabase.from('productos').insert({
@@ -155,7 +156,7 @@ export default function MenuScreen({ usuario, onVolver }) {
         disponible: true,
         orden: productos.length,
       })
-      if (error) { Alert.alert('Error', 'No se pudo crear el producto: ' + error.message); return }
+      if (error) { Alert.alert('Error', mensajeAmigable(error, 'No se pudo crear el producto.')); return }
     }
     setNombreProducto('')
     setPrecioProducto('')
@@ -173,7 +174,7 @@ export default function MenuScreen({ usuario, onVolver }) {
       disponible: true,
       orden: productos.length,
     })
-    if (error) { Alert.alert('Error', 'No se pudo duplicar: ' + error.message); return }
+    if (error) { Alert.alert('Error', mensajeAmigable(error, 'No se pudo duplicar.')); return }
     cargar()
   }
 
