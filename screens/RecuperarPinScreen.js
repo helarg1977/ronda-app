@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, Keyboard, TouchableWithoutFeedback, Linking } from 'react-native'
 import { supabase } from '../lib/supabase'
+import { mensajeAmigable } from '../lib/erroresAmigables'
 
 export default function RecuperarPinScreen({ onVolver }) {
   const [paso, setPaso] = useState(1) // 1: pedir codigo | 2: cambiar pin
@@ -20,7 +21,7 @@ export default function RecuperarPinScreen({ onVolver }) {
     const { data: codigoGenerado, error } = await supabase.rpc('generar_codigo_recuperacion', { p_telefono: telefono })
     setCargando(false)
     if (error) {
-      Alert.alert('No pudimos generar el código', error.message)
+      Alert.alert('No pudimos generar el código', mensajeAmigable(error, 'No pudimos generar tu código. Intenta de nuevo en un momento.'))
       return
     }
     Alert.alert(
@@ -52,7 +53,7 @@ export default function RecuperarPinScreen({ onVolver }) {
     })
     setCargando(false)
     if (error) {
-      Alert.alert('No se pudo cambiar tu PIN', error.message)
+      Alert.alert('No se pudo cambiar tu PIN', mensajeAmigable(error, 'No pudimos cambiar tu PIN. Revisa el código e intenta de nuevo.'))
       return
     }
     Alert.alert('¡Listo! 🎉', 'Tu PIN ya quedó actualizado. Ya puedes entrar con el nuevo.', [
