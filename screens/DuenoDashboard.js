@@ -721,7 +721,13 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
             </View>
           </View>
           <View style={{ alignItems: 'flex-end', gap: 8 }}>
-            <TouchableOpacity onPress={async () => { await cerrarSesion(); onCerrarSesion() }}>
+            <TouchableOpacity
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              onPress={() => Alert.alert('¿Salir?', '¿Cerrar tu sesión?', [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'Salir', style: 'destructive', onPress: async () => { await cerrarSesion(); onCerrarSesion() } },
+              ])}
+            >
               <Text style={styles.salir}>Salir</Text>
             </TouchableOpacity>
             {usuario.rol === 'dueno' && (
@@ -882,6 +888,15 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                 onPress={() => abrirDetalle(item)}
                 onLongPress={() => quitarMesa(item)}
               >
+                {!item.pedido && (
+                  <TouchableOpacity
+                    style={styles.mesaOpcionesIcono}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    onPress={() => quitarMesa(item)}
+                  >
+                    <Text style={styles.mesaOpcionesIconoTexto}>⋮</Text>
+                  </TouchableOpacity>
+                )}
                 <Text style={styles.mesaNumero}>Mesa {item.numero}</Text>
                 <Text style={styles.mesaEstado}>{estado.texto}</Text>
                 {item.pedido && <Text style={styles.mesaMonto}>{money(item.pedido.total)}</Text>}
@@ -889,7 +904,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
             )
           })}
         </View>
-        <Text style={styles.ayudaChica}>Mantén presionada una mesa libre para quitarla del mapa</Text>
+        <Text style={styles.ayudaChica}>Toca los ⋮ de una mesa libre para quitarla del mapa</Text>
 
         {bar?.modo_negocio !== 'solo' && ranking.length > 0 && (
           <>
@@ -1566,8 +1581,10 @@ const styles = StyleSheet.create({
   mesasGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 10 },
   mesaCard: {
     width: '30%', margin: '1.66%', backgroundColor: '#1e1e2e', borderRadius: 14, borderWidth: 2,
-    padding: 12, alignItems: 'center', minHeight: 90, justifyContent: 'center',
+    padding: 12, alignItems: 'center', minHeight: 90, justifyContent: 'center', position: 'relative',
   },
+  mesaOpcionesIcono: { position: 'absolute', top: 4, right: 6 },
+  mesaOpcionesIconoTexto: { color: '#6a6a80', fontSize: 18, fontWeight: '800' },
   mesaNumero: { color: '#f2f2f2', fontSize: 16, fontWeight: '700' },
   mesaEstado: { color: '#c9c9d4', fontSize: 13, marginTop: 6, textAlign: 'center', fontWeight: '600' },
   mesaMonto: { color: '#d4a338', fontSize: 12, marginTop: 4, fontWeight: '700' },
@@ -1581,7 +1598,7 @@ const styles = StyleSheet.create({
   ayudaChica: { color: '#6a6a80', fontSize: 12, paddingHorizontal: 16, marginTop: -4, marginBottom: 10 },
 
   pagoPendienteFila: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#2a2a3a' },
-  botonConfirmarChico: { backgroundColor: '#d4a338', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14 },
+  botonConfirmarChico: { backgroundColor: '#d4a338', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 18, minWidth: 100, alignItems: 'center' },
   botonConfirmarChicoTexto: { color: '#14141f', fontSize: 13, fontWeight: '700' },
 
   pedidoRecienteCard: { backgroundColor: '#1e1e2e', borderRadius: 14, borderLeftWidth: 4, padding: 14, marginHorizontal: 14, marginBottom: 10 },
