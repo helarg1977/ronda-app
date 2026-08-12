@@ -231,10 +231,14 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
   }
 
   async function pedirAyudaUrgente(motivo) {
-    await supabase.from('mensajes_chat').insert({
+    const { error } = await supabase.from('mensajes_chat').insert({
       bar_id: usuario.bar_id, canal: `dueno-${usuario.id}`, de: 'mesero', nombre: usuario.nombre,
       texto: `🚨 Necesito apoyo: ${motivo}`,
     })
+    if (error) {
+      Alert.alert('No se pudo avisar', 'Revisa tu conexión e intenta de nuevo — esto es urgente.')
+      return
+    }
     setMostrarMotivoApoyo(false)
     Alert.alert('Enviado', 'Ya le avisamos al dueño que necesitas apoyo.')
   }
@@ -259,7 +263,8 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
       texto,
     }).select().single()
     if (error) {
-      console.log('Error enviando mensaje:', error.message)
+      setTextoChat(texto)
+      Alert.alert('No se pudo enviar', 'Revisa tu conexión e intenta de nuevo.')
       return
     }
     setMensajesChat((m) => [...m, data])
