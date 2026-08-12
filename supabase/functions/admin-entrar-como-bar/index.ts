@@ -51,7 +51,8 @@ Deno.serve(async (req) => {
         user_metadata: { usuario_bar_id: dueno.id, bar_id: dueno.bar_id, rol: dueno.rol },
       })
       if (errorCrear) {
-        return new Response(JSON.stringify({ error: 'No se pudo preparar el acceso: ' + errorCrear.message }), { status: 500, headers: headersCors })
+        console.error('Error creando usuario en Auth (modo soporte):', errorCrear.message)
+        return new Response(JSON.stringify({ error: 'No pudimos preparar el acceso. Intenta de nuevo en un momento.' }), { status: 500, headers: headersCors })
       }
       authUserId = nuevoAuth.user.id
       await admin.from('usuarios_bar').update({ auth_user_id: authUserId }).eq('id', dueno.id)
@@ -62,7 +63,8 @@ Deno.serve(async (req) => {
       email: emailInterno,
     })
     if (errorEnlace) {
-      return new Response(JSON.stringify({ error: 'No se pudo crear la sesión: ' + errorEnlace.message }), { status: 500, headers: headersCors })
+      console.error('Error generando enlace de sesión (modo soporte):', errorEnlace.message)
+      return new Response(JSON.stringify({ error: 'No pudimos crear la sesión. Intenta de nuevo en un momento.' }), { status: 500, headers: headersCors })
     }
 
     const tokenHash = enlace.properties.hashed_token
