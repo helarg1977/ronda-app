@@ -361,7 +361,8 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   }, [cargar, usuario.bar_id, chatCanal])
 
   async function atenderSolicitud(id) {
-    await supabase.from('solicitudes').update({ atendida: true }).eq('id', id)
+    const { error } = await supabase.from('solicitudes').update({ atendida: true }).eq('id', id)
+    if (error) Alert.alert('No se pudo actualizar', mensajeAmigable(error, 'Intenta de nuevo.'))
   }
 
   async function abrirChat(canal, titulo) {
@@ -389,7 +390,8 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Borrar', style: 'destructive', onPress: async () => {
-          await supabase.from('mensajes_chat').delete().eq('id', id)
+          const { error } = await supabase.from('mensajes_chat').delete().eq('id', id)
+          if (error) { Alert.alert('No se pudo borrar', mensajeAmigable(error, 'Intenta de nuevo.')); return }
           setMensajesChat((m) => m.filter((x) => x.id !== id))
         },
       },
@@ -438,7 +440,8 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Borrar', style: 'destructive', onPress: async () => {
-          await supabase.from('pedidos').delete().in('id', seleccionados)
+          const { error } = await supabase.from('pedidos').delete().in('id', seleccionados)
+          if (error) { Alert.alert('No se pudo borrar', mensajeAmigable(error, 'Intenta de nuevo.')); return }
           setSeleccionados([])
           setModoSeleccion(false)
           cargar()
@@ -501,7 +504,8 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   }
 
   async function confirmarPago(pagoId) {
-    await supabase.from('pagos').update({ confirmado: true }).eq('id', pagoId)
+    const { error } = await supabase.from('pagos').update({ confirmado: true }).eq('id', pagoId)
+    if (error) { Alert.alert('No se pudo confirmar', mensajeAmigable(error, 'No se pudo confirmar el pago.')); return }
     if (detalle?.pago?.id === pagoId) setDetalle({ ...detalle, pago: { ...detalle.pago, confirmado: true } })
     Vibration.vibrate(40)
     cargar()
@@ -538,13 +542,15 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   }
 
   async function toggleCuentaAbierta(mesa) {
-    await supabase.from('mesas').update({ cuenta_abierta: !mesa.cuenta_abierta }).eq('id', mesa.id)
+    const { error } = await supabase.from('mesas').update({ cuenta_abierta: !mesa.cuenta_abierta }).eq('id', mesa.id)
+    if (error) { Alert.alert('No se pudo actualizar', mensajeAmigable(error, 'Intenta de nuevo.')); return }
     setDetalle((d) => (d ? { ...d, mesa: { ...d.mesa, cuenta_abierta: !mesa.cuenta_abierta } } : d))
     cargar()
   }
 
   async function asignarMesero(mesaId, meseroId) {
-    await supabase.from('mesas').update({ mesero_asignado_id: meseroId }).eq('id', mesaId)
+    const { error } = await supabase.from('mesas').update({ mesero_asignado_id: meseroId }).eq('id', mesaId)
+    if (error) { Alert.alert('No se pudo asignar', mensajeAmigable(error, 'Intenta de nuevo.')); return }
     setDetalle((d) => (d ? { ...d, mesa: { ...d.mesa, mesero_asignado_id: meseroId } } : d))
     cargar()
   }
@@ -577,8 +583,10 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Separar', onPress: async () => {
-          await supabase.rpc('cerrar_mesa', { p_mesa_id: mesaId })
-          await supabase.from('mesas').update({ mesa_union_id: null }).eq('id', mesaId)
+          const { error: errorCerrar } = await supabase.rpc('cerrar_mesa', { p_mesa_id: mesaId })
+          if (errorCerrar) { Alert.alert('No se pudo separar', mensajeAmigable(errorCerrar, 'Intenta de nuevo.')); return }
+          const { error } = await supabase.from('mesas').update({ mesa_union_id: null }).eq('id', mesaId)
+          if (error) { Alert.alert('No se pudo separar', mensajeAmigable(error, 'Intenta de nuevo.')); return }
           cargar()
         },
       },
