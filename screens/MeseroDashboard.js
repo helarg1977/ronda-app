@@ -776,7 +776,7 @@ const styles = StyleSheet.create({
   misMesaTiempo: { fontSize: 11, fontWeight: '700', marginTop: 2 },
   subgrupoTitulo: { color: '#8a8a9a', fontSize: 12, fontWeight: '800', textTransform: 'uppercase', marginHorizontal: 14, marginTop: 10, marginBottom: 6 },
   libresBox: { marginHorizontal: 14, marginBottom: 8 },
-  libresTexto: { color: '#6a6a80', fontSize: 13, lineHeight: 20 },
+  libresTexto: { color: '#9494a8', fontSize: 13, lineHeight: 20 },
   opcionMotivoApoyo: { backgroundColor: '#26263a', borderRadius: 12, padding: 16, marginBottom: 10 },
   opcionMotivoApoyoTexto: { color: '#f2f2f2', fontSize: 15, fontWeight: '600' },
   progresoNocheBox: { marginHorizontal: 14, marginBottom: 14 },
