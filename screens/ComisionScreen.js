@@ -165,5 +165,5 @@ const styles = StyleSheet.create({
   },
   historialMonto: { color: '#f2f2f2', fontSize: 15 },
   historialEstado: { color: '#a0a0b0', fontSize: 14, textTransform: 'capitalize' },
-  vacio: { color: '#6a6a80', fontSize: 14 },
+  vacio: { color: '#9494a8', fontSize: 14 },
 })
