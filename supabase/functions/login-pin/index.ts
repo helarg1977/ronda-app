@@ -53,7 +53,8 @@ Deno.serve(async (req) => {
         user_metadata: { usuario_bar_id: usuario.id, bar_id: usuario.bar_id, rol: usuario.rol },
       })
       if (errorCrear) {
-        return new Response(JSON.stringify({ error: 'No se pudo preparar tu acceso: ' + errorCrear.message }), { status: 500, headers: headersCors })
+        console.error('Error creando usuario en Auth:', errorCrear.message)
+        return new Response(JSON.stringify({ error: 'No pudimos preparar tu acceso. Intenta de nuevo en un momento.' }), { status: 500, headers: headersCors })
       }
       authUserId = nuevoAuth.user.id
       await admin.from('usuarios_bar').update({ auth_user_id: authUserId }).eq('id', usuario.id)
@@ -65,7 +66,8 @@ Deno.serve(async (req) => {
       email: emailInterno,
     })
     if (errorEnlace) {
-      return new Response(JSON.stringify({ error: 'No se pudo crear tu sesión: ' + errorEnlace.message }), { status: 500, headers: headersCors })
+      console.error('Error generando enlace de sesión:', errorEnlace.message)
+      return new Response(JSON.stringify({ error: 'No pudimos crear tu sesión. Intenta de nuevo en un momento.' }), { status: 500, headers: headersCors })
     }
 
     const tokenHash = enlace.properties.hashed_token
@@ -75,7 +77,8 @@ Deno.serve(async (req) => {
       type: 'magiclink',
     })
     if (errorSesion || !sesion.session) {
-      return new Response(JSON.stringify({ error: 'No se pudo activar tu sesión: ' + (errorSesion?.message || '') }), { status: 500, headers: headersCors })
+      console.error('Error activando sesión:', errorSesion?.message)
+      return new Response(JSON.stringify({ error: 'No pudimos activar tu sesión. Intenta de nuevo en un momento.' }), { status: 500, headers: headersCors })
     }
 
     return new Response(JSON.stringify({
