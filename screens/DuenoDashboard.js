@@ -5,6 +5,7 @@ import { Audio } from 'expo-av'
 import * as Sharing from 'expo-sharing'
 import { captureRef } from 'react-native-view-shot'
 import { supabase, cerrarSesion } from '../lib/supabase'
+import { money, costoRonda, inicioDeHoy } from '../lib/formato'
 import { mensajeAmigable } from '../lib/erroresAmigables'
 import GuiaPantalla from '../components/GuiaPantalla'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -39,25 +40,6 @@ const SIGUIENTE_ESTADO = {
   confirmado: { siguiente: 'preparando', boton: '🍸 Marcar preparando' },
   preparando: { siguiente: 'en_camino', boton: '🚶 Llevar a la mesa' },
   en_camino: { siguiente: 'entregado', boton: '📬 Marcar entregado' },
-}
-
-function money(n) {
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n || 0)
-}
-
-// La misma tarifa que usa la base de datos (calcular_costo_ronda) — si cambia, cambiarla en los dos lados
-function costoRonda(monto) {
-  if (monto <= 10000) return 100
-  if (monto <= 50000) return 200
-  if (monto <= 100000) return 300
-  if (monto <= 200000) return 400
-  return 500
-}
-
-function inicioDeHoy() {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  return d.toISOString()
 }
 
 function rangoDeAyer() {
