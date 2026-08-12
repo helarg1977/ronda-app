@@ -622,7 +622,18 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     if (!detalle || !detalle.pedido) return
     const paso = SIGUIENTE_ESTADO[detalle.pedido.estado]
     if (!paso) return
-    await supabase.from('pedidos').update({ estado: paso.siguiente, updated_at: new Date().toISOString() }).eq('id', detalle.pedido.id)
+    const { data, error } = await supabase
+      .from('pedidos')
+      .update({ estado: paso.siguiente, updated_at: new Date().toISOString() })
+      .eq('id', detalle.pedido.id)
+      .eq('estado', detalle.pedido.estado)
+      .select()
+    if (error) { Alert.alert('No se pudo actualizar', error.message); return }
+    if (!data || data.length === 0) {
+      Alert.alert('Este pedido ya cambió', 'Alguien más (un mesero) ya lo actualizó.')
+      cargar()
+      return
+    }
     setDetalle(paso.siguiente === 'entregado' ? { ...detalle, pedido: null } : { ...detalle, pedido: { ...detalle.pedido, estado: paso.siguiente } })
     cargar()
   }
