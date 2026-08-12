@@ -186,6 +186,20 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
     return () => supabase.removeChannel(canal)
   }, [cargar, usuario.bar_id, chatCanal])
 
+  async function cancelarPedidoActivo(pedido) {
+    Alert.alert('Cancelar pedido', '¿Cancelar este pedido? El cliente va a ver que se canceló.', [
+      { text: 'No', style: 'cancel' },
+      {
+        text: 'Sí, cancelar', style: 'destructive', onPress: async () => {
+          await supabase.from('pagos').delete().eq('pedido_id', pedido.id)
+          await supabase.from('pedidos').update({ estado: 'cancelado' }).eq('id', pedido.id)
+          setDetallePedido(null)
+          cargar()
+        },
+      },
+    ])
+  }
+
   async function avanzarEstado(pedido) {
     const paso = SIGUIENTE_ESTADO[pedido.estado]
     if (!paso) return
@@ -567,6 +581,11 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
                     <Text style={styles.botonTexto}>{SIGUIENTE_ESTADO[detallePedido.estado].boton}</Text>
                   </TouchableOpacity>
                 )}
+                {detallePedido.estado === 'pendiente' && (
+                  <TouchableOpacity style={styles.botonCancelarPedido} onPress={() => cancelarPedidoActivo(detallePedido)}>
+                    <Text style={styles.botonCancelarPedidoTexto}>✕ Cancelar este pedido</Text>
+                  </TouchableOpacity>
+                )}
               </>
             )}
             <TouchableOpacity style={styles.cerrarModal} onPress={() => setDetallePedido(null)}>
@@ -686,6 +705,8 @@ const styles = StyleSheet.create({
   barraProgresoBarraActiva: { backgroundColor: '#d4a338' },
   boton: { backgroundColor: '#d4a338', borderRadius: 12, padding: 14, alignItems: 'center' },
   botonTexto: { color: '#14141f', fontSize: 16, fontWeight: '700' },
+  botonCancelarPedido: { borderWidth: 1, borderColor: '#e05c5c', borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 10 },
+  botonCancelarPedidoTexto: { color: '#e05c5c', fontSize: 14, fontWeight: '700' },
 
   historialCard: { backgroundColor: '#1e1e2e', borderRadius: 12, padding: 14, marginHorizontal: 8, marginBottom: 8 },
   historialHeader: { flexDirection: 'row', justifyContent: 'space-between' },
