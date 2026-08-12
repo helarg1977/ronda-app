@@ -375,7 +375,11 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     const texto = textoChat.trim()
     setTextoChat('')
     const { data, error } = await supabase.from('mensajes_chat').insert({ bar_id: usuario.bar_id, canal: chatCanal.canal, de: 'dueno', nombre: 'Dueño', texto }).select().single()
-    if (error) { console.log('Error enviando mensaje:', error.message); return }
+    if (error) {
+      setTextoChat(texto)
+      Alert.alert('No se pudo enviar', 'Revisa tu conexión e intenta de nuevo.')
+      return
+    }
     setMensajesChat((m) => [...m, data])
   }
 
