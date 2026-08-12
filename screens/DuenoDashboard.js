@@ -83,27 +83,11 @@ async function compartirAccesoWeb() {
 const ONBOARDING_PASOS = [
   {
     titulo: '¡Bienvenido a Ronda! 🍻',
-    texto: 'Esto es tu panel de control. Aquí ves todas las mesas, pedidos y ventas de tu bar en tiempo real. Te mostramos rapidito cómo dejarlo listo para tu primera noche.',
+    texto: 'Esto es tu panel de control. Aquí ves todas las mesas, pedidos y ventas de tu bar en tiempo real.',
   },
   {
-    titulo: '1. Configura tus pagos',
-    texto: 'Ve a "⚙️ Config" y guarda tu Nequi, Daviplata o Bre-B. Así, cuando un cliente pague digital, sabe exactamente a qué número transferir. Tú recibes el dinero directo — Ronda nunca lo toca.',
-  },
-  {
-    titulo: '2. Sube tu menú',
-    texto: 'Ve a "📋 Menú" y crea tus categorías (Cervezas, Tragos, Cócteles...) y luego agrega los productos con precio y, si quieres, una foto. Puedes tocar las sugerencias para ir más rápido.',
-  },
-  {
-    titulo: '3. Agrega tus mesas',
-    texto: 'Ahí mismo en "📋 Menú" baja hasta "Mesas" y toca "+ Agregar mesa" por cada mesa física de tu bar. Cada una genera un código QR único — ese es el que va impreso o pegado en la mesa.',
-  },
-  {
-    titulo: '4. Agrega a tus meseros',
-    texto: 'En "⚙️ Config" agrega a cada mesero con su celular y un PIN de 4 dígitos. Con eso entran a su propio panel y reciben los pedidos de las mesas que atienden.',
-  },
-  {
-    titulo: '¡Listo para tu primera noche! 🎉',
-    texto: 'El tablero de mesas se pinta de verde/amarillo/rojo según cuánto llevan esperando. Toca cualquier mesa para ver el pedido y avanzarlo. Si te pierdes, el botón "❓ Ayuda" (abajo a la derecha) siempre tiene esta guía a la mano.',
+    titulo: '¡Vamos a dejarlo listo! 🎉',
+    texto: 'Justo abajo tienes una tarjeta verde con los pasos que faltan (menú, pagos, mesas) — se van marcando solos a medida que avanzas. Si te pierdes, el botón "❓ Ayuda" siempre tiene todo a la mano.',
   },
 ]
 
