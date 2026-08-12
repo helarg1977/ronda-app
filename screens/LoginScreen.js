@@ -9,6 +9,16 @@ export default function LoginScreen({ onLogin, onIrARegistro, onIrAUnirse, onIrA
   const [verPin, setVerPin] = useState(false)
   const [cargando, setCargando] = useState(false)
   const [mostrarAyudaPin, setMostrarAyudaPin] = useState(false)
+  const [mostrarDiagnostico, setMostrarDiagnostico] = useState(false)
+  const tapsLogoRef = useRef(0)
+
+  function registrarTapLogo() {
+    tapsLogoRef.current += 1
+    if (tapsLogoRef.current >= 5) {
+      setMostrarDiagnostico(true)
+      tapsLogoRef.current = 0
+    }
+  }
   const refPin = useRef(null)
 
   async function entrar() {
@@ -35,9 +45,9 @@ export default function LoginScreen({ onLogin, onIrARegistro, onIrAUnirse, onIrA
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#14141f', justifyContent: 'center' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={styles.imagenSuperiorContenedor}>
+      <TouchableOpacity activeOpacity={1} style={styles.imagenSuperiorContenedor} onPress={registrarTapLogo}>
         <Image source={require('../assets/login-fondo.jpg')} style={styles.imagenSuperior} resizeMode="contain" />
-      </View>
+      </TouchableOpacity>
 
       <View style={styles.container}>
         <Text style={styles.label}>Número de celular</Text>
@@ -90,9 +100,11 @@ export default function LoginScreen({ onLogin, onIrARegistro, onIrAUnirse, onIrA
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.diagnosticoTexto}>
-          v: {Updates.updateId ? Updates.updateId.slice(0, 8) : 'incorporada de fábrica'} · canal: {Updates.channel || 'ninguno'}
-        </Text>
+        {mostrarDiagnostico && (
+          <Text style={styles.diagnosticoTexto}>
+            v: {Updates.updateId ? Updates.updateId.slice(0, 8) : 'incorporada de fábrica'} · canal: {Updates.channel || 'ninguno'}
+          </Text>
+        )}
       </View>
 
       <Modal visible={mostrarAyudaPin} transparent animationType="fade" onRequestClose={() => setMostrarAyudaPin(false)}>
