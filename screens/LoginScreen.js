@@ -26,6 +26,10 @@ export default function LoginScreen({ onLogin, onIrARegistro, onIrAUnirse, onIrA
       Alert.alert('Falta información', 'Ingresa tu número de celular y tu PIN.')
       return
     }
+    if (telefono.length !== 10) {
+      Alert.alert('Celular incompleto', 'Escribe tu número de celular completo (10 dígitos).')
+      return
+    }
     setCargando(true)
     const { data, error } = await supabase.functions.invoke('login-pin', {
       body: { telefono: telefono.trim(), pin: pin.trim() },
