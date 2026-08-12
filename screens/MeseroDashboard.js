@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Vibration, Animated, Image } from 'react-native'
 import { Audio } from 'expo-av'
 import { supabase, cerrarSesion } from '../lib/supabase'
+import { mensajeAmigable } from '../lib/erroresAmigables'
 import CapaFlotante from '../components/CapaFlotante'
 import TarjetaParpadeante from '../components/TarjetaParpadeante'
 import GuiaPantalla from '../components/GuiaPantalla'
@@ -191,8 +192,10 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
       { text: 'No', style: 'cancel' },
       {
         text: 'Sí, cancelar', style: 'destructive', onPress: async () => {
-          await supabase.from('pagos').delete().eq('pedido_id', pedido.id)
-          await supabase.from('pedidos').update({ estado: 'cancelado' }).eq('id', pedido.id)
+          const { error: errorPago } = await supabase.from('pagos').delete().eq('pedido_id', pedido.id)
+          if (errorPago) { Alert.alert('No se pudo cancelar', mensajeAmigable(errorPago, 'Intenta de nuevo.')); return }
+          const { error } = await supabase.from('pedidos').update({ estado: 'cancelado' }).eq('id', pedido.id)
+          if (error) { Alert.alert('No se pudo cancelar', mensajeAmigable(error, 'Intenta de nuevo.')); return }
           setDetallePedido(null)
           cargar()
         },
@@ -220,7 +223,8 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
   }
 
   async function atenderSolicitud(id) {
-    await supabase.from('solicitudes').update({ atendida: true }).eq('id', id)
+    const { error } = await supabase.from('solicitudes').update({ atendida: true }).eq('id', id)
+    if (error) Alert.alert('No se pudo actualizar', mensajeAmigable(error, 'Intenta de nuevo.'))
   }
 
   async function abrirDetallePedido(pedido) {
@@ -275,7 +279,8 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Borrar', style: 'destructive', onPress: async () => {
-          await supabase.from('mensajes_chat').delete().eq('id', id)
+          const { error } = await supabase.from('mensajes_chat').delete().eq('id', id)
+          if (error) { Alert.alert('No se pudo borrar', mensajeAmigable(error, 'Intenta de nuevo.')); return }
           setMensajesChat((m) => m.filter((x) => x.id !== id))
         },
       },
