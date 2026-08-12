@@ -170,8 +170,24 @@ export default function ConfiguracionScreen({ usuario, onVolver }) {
 
   async function toggleActivo(empleado) {
     const seVaADesactivar = empleado.activo
-    await supabase.from('usuarios_bar').update({ activo: !empleado.activo }).eq('id', empleado.id)
     if (seVaADesactivar) {
+      Alert.alert(
+        `¿Desactivar a ${empleado.nombre}?`,
+        'Va a perder el acceso a la app de inmediato.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Desactivar', style: 'destructive', onPress: () => desactivarEmpleadoConfirmado(empleado) },
+        ]
+      )
+      return
+    }
+    await supabase.from('usuarios_bar').update({ activo: true }).eq('id', empleado.id)
+    cargar()
+  }
+
+  async function desactivarEmpleadoConfirmado(empleado) {
+    await supabase.from('usuarios_bar').update({ activo: false }).eq('id', empleado.id)
+    {
       const { data: susMesas } = await supabase.from('mesas').select('id').eq('mesero_asignado_id', empleado.id)
       if (susMesas && susMesas.length > 0) {
         Alert.alert(
