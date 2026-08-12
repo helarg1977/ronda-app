@@ -551,16 +551,8 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
 
   async function moverMesaA(mesaDestino) {
     const origen = detalle.mesa
-    const sesionAMover = origen.sesion_actual
-    await supabase.from('mesas').update({
-      sesion_actual: sesionAMover,
-      sesion_iniciada_en: origen.sesion_iniciada_en,
-      cuenta_abierta: origen.cuenta_abierta,
-    }).eq('id', mesaDestino.id)
-    await supabase.from('pedidos').update({ mesa_id: mesaDestino.id }).eq('mesa_id', origen.id).eq('sesion_id', sesionAMover)
-    await supabase.from('solicitudes').update({ mesa_id: mesaDestino.id }).eq('mesa_id', origen.id)
-    await supabase.rpc('cerrar_mesa', { p_mesa_id: origen.id })
-    await supabase.from('mesas').update({ mesero_asignado_id: null }).eq('id', origen.id)
+    const { error } = await supabase.rpc('mover_mesa', { p_mesa_origen_id: origen.id, p_mesa_destino_id: mesaDestino.id })
+    if (error) { Alert.alert('No se pudo mover', mensajeAmigable(error, 'No se pudo mover la cuenta.')); return }
     setMostrarMoverMesa(false)
     setDetalle(null)
     Vibration.vibrate(40)
@@ -570,14 +562,8 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
 
   async function unirMesa(mesaAUnir) {
     const anfitriona = detalle.mesa
-    // si la mesa a unir ya tenía pedidos propios, se pasan a la sesión compartida de la anfitriona
-    await supabase.from('pedidos').update({ sesion_id: anfitriona.sesion_actual }).eq('mesa_id', mesaAUnir.id).eq('sesion_id', mesaAUnir.sesion_actual)
-    await supabase.from('mesas').update({
-      sesion_actual: anfitriona.sesion_actual,
-      sesion_iniciada_en: anfitriona.sesion_iniciada_en,
-      cuenta_abierta: anfitriona.cuenta_abierta,
-      mesa_union_id: anfitriona.id,
-    }).eq('id', mesaAUnir.id)
+    const { error } = await supabase.rpc('unir_mesa', { p_mesa_anfitriona_id: anfitriona.id, p_mesa_a_unir_id: mesaAUnir.id })
+    if (error) { Alert.alert('No se pudo unir', mensajeAmigable(error, 'No se pudo unir la mesa.')); return }
     setMostrarUnirMesa(false)
     Vibration.vibrate(40)
     Alert.alert('Listo', `Mesa ${mesaAUnir.numero} ya quedó unida a esta cuenta.`)
