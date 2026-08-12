@@ -20,10 +20,17 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
+    const { data: bloqueado } = await admin.rpc('verificar_bloqueo_login', { p_telefono: telefono })
+    if (bloqueado) {
+      return new Response(JSON.stringify({ error: 'Demasiados intentos. Espera unos minutos e intenta de nuevo.' }), { status: 429, headers: headersCors })
+    }
+
     const { data: chequeo, error: errorChequeo } = await admin.rpc('login_super_admin', { p_telefono: telefono, p_pin: pin })
     if (errorChequeo || !chequeo || chequeo.length === 0) {
+      await admin.rpc('registrar_intento_fallido', { p_telefono: telefono })
       return new Response(JSON.stringify({ error: 'El celular o el PIN no son correctos' }), { status: 401, headers: headersCors })
     }
+    await admin.rpc('limpiar_intentos_login', { p_telefono: telefono })
     const superAdminId = chequeo[0].id
 
     const { data: superAdminRow } = await admin.from('super_admins').select('id, auth_user_id').eq('id', superAdminId).maybeSingle()
