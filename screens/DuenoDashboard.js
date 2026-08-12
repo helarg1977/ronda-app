@@ -196,7 +196,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
 
   const cargar = useCallback(async () => {
     try {
-    const { data: barData } = await supabase.from('bares').select('nombre, comision_pct, modo_negocio, llave_nequi, llave_daviplata, llave_bre_b, created_at, logo_url').eq('id', usuario.bar_id).maybeSingle()
+    const { data: barData } = await supabase.from('bares').select('nombre, modo_negocio, llave_nequi, llave_daviplata, llave_bre_b, created_at, logo_url').eq('id', usuario.bar_id).maybeSingle()
     const { count: totalProductos } = await supabase.from('productos').select('id', { count: 'exact', head: true }).eq('bar_id', usuario.bar_id)
     setTieneProductos((totalProductos || 0) > 0)
     setBar(barData)
