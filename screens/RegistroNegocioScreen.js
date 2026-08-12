@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native'
 import { supabase, guardarSesion } from '../lib/supabase'
+import { mensajeAmigable } from '../lib/erroresAmigables'
 
 export default function RegistroNegocioScreen({ onLogin, onVolver, onIrARecuperar }) {
   const [nombreBar, setNombreBar] = useState('')
@@ -38,7 +39,7 @@ export default function RegistroNegocioScreen({ onLogin, onVolver, onIrARecupera
     setCargando(false)
 
     if (error || !data || data.length === 0) {
-      Alert.alert('No se pudo crear tu negocio', error?.message || 'Intenta de nuevo.')
+      Alert.alert('No se pudo crear tu negocio', mensajeAmigable(error, 'No pudimos crear tu negocio. Intenta de nuevo en un momento.'))
       return
     }
 
