@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, Keyboard, TouchableWithoutFeedback } from 'react-native'
 import { supabase, guardarSesion } from '../lib/supabase'
+import { mensajeAmigable } from '../lib/erroresAmigables'
 
 export default function UnirseEmpleadoScreen({ onLogin, onVolver, onIrARecuperar }) {
   const [codigo, setCodigo] = useState('')
@@ -37,7 +38,7 @@ export default function UnirseEmpleadoScreen({ onLogin, onVolver, onIrARecuperar
     setCargando(false)
 
     if (error || !data || data.length === 0) {
-      Alert.alert('No se pudo unir', error?.message || 'Revisa el código e intenta de nuevo.')
+      Alert.alert('No se pudo unir', mensajeAmigable(error, 'No pudimos unirte al negocio. Revisa el código e intenta de nuevo.'))
       return
     }
 
