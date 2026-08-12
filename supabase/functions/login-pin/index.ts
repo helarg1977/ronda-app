@@ -22,14 +22,22 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
+    // 0. Si este teléfono tiene demasiados intentos fallidos recientes, bloquear un rato
+    const { data: bloqueado } = await admin.rpc('verificar_bloqueo_login', { p_telefono: telefono })
+    if (bloqueado) {
+      return new Response(JSON.stringify({ error: 'Demasiados intentos. Espera unos minutos e intenta de nuevo.' }), { status: 429, headers: headersCors })
+    }
+
     // 1. Verificar teléfono + PIN contra usuarios_bar (usa la misma función que ya existía)
     const { data: filas, error: errorLogin } = await admin.rpc('login_usuario_bar', {
       p_telefono: telefono,
       p_pin: pin,
     })
     if (errorLogin || !filas || filas.length === 0) {
+      await admin.rpc('registrar_intento_fallido', { p_telefono: telefono })
       return new Response(JSON.stringify({ error: 'El celular o el PIN no son correctos.' }), { status: 401, headers: headersCors })
     }
+    await admin.rpc('limpiar_intentos_login', { p_telefono: telefono })
     const usuario = filas[0]
 
     // 2. Buscar si ya tiene una credencial real de Supabase; si no, crearla
