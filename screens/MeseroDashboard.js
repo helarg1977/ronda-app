@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, ScrollView, M
 import { Audio } from 'expo-av'
 import { supabase, cerrarSesion } from '../lib/supabase'
 import { mensajeAmigable } from '../lib/erroresAmigables'
+import { money, inicioDeHoy } from '../lib/formato'
 import CapaFlotante from '../components/CapaFlotante'
 import TarjetaParpadeante from '../components/TarjetaParpadeante'
 import GuiaPantalla from '../components/GuiaPantalla'
@@ -50,16 +51,6 @@ function tiempoTranscurrido(fecha) {
   if (min < 3) return { texto: `Hace ${min} min`, color: '#3ecf8e' }
   if (min < 6) return { texto: `Hace ${min} min`, color: '#e0b94c' }
   return { texto: `Hace ${min} min`, color: '#e05c5c' }
-}
-
-function money(n) {
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n || 0)
-}
-
-function inicioDeHoy() {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  return d.toISOString()
 }
 
 export default function MeseroDashboard({ usuario, onCerrarSesion }) {
