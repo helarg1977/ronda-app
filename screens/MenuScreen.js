@@ -353,9 +353,9 @@ export default function MenuScreen({ usuario, onVolver }) {
               <Text style={[styles.productoNombre, !p.disponible && styles.productoOculto]}>{p.nombre} — {formatearPrecio(String(p.precio))}</Text>
               <Text style={styles.productoEstado}>{p.disponible ? 'Disponible (toca para ocultar)' : 'Oculto (toca para activar)'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => duplicarProducto(p)}><Text style={styles.borrarTexto}>📋</Text></TouchableOpacity>
-            <TouchableOpacity onPress={() => abrirEdicionProducto(p)}><Text style={styles.borrarTexto}>✏️</Text></TouchableOpacity>
-            <TouchableOpacity onPress={() => borrarProducto(p)}><Text style={styles.borrarTexto}>🗑️</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.botonAccionProducto} onPress={() => duplicarProducto(p)}><Text style={styles.borrarTexto}>📋</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.botonAccionProducto} onPress={() => abrirEdicionProducto(p)}><Text style={styles.borrarTexto}>✏️</Text></TouchableOpacity>
+            <TouchableOpacity style={[styles.botonAccionProducto, { marginLeft: 6 }]} onPress={() => borrarProducto(p)}><Text style={styles.borrarTexto}>🗑️</Text></TouchableOpacity>
           </View>
         ))}
       </ScrollView>
@@ -407,7 +407,8 @@ const styles = StyleSheet.create({
   productoNombre: { color: '#f2f2f2', fontSize: 16, fontWeight: '600' },
   productoOculto: { color: '#6a6a80', textDecorationLine: 'line-through' },
   productoEstado: { color: '#6a6a80', fontSize: 13, marginTop: 4 },
-  borrarTexto: { fontSize: 20, paddingLeft: 10 },
+  borrarTexto: { fontSize: 20 },
+  botonAccionProducto: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   lightboxFondo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center', alignItems: 'center' },
   lightboxImagen: { width: '92%', height: '80%' },
 })
