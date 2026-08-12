@@ -442,6 +442,23 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     ])
   }
 
+  async function cancelarPedidoActivo() {
+    if (!detalle?.pedido) return
+    Alert.alert('Cancelar pedido', '¿Cancelar este pedido? El cliente va a ver que se canceló.', [
+      { text: 'No', style: 'cancel' },
+      {
+        text: 'Sí, cancelar', style: 'destructive', onPress: async () => {
+          const { error: errorPago } = await supabase.from('pagos').delete().eq('pedido_id', detalle.pedido.id)
+          if (errorPago) { Alert.alert('No se pudo cancelar', errorPago.message); return }
+          const { error } = await supabase.from('pedidos').update({ estado: 'cancelado' }).eq('id', detalle.pedido.id)
+          if (error) { Alert.alert('No se pudo cancelar', error.message); return }
+          setDetalle(null)
+          cargar()
+        },
+      },
+    ])
+  }
+
   async function abrirDetalle(mesa) {
     setCargandoDetalle(true)
     setMostrarQr(false)
@@ -1071,6 +1088,11 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                         <Text style={styles.botonTexto}>{SIGUIENTE_ESTADO[detalle.pedido.estado].boton}</Text>
                       </TouchableOpacity>
                     )}
+                    {detalle.pedido.estado === 'pendiente' && (
+                      <TouchableOpacity style={styles.botonCancelarPedido} onPress={cancelarPedidoActivo}>
+                        <Text style={styles.botonCancelarPedidoTexto}>✕ Cancelar este pedido</Text>
+                      </TouchableOpacity>
+                    )}
 
                     {detalle.pago && (
                       <View style={styles.pagoBox}>
@@ -1651,6 +1673,8 @@ const styles = StyleSheet.create({
   chatInput: { flex: 1, backgroundColor: '#26263a', color: '#f2f2f2', borderRadius: 12, padding: 12, fontSize: 15 },
   chatEnviarBoton: { backgroundColor: '#d4a338', borderRadius: 12, paddingHorizontal: 18, justifyContent: 'center' },
   botonTexto: { color: '#14141f', fontSize: 16, fontWeight: '700' },
+  botonCancelarPedido: { borderWidth: 1, borderColor: '#e05c5c', borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 10 },
+  botonCancelarPedidoTexto: { color: '#e05c5c', fontSize: 14, fontWeight: '700' },
   pagoBox: { backgroundColor: '#26263a', borderRadius: 14, padding: 14, marginTop: 14 },
   mensajesEquipoBox: { backgroundColor: '#1a1a26', borderRadius: 14, padding: 14, marginHorizontal: 14, marginBottom: 14, borderWidth: 1, borderColor: '#2a2a3a' },
   mensajesEquipoBoxAlerta: { borderColor: '#e0954c' },
