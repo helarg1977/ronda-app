@@ -5,6 +5,7 @@ import { Audio } from 'expo-av'
 import * as Sharing from 'expo-sharing'
 import { captureRef } from 'react-native-view-shot'
 import { supabase, cerrarSesion } from '../lib/supabase'
+import { mensajeAmigable } from '../lib/erroresAmigables'
 import GuiaPantalla from '../components/GuiaPantalla'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import CapaFlotante from '../components/CapaFlotante'
@@ -408,8 +409,8 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Crear', onPress: async () => {
-          const { error } = await supabase.from('mesas').insert({ bar_id: usuario.bar_id, numero: String(siguienteNumero) })
-          if (error) { Alert.alert('Error', 'No se pudo crear la mesa: ' + error.message); return }
+          const { error } = await supabase.rpc('crear_mesa_nueva', { p_bar_id: usuario.bar_id })
+          if (error) { Alert.alert('Error', mensajeAmigable(error, 'No se pudo crear la mesa.')); return }
           cargar()
         },
       },
@@ -453,9 +454,9 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
       {
         text: 'Sí, cancelar', style: 'destructive', onPress: async () => {
           const { error: errorPago } = await supabase.from('pagos').delete().eq('pedido_id', detalle.pedido.id)
-          if (errorPago) { Alert.alert('No se pudo cancelar', errorPago.message); return }
+          if (errorPago) { Alert.alert('No se pudo cancelar', mensajeAmigable(errorPago, 'No se pudo cancelar el pedido.')); return }
           const { error } = await supabase.from('pedidos').update({ estado: 'cancelado' }).eq('id', detalle.pedido.id)
-          if (error) { Alert.alert('No se pudo cancelar', error.message); return }
+          if (error) { Alert.alert('No se pudo cancelar', mensajeAmigable(error, 'No se pudo cancelar el pedido.')); return }
           setDetalle(null)
           cargar()
         },
@@ -528,7 +529,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   async function elegirModoNegocio(modo) {
     const { error } = await supabase.from('bares').update({ modo_negocio: modo }).eq('id', usuario.bar_id)
     if (error) {
-      Alert.alert('No se pudo guardar', error.message)
+      Alert.alert('No se pudo guardar', mensajeAmigable(error, 'No se pudo guardar el cambio.'))
       return
     }
     setBar((b) => (b ? { ...b, modo_negocio: modo } : b))
@@ -632,7 +633,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
       .eq('id', detalle.pedido.id)
       .eq('estado', detalle.pedido.estado)
       .select()
-    if (error) { Alert.alert('No se pudo actualizar', error.message); return }
+    if (error) { Alert.alert('No se pudo actualizar', mensajeAmigable(error, 'No se pudo actualizar.')); return }
     if (!data || data.length === 0) {
       Alert.alert('Este pedido ya cambió', 'Alguien más (un mesero) ya lo actualizó.')
       cargar()
