@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, Modal, ScrollView, Image, Alert, TextInput, KeyboardAvoidingView, Platform, Share, Switch, Vibration } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, Modal, ScrollView, Image, Alert, TextInput, KeyboardAvoidingView, Platform, Share, Switch, Vibration, AppState } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Audio } from 'expo-av'
 import * as Sharing from 'expo-sharing'
@@ -318,11 +318,15 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
       })
       .subscribe()
     const intervalo = setInterval(cargar, 30000)
+    const suscripcionEstado = AppState.addEventListener('change', (estado) => {
+      if (estado === 'active') cargar()
+    })
     return () => {
       supabase.removeChannel(canalPedidos)
       supabase.removeChannel(canalSolicitudes)
       supabase.removeChannel(canalChat)
       clearInterval(intervalo)
+      suscripcionEstado.remove()
     }
   }, [cargar, usuario.bar_id, chatCanal])
 
