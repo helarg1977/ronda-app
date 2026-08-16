@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Vibration, Animated, Image } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Vibration, Animated, Image, AppState } from 'react-native'
 import { Audio } from 'expo-av'
 import { supabase, cerrarSesion } from '../lib/supabase'
 import { mensajeAmigable } from '../lib/erroresAmigables'
@@ -85,6 +85,7 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
   const [altoFlotante, setAltoFlotante] = useState(80)
   const mesasPermitidasRef = useRef(new Set())
   const [detallePedido, setDetallePedido] = useState(null)
+  const [comprobanteVer, setComprobanteVer] = useState(null)
   const [misMesas, setMisMesas] = useState([])
   const [mostrarMotivoApoyo, setMostrarMotivoApoyo] = useState(false)
 
@@ -177,6 +178,19 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
       .subscribe()
     return () => supabase.removeChannel(canal)
   }, [cargar, usuario.bar_id, chatCanal])
+
+  // --- Red de seguridad: si el tiempo real falla en silencio (pasa en algunas redes móviles),
+  // esto asegura que el panel nunca se quede desactualizado más de unos segundos ---
+  useEffect(() => {
+    const intervalo = setInterval(cargar, 15000)
+    const suscripcionEstado = AppState.addEventListener('change', (estado) => {
+      if (estado === 'active') cargar()
+    })
+    return () => {
+      clearInterval(intervalo)
+      suscripcionEstado.remove()
+    }
+  }, [cargar])
 
   async function cancelarPedidoActivo(pedido) {
     Alert.alert('Cancelar pedido', '¿Cancelar este pedido? El cliente va a ver que se canceló.', [
@@ -588,7 +602,15 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
                   <Text style={{ color: '#f2f2f2', fontWeight: '700' }}>{money(detallePedido.total)}</Text>
                 </View>
                 {detallePedido.pago && (
-                  <Text style={styles.ayudaItemTexto}>💳 Pago: {detallePedido.pago.metodo} — {detallePedido.pago.confirmado ? '✅ confirmado' : '⏳ pendiente de confirmar'}</Text>
+                  <>
+                    <Text style={styles.ayudaItemTexto}>💳 Pago: {detallePedido.pago.metodo === 'mixto' ? 'Mixto' : detallePedido.pago.metodo} — {detallePedido.pago.confirmado ? '✅ confirmado' : '⏳ pendiente de confirmar'}</Text>
+                    {detallePedido.pago.comprobante_url && (
+                      <TouchableOpacity onPress={() => setComprobanteVer(detallePedido.pago.comprobante_url)}>
+                        <Image source={{ uri: detallePedido.pago.comprobante_url }} style={styles.comprobanteMiniatura} resizeMode="cover" />
+                        <Text style={styles.comprobanteVerTexto}>🔍 Toca para ampliar el comprobante</Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
                 )}
                 {SIGUIENTE_ESTADO[detallePedido.estado] && (
                   <TouchableOpacity style={[styles.boton, { marginTop: 14 }]} onPress={async () => { await avanzarEstado(detallePedido); setDetallePedido(null) }}>
@@ -607,6 +629,13 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
             </TouchableOpacity>
           </View>
         </View>
+      </Modal>
+
+      <Modal visible={!!comprobanteVer} transparent animationType="fade" onRequestClose={() => setComprobanteVer(null)}>
+        <TouchableOpacity style={styles.comprobanteVerOverlay} activeOpacity={1} onPress={() => setComprobanteVer(null)}>
+          <Image source={{ uri: comprobanteVer }} style={styles.comprobanteVerImg} resizeMode="contain" />
+          <Text style={styles.comprobanteVerCerrar}>Toca en cualquier parte para cerrar</Text>
+        </TouchableOpacity>
       </Modal>
 
       <Modal visible={!!chatCanal} transparent animationType="slide" onRequestClose={() => setChatCanal(null)}>
@@ -719,6 +748,11 @@ const styles = StyleSheet.create({
   barraProgresoBarraActiva: { backgroundColor: '#d4a338' },
   boton: { backgroundColor: '#d4a338', borderRadius: 12, padding: 14, alignItems: 'center' },
   botonTexto: { color: '#14141f', fontSize: 16, fontWeight: '700' },
+  comprobanteMiniatura: { width: '100%', height: 160, borderRadius: 10, marginTop: 8, backgroundColor: '#14141f' },
+  comprobanteVerTexto: { color: '#4a90d9', fontSize: 12, textAlign: 'center', marginTop: 4, marginBottom: 6 },
+  comprobanteVerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  comprobanteVerImg: { width: '100%', height: '80%' },
+  comprobanteVerCerrar: { color: '#a0a0b0', fontSize: 13, marginTop: 16 },
   botonCancelarPedido: { borderWidth: 1, borderColor: '#e05c5c', borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 10 },
   botonCancelarPedidoTexto: { color: '#e05c5c', fontSize: 14, fontWeight: '700' },
 
