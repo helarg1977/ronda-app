@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { decode } from 'base64-arraybuffer'
 import { supabase } from '../lib/supabase'
 import { mensajeAmigable } from '../lib/erroresAmigables'
+import { iconoPorNombreProducto } from '../lib/iconosProductos'
 import GuiaPantalla from '../components/GuiaPantalla'
 
 const CATEGORIAS_SUGERIDAS = [
@@ -344,10 +345,14 @@ export default function MenuScreen({ usuario, onVolver }) {
         <Text style={styles.seccion}>Productos de esta categoría</Text>
         {productos.filter((p) => p.categoria_id === categoriaSeleccionada).map((p) => (
           <View key={p.id} style={styles.productoItem}>
-            {p.foto_url && (
+            {p.foto_url ? (
               <TouchableOpacity onPress={() => setFotoAmpliada(p.foto_url)}>
                 <Image source={{ uri: p.foto_url }} style={styles.productoFotoChica} />
               </TouchableOpacity>
+            ) : (
+              <View style={styles.productoIconoChico}>
+                <Text style={{ fontSize: 22 }}>{iconoPorNombreProducto(p.nombre)}</Text>
+              </View>
             )}
             <TouchableOpacity style={{ flex: 1 }} onPress={() => toggleDisponible(p)}>
               <Text style={[styles.productoNombre, !p.disponible && styles.productoOculto]}>{p.nombre} — {formatearPrecio(String(p.precio))}</Text>
@@ -404,6 +409,7 @@ const styles = StyleSheet.create({
   botonSecundarioTexto: { color: '#f2f2f2', fontSize: 15 },
   productoItem: { backgroundColor: '#1e1e2e', borderRadius: 12, padding: 14, marginBottom: 8, flexDirection: 'row', alignItems: 'center' },
   productoFotoChica: { width: 44, height: 44, borderRadius: 10, marginRight: 12 },
+  productoIconoChico: { width: 44, height: 44, borderRadius: 10, marginRight: 12, backgroundColor: '#1e1e2e', alignItems: 'center', justifyContent: 'center' },
   productoNombre: { color: '#f2f2f2', fontSize: 16, fontWeight: '600' },
   productoOculto: { color: '#9494a8', textDecorationLine: 'line-through' },
   productoEstado: { color: '#9494a8', fontSize: 13, marginTop: 4 },
