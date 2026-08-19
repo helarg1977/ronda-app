@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, Image } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, Image, Linking } from 'react-native'
 import * as Updates from 'expo-updates'
 import { supabase, guardarSesion } from '../lib/supabase'
 
@@ -34,16 +34,35 @@ export default function LoginScreen({ onLogin, onIrARegistro, onIrAUnirse, onIrA
     const { data, error } = await supabase.functions.invoke('login-pin', {
       body: { telefono: telefono.trim(), pin: pin.trim() },
     })
-    setCargando(false)
 
-    if (error || data?.error || !data?.usuario) {
-      Alert.alert('No pudimos entrar', data?.error || 'El celular o el PIN no son correctos. Verifica con el administrador.')
+    if (!error && !data?.error && data?.usuario) {
+      setCargando(false)
+      await supabase.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token })
+      const usuario = data.usuario
+      await guardarSesion(usuario)
+      onLogin(usuario)
       return
     }
-    await supabase.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token })
-    const usuario = data.usuario
-    await guardarSesion(usuario)
-    onLogin(usuario)
+
+    // Si el login normal falla, probar si es un super-admin (ese panel vive en la web)
+    const { data: adminData, error: errorAdmin } = await supabase.functions.invoke('login-superadmin', {
+      body: { telefono: telefono.trim(), pin: pin.trim() },
+    })
+    setCargando(false)
+
+    if (!errorAdmin && !adminData?.error && adminData?.admin) {
+      Alert.alert(
+        'Eres Super Admin',
+        'El panel de Super Admin funciona mejor en el navegador. ¿Quieres abrirlo ahora?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Abrir panel web', onPress: () => Linking.openURL('https://ronda-dueno-web.vercel.app') },
+        ]
+      )
+      return
+    }
+
+    Alert.alert('No pudimos entrar', data?.error || 'El celular o el PIN no son correctos. Verifica con el administrador.')
   }
 
   return (
