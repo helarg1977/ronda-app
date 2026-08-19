@@ -12,6 +12,7 @@ import MenuScreen from './screens/MenuScreen'
 import ComisionScreen from './screens/ComisionScreen'
 import ConfiguracionScreen from './screens/ConfiguracionScreen'
 import ReportesScreen from './screens/ReportesScreen'
+import SuperAdminScreen from './screens/SuperAdminScreen'
 import { registrarToken } from './lib/notificaciones'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
@@ -76,6 +77,15 @@ export default function App() {
   }
 
   const puedeVerPanelDueno = ROLES_PANEL_DUENO.includes(usuario.rol)
+
+  if (usuario.esSuperAdmin) {
+    return (
+      <SafeAreaProvider>
+        <StatusBar style="light" />
+        <SuperAdminScreen admin={usuario} onCerrarSesion={cerrarSesionYVolver} />
+      </SafeAreaProvider>
+    )
+  }
 
   return (
     <SafeAreaProvider>
