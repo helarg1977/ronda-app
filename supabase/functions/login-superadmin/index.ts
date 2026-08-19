@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(JSON.stringify({
-      admin: { id: superAdmin.id, telefono, esSuperAdmin: true },
+      admin: { id: superAdminRow.id, telefono, esSuperAdmin: true },
       access_token: sesion.session.access_token,
       refresh_token: sesion.session.refresh_token,
     }), { status: 200, headers: { ...headersCors, 'Content-Type': 'application/json' } })
