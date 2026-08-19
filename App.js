@@ -32,7 +32,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (usuario?.id) registrarToken(usuario.id)
+    if (usuario?.id && !usuario.esSuperAdmin) registrarToken(usuario.id)
   }, [usuario?.id])
 
   if (cargando) {
