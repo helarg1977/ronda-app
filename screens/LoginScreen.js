@@ -51,14 +51,10 @@ export default function LoginScreen({ onLogin, onIrARegistro, onIrAUnirse, onIrA
     setCargando(false)
 
     if (!errorAdmin && !adminData?.error && adminData?.admin) {
-      Alert.alert(
-        'Eres Super Admin',
-        'El panel de Super Admin funciona mejor en el navegador. ¿Quieres abrirlo ahora?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Abrir panel web', onPress: () => Linking.openURL('https://ronda-dueno-web.vercel.app') },
-        ]
-      )
+      await supabase.auth.setSession({ access_token: adminData.access_token, refresh_token: adminData.refresh_token })
+      const adminUsuario = { ...adminData.admin, esSuperAdmin: true }
+      await guardarSesion(adminUsuario)
+      onLogin(adminUsuario)
       return
     }
 
