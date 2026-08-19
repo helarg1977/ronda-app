@@ -34,7 +34,12 @@ Deno.serve(async (req) => {
       p_pin: pin,
     })
     if (errorLogin || !filas || filas.length === 0) {
-      await admin.rpc('registrar_intento_fallido', { p_telefono: telefono })
+      // Si este teléfono es de un super-admin, no cuenta como fallido aquí — el panel
+      // va a intentar login-superadmin justo después, y ese es el que de verdad decide.
+      const { data: esSuperAdmin } = await admin.from('super_admins').select('id').eq('telefono', telefono).maybeSingle()
+      if (!esSuperAdmin) {
+        await admin.rpc('registrar_intento_fallido', { p_telefono: telefono })
+      }
       return new Response(JSON.stringify({ error: 'El celular o el PIN no son correctos.' }), { status: 401, headers: headersCors })
     }
     await admin.rpc('limpiar_intentos_login', { p_telefono: telefono })
