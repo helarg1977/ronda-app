@@ -32,6 +32,7 @@ Deno.serve(async (req) => {
     }
     await admin.rpc('limpiar_intentos_login', { p_telefono: telefono })
     const superAdminId = chequeo[0].id
+    const superAdminNombre = chequeo[0].nombre
 
     const { data: superAdminRow } = await admin.from('super_admins').select('id, auth_user_id').eq('id', superAdminId).maybeSingle()
     if (!superAdminRow) {
@@ -75,7 +76,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(JSON.stringify({
-      admin: { id: superAdminRow.id, telefono, esSuperAdmin: true },
+      admin: { id: superAdminRow.id, telefono, nombre: superAdminNombre, esSuperAdmin: true },
       access_token: sesion.session.access_token,
       refresh_token: sesion.session.refresh_token,
     }), { status: 200, headers: { ...headersCors, 'Content-Type': 'application/json' } })
