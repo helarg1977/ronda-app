@@ -28,6 +28,8 @@ export default function SuperAdminScreen({ admin, onCerrarSesion }) {
   const [refrescando, setRefrescando] = useState(false)
   const [editandoId, setEditandoId] = useState(null)
   const [nombreEdit, setNombreEdit] = useState('')
+  const [dandoGraciaId, setDandoGraciaId] = useState(null)
+  const [diasGraciaInput, setDiasGraciaInput] = useState('7')
 
   const cargar = useCallback(async () => {
     const { data: baresData, error } = await supabase.rpc('admin_listar_bares')
@@ -46,6 +48,16 @@ export default function SuperAdminScreen({ admin, onCerrarSesion }) {
   async function onRefrescar() {
     setRefrescando(true)
     await cargar()
+  }
+
+  async function darDiasGracia(bar) {
+    const dias = parseInt(diasGraciaInput, 10)
+    if (!dias || dias <= 0) { Alert.alert('Número inválido', 'Escribe un número de días válido.'); return }
+    const { error } = await supabase.rpc('admin_dar_dias_gracia', { p_bar_id: bar.id, p_dias: dias })
+    if (error) { Alert.alert('No se pudo dar los días', mensajeAmigable(error, 'Intenta de nuevo.')); return }
+    setDandoGraciaId(null)
+    Alert.alert('Listo', `Le diste ${dias} día${dias !== 1 ? 's' : ''} extra a ${bar.nombre}.`)
+    cargar()
   }
 
   async function togglePausa(bar) {
@@ -271,6 +283,9 @@ export default function SuperAdminScreen({ admin, onCerrarSesion }) {
                           ⏳ Prueba: {bar.dias_restantes_prueba >= 0 ? `Vence en ${bar.dias_restantes_prueba}d` : `Vencida hace ${Math.abs(bar.dias_restantes_prueba)}d`}
                         </Text>
                       )}
+                      {bar.dias_gracia_extra > 0 && (
+                        <Text style={{ color: '#9494a8', marginTop: 4 }}>🎁 Ya le diste {bar.dias_gracia_extra} día{bar.dias_gracia_extra !== 1 ? 's' : ''} extra en total</Text>
+                      )}
                       <Text style={styles.filaDato}>Dueño: <Text style={styles.filaDatoValor}>{bar.nombre_dueno || '—'}</Text></Text>
                       <Text style={styles.filaDato}>Celular: <Text style={styles.filaDatoValor}>{bar.telefono_dueno || '—'}</Text></Text>
                       <Text style={styles.filaDato}>Mesas activas: <Text style={styles.filaDatoValor}>{bar.total_mesas}</Text></Text>
@@ -279,10 +294,22 @@ export default function SuperAdminScreen({ admin, onCerrarSesion }) {
                       <Text style={styles.filaDato}>Pendiente: <Text style={[styles.filaDatoValor, { color: pendiente > 0 ? '#e0b94c' : '#3ecf8e' }]}>{money(pendiente)}</Text></Text>
                       <View style={styles.filaBotonesWrap}>
                         <TouchableOpacity style={styles.botonChico} onPress={() => verComoBar(bar)}><Text style={styles.botonChicoTexto}>👁️ Ver como</Text></TouchableOpacity>
+                        <TouchableOpacity style={styles.botonChico} onPress={() => { setDandoGraciaId(bar.id); setDiasGraciaInput('7') }}><Text style={styles.botonChicoTexto}>🎁 Días de gracia</Text></TouchableOpacity>
                         <TouchableOpacity style={styles.botonChico} onPress={() => { setEditandoId(bar.id); setNombreEdit(bar.nombre) }}><Text style={styles.botonChicoTexto}>✏️ Editar</Text></TouchableOpacity>
                         <TouchableOpacity style={styles.botonChico} onPress={() => togglePausa(bar)}><Text style={styles.botonChicoTexto}>{bar.activo ? '⏸️ Pausar' : '▶️ Activar'}</Text></TouchableOpacity>
                         <TouchableOpacity style={[styles.botonChico, { borderColor: '#e05c5c' }]} onPress={() => eliminarBar(bar)}><Text style={[styles.botonChicoTexto, { color: '#e05c5c' }]}>🗑️ Eliminar</Text></TouchableOpacity>
                       </View>
+                      {dandoGraciaId === bar.id && (
+                        <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, alignItems: 'center' }}>
+                          <TextInput
+                            style={[styles.input, { flex: 1 }]}
+                            value={diasGraciaInput} onChangeText={setDiasGraciaInput}
+                            keyboardType="number-pad" placeholder="Días" placeholderTextColor="#6a6a80"
+                          />
+                          <TouchableOpacity style={styles.botonPrimario} onPress={() => darDiasGracia(bar)}><Text style={styles.botonPrimarioTexto}>Dar</Text></TouchableOpacity>
+                          <TouchableOpacity style={styles.botonSecundario} onPress={() => setDandoGraciaId(null)}><Text style={styles.botonSecundarioTexto}>X</Text></TouchableOpacity>
+                        </View>
+                      )}
                     </>
                   )}
                 </View>
