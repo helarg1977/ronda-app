@@ -80,6 +80,10 @@ export default function SuperAdminScreen({ admin, onCerrarSesion }) {
         ])
   }
 
+  function abrirWhatsAppBar(bar, mensaje) {
+    Linking.openURL(`https://wa.me/57${bar.telefono_dueno}?text=${encodeURIComponent(mensaje)}`)
+  }
+
   function verComoBar(bar) {
     Alert.alert(
       'Ver como este negocio',
@@ -124,6 +128,8 @@ export default function SuperAdminScreen({ admin, onCerrarSesion }) {
   const totalComisionGenerada = bares.reduce((s, b) => s + Number(b.comision_generada), 0)
   const totalComisionPagada = bares.reduce((s, b) => s + Number(b.comision_pagada), 0)
   const baresSinPago = bares.filter((b) => b.activo && !b.tiene_metodo_pago)
+  const baresPruebaPorVencer = bares.filter((b) => b.activo && b.dias_restantes_prueba <= 7 && b.dias_restantes_prueba >= 0)
+  const baresPruebaVencida = bares.filter((b) => b.activo && b.dias_restantes_prueba < 0)
   const baresOrdenPorVentas = [...bares].sort((a, b) => b.ventas_totales - a.ventas_totales)
   const barMasProduce = [...bares].sort((a, b) => b.comision_generada - a.comision_generada)[0]
 
@@ -160,6 +166,37 @@ export default function SuperAdminScreen({ admin, onCerrarSesion }) {
       <ScrollView style={styles.contenido} refreshControl={<RefreshControl refreshing={refrescando} onRefresh={onRefrescar} tintColor="#d4a338" />}>
         {pestana === 'resumen' && (
           <>
+            {(baresPruebaPorVencer.length > 0 || baresPruebaVencida.length > 0) && (
+              <View style={[styles.card, { borderColor: '#e05c5c' }]}>
+                <Text style={[styles.subtitulo, { color: '#e05c5c' }]}>⏳ Pruebas gratis por vencer o vencidas</Text>
+                {baresPruebaVencida.map((b) => (
+                  <View key={b.id} style={styles.filaEntreDos}>
+                    <Text style={styles.textoNormal}>{b.nombre}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={{ color: '#e05c5c', fontWeight: '700' }}>Vencida {Math.abs(b.dias_restantes_prueba)}d</Text>
+                      {b.telefono_dueno && (
+                        <TouchableOpacity onPress={() => abrirWhatsAppBar(b, `Hola ${b.nombre_dueno || ''}! 👋 Vi que tu prueba de Ronda en "${b.nombre}" ya venció. ¿Hablamos de cómo seguir?`)}>
+                          <Text>💬</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                ))}
+                {baresPruebaPorVencer.map((b) => (
+                  <View key={b.id} style={styles.filaEntreDos}>
+                    <Text style={styles.textoNormal}>{b.nombre}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={{ color: '#e0954c', fontWeight: '700' }}>Vence {b.dias_restantes_prueba}d</Text>
+                      {b.telefono_dueno && (
+                        <TouchableOpacity onPress={() => abrirWhatsAppBar(b, `Hola ${b.nombre_dueno || ''}! 👋 Tu prueba de Ronda en "${b.nombre}" está por vencer en ${b.dias_restantes_prueba} días. ¿Hablamos?`)}>
+                          <Text>💬</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
             {baresSinPago.length > 0 && (
               <View style={[styles.card, { borderColor: '#e0954c' }]}>
                 <Text style={[styles.subtitulo, { color: '#e0954c' }]}>⚠️ Bares activos sin método de pago</Text>
@@ -229,6 +266,11 @@ export default function SuperAdminScreen({ admin, onCerrarSesion }) {
                         </View>
                       </View>
                       {!bar.tiene_metodo_pago && <Text style={{ color: '#e0954c', marginTop: 4 }}>⚠️ Sin método de pago configurado</Text>}
+                      {bar.dias_restantes_prueba <= 7 && (
+                        <Text style={{ color: bar.dias_restantes_prueba >= 0 ? '#e0954c' : '#e05c5c', marginTop: 4 }}>
+                          ⏳ Prueba: {bar.dias_restantes_prueba >= 0 ? `Vence en ${bar.dias_restantes_prueba}d` : `Vencida hace ${Math.abs(bar.dias_restantes_prueba)}d`}
+                        </Text>
+                      )}
                       <Text style={styles.filaDato}>Dueño: <Text style={styles.filaDatoValor}>{bar.nombre_dueno || '—'}</Text></Text>
                       <Text style={styles.filaDato}>Celular: <Text style={styles.filaDatoValor}>{bar.telefono_dueno || '—'}</Text></Text>
                       <Text style={styles.filaDato}>Mesas activas: <Text style={styles.filaDatoValor}>{bar.total_mesas}</Text></Text>
