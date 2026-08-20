@@ -656,6 +656,21 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           </View>
         )}
 
+        {bar?.created_at && (() => {
+          const diasTranscurridos = Math.floor((Date.now() - new Date(bar.created_at).getTime()) / (1000 * 60 * 60 * 24))
+          const diasRestantes = 30 - diasTranscurridos
+          if (diasRestantes > 7) return null
+          return (
+            <View style={[styles.sinConexionBanner, { backgroundColor: diasRestantes >= 0 ? '#3a2a12' : '#3a1a1a' }]}>
+              <Text style={styles.sinConexionTexto}>
+                {diasRestantes >= 0
+                  ? `⏳ Tu prueba gratis vence en ${diasRestantes} día${diasRestantes !== 1 ? 's' : ''} — escríbenos si tienes dudas`
+                  : `⚠️ Tu prueba gratis venció hace ${Math.abs(diasRestantes)} día${Math.abs(diasRestantes) !== 1 ? 's' : ''} — sigues con acceso completo, escríbenos cuando puedas`}
+              </Text>
+            </View>
+          )
+        })()}
+
         {!ocultarPrimerosPasos && (!tieneProductos || !(bar?.llave_nequi || bar?.llave_daviplata || bar?.llave_bre_b)) && (
           <View style={styles.primerosPasosBox}>
             <View style={styles.primerosPasosHeader}>
