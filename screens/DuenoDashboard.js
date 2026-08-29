@@ -1198,18 +1198,47 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                 <Text style={styles.ayudaQr}>Imprime esto y pégalo en la mesa.</Text>
 
                 <View ref={refTarjetaQr} collapsable={false} style={styles.tarjetaQr}>
-                  <Text style={styles.tarjetaQrNombreBar}>{bar?.nombre || 'Nuestro bar'}</Text>
-                  <Text style={styles.tarjetaQrMesa}>Mesa {detalle.mesa.numero}</Text>
+                  <View style={styles.tarjetaQrFranjaBar}>
+                    <Text style={styles.tarjetaQrNombreBar}>🍻 {bar?.nombre || 'Nuestro bar'}</Text>
+                    <Text style={styles.tarjetaQrMesa}>MESA {detalle.mesa.numero}</Text>
+                  </View>
+
+                  <Text style={styles.tarjetaQrFlecha}>👆 Escanea con la cámara de tu celular</Text>
+                  <View style={styles.tarjetaQrMarcoQr}>
                   <Image
                     source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(`${URL_MINI_WEB_CLIENTE}/?m=${detalle.mesa.qr_code}`)}` }}
                     style={styles.qrImagenGrande}
                   />
-                  <Text style={styles.tarjetaQrPasosTitulo}>¿Cómo pedir?</Text>
-                  <Text style={styles.tarjetaQrPaso}>1. Escanea este código con la cámara de tu celular</Text>
-                  <Text style={styles.tarjetaQrPaso}>2. Elige lo que quieras del menú</Text>
-                  <Text style={styles.tarjetaQrPaso}>3. Toca "Enviar pedido"</Text>
-                  <Text style={styles.tarjetaQrPaso}>4. Espera a que te lo traigamos a la mesa 🍻</Text>
-                  <Text style={styles.tarjetaQrPaso}>5. ¿Van varios? Toca ➗ para dividir la cuenta entre todos</Text>
+                  </View>
+
+                  <View style={styles.tarjetaQrPasosBox}>
+                    <View style={styles.tarjetaQrPasoFila}>
+                      <View style={styles.tarjetaQrPasoNumero}><Text style={styles.tarjetaQrPasoNumeroTexto}>1</Text></View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.tarjetaQrPasoTitulo}>📱 Abre tu cámara y escanea</Text>
+                      </View>
+                    </View>
+                    <View style={styles.tarjetaQrPasoFila}>
+                      <View style={styles.tarjetaQrPasoNumero}><Text style={styles.tarjetaQrPasoNumeroTexto}>2</Text></View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.tarjetaQrPasoTitulo}>🍹 Elige y envía tu pedido</Text>
+                      </View>
+                    </View>
+                    <View style={styles.tarjetaQrPasoFila}>
+                      <View style={styles.tarjetaQrPasoNumero}><Text style={styles.tarjetaQrPasoNumeroTexto}>3</Text></View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.tarjetaQrPasoTitulo}>💳 Paga en efectivo o transferencia</Text>
+                      </View>
+                    </View>
+                    <View style={[styles.tarjetaQrPasoFila, { marginBottom: 0 }]}>
+                      <View style={styles.tarjetaQrPasoNumero}><Text style={styles.tarjetaQrPasoNumeroTexto}>4</Text></View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.tarjetaQrPasoTitulo}>🍻 Espera, ¡te lo llevamos!</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  <Text style={styles.tarjetaQrPie}>📲 Sin apps que instalar — directo desde tu cámara</Text>
                 </View>
 
                 <TouchableOpacity style={styles.botonDescargarQr} onPress={() => descargarQr(detalle.mesa)}>
@@ -1659,13 +1688,26 @@ const styles = StyleSheet.create({
   ayudaQr: { color: '#a0a0b0', fontSize: 13, textAlign: 'center', marginVertical: 10, paddingHorizontal: 10 },
   qrImagen: { width: 220, height: 220, backgroundColor: '#fff', borderRadius: 12, marginVertical: 10 },
   tarjetaQr: {
-    backgroundColor: '#ffffff', borderRadius: 16, padding: 24, alignItems: 'center', width: '100%', marginVertical: 10,
+    backgroundColor: '#ffffff', borderRadius: 20, padding: 0, alignItems: 'center', width: '100%', marginVertical: 10, overflow: 'hidden',
   },
-  tarjetaQrNombreBar: { color: '#14141f', fontSize: 24, fontWeight: '800', textAlign: 'center' },
-  tarjetaQrMesa: { color: '#8a6a1f', fontSize: 15, fontWeight: '700', marginTop: 2, marginBottom: 14, textTransform: 'uppercase', letterSpacing: 1 },
-  qrImagenGrande: { width: 240, height: 240, marginBottom: 18 },
-  tarjetaQrPasosTitulo: { color: '#14141f', fontSize: 16, fontWeight: '800', marginBottom: 8, alignSelf: 'flex-start' },
-  tarjetaQrPaso: { color: '#2a2a2a', fontSize: 14, marginBottom: 4, alignSelf: 'flex-start', lineHeight: 20 },
+  tarjetaQrFranjaBar: {
+    backgroundColor: '#d4a338', width: '100%', paddingVertical: 16, alignItems: 'center',
+  },
+  tarjetaQrNombreBar: { color: '#14141f', fontSize: 22, fontWeight: '800', textAlign: 'center' },
+  tarjetaQrMesa: { color: '#14141f', fontSize: 14, fontWeight: '800', marginTop: 4, textTransform: 'uppercase', letterSpacing: 2, opacity: 0.75 },
+  tarjetaQrFlecha: { color: '#8a6a1f', fontSize: 15, fontWeight: '800', textAlign: 'center', marginTop: 18, marginBottom: 8 },
+  tarjetaQrMarcoQr: {
+    borderWidth: 3, borderColor: '#d4a338', borderRadius: 16, padding: 10, marginBottom: 20,
+  },
+  qrImagenGrande: { width: 220, height: 220 },
+  tarjetaQrPasosBox: { width: '100%', paddingHorizontal: 24, marginBottom: 18 },
+  tarjetaQrPasoFila: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+  tarjetaQrPasoNumero: {
+    width: 32, height: 32, borderRadius: 16, backgroundColor: '#14141f', alignItems: 'center', justifyContent: 'center', marginRight: 12,
+  },
+  tarjetaQrPasoNumeroTexto: { color: '#d4a338', fontSize: 15, fontWeight: '800' },
+  tarjetaQrPasoTitulo: { color: '#14141f', fontSize: 16, fontWeight: '700' },
+  tarjetaQrPie: { color: '#9494a8', fontSize: 12, textAlign: 'center', paddingBottom: 18, paddingHorizontal: 20 },
   qrEnlaceTexto: { color: '#9494a8', fontSize: 11, textAlign: 'center', marginBottom: 10 },
   botonChatDetalleTexto: { color: '#f2f2f2', fontSize: 14, fontWeight: '700' },
 
