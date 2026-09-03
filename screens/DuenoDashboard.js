@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, Modal, ScrollView, Image, Alert, TextInput, KeyboardAvoidingView, Platform, Share, Switch, Vibration, AppState } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, Modal, ScrollView, Image, Alert, TextInput, KeyboardAvoidingView, Platform, Share, Switch, Vibration, AppState, Linking } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Audio } from 'expo-av'
 import * as Sharing from 'expo-sharing'
@@ -120,6 +120,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [ventasHoy, setVentasHoy] = useState(0)
   const [sinConexion, setSinConexion] = useState(false)
   const [tieneProductos, setTieneProductos] = useState(true)
+  const [cumpleanosHoy, setCumpleanosHoy] = useState([])
   const [ocultarPrimerosPasos, setOcultarPrimerosPasos] = useState(true)
   const [comparativoAyer, setComparativoAyer] = useState(null)
   const [ventasHoyDetalle, setVentasHoyDetalle] = useState([])
@@ -164,6 +165,13 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const cargar = useCallback(async () => {
     try {
     const { data: barData } = await supabase.from('bares').select('nombre, modo_negocio, llave_nequi, llave_daviplata, llave_bre_b, created_at, logo_url').eq('id', usuario.bar_id).maybeSingle()
+    const hoy = new Date()
+    const { data: cumpleData } = await supabase
+      .from('clientes_bar').select('nombre, telefono')
+      .eq('bar_id', usuario.bar_id)
+      .eq('cumpleanos_dia', hoy.getDate())
+      .eq('cumpleanos_mes', hoy.getMonth() + 1)
+    setCumpleanosHoy(cumpleData || [])
     const { count: totalProductos } = await supabase.from('productos').select('id', { count: 'exact', head: true }).eq('bar_id', usuario.bar_id)
     setTieneProductos((totalProductos || 0) > 0)
     setBar(barData)
@@ -670,6 +678,23 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
             </View>
           )
         })()}
+
+        {usuario.rol === 'dueno' && cumpleanosHoy.length > 0 && (
+          <View style={styles.tarjetaCumpleBox}>
+            <Text style={styles.tarjetaCumpleTitulo}>🎂 Hoy cumplen años</Text>
+            {cumpleanosHoy.map((c, i) => (
+              <View key={i} style={styles.tarjetaCumpleFila}>
+                <Text style={styles.tarjetaCumpleNombre}>{c.nombre || 'Cliente'} — {c.telefono}</Text>
+                <TouchableOpacity
+                  style={styles.tarjetaCumpleBoton}
+                  onPress={() => Linking.openURL(`https://wa.me/57${c.telefono}?text=${encodeURIComponent(`¡Feliz cumpleaños${c.nombre ? ', ' + c.nombre : ''}! 🎉 Hoy en ${bar?.nombre || 'nuestro bar'} tenemos una sorpresa para ti y tus amigos. ¡Te esperamos para celebrar! 🍻`)}`)}
+                >
+                  <Text style={styles.tarjetaCumpleBotonTexto}>💬 Enviar</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
 
         {!ocultarPrimerosPasos && (!tieneProductos || !(bar?.llave_nequi || bar?.llave_daviplata || bar?.llave_bre_b)) && (
           <View style={styles.primerosPasosBox}>
@@ -1727,6 +1752,12 @@ const styles = StyleSheet.create({
   chatInput: { flex: 1, backgroundColor: '#26263a', color: '#f2f2f2', borderRadius: 12, padding: 12, fontSize: 15 },
   chatEnviarBoton: { backgroundColor: '#d4a338', borderRadius: 12, paddingHorizontal: 18, justifyContent: 'center' },
   botonTexto: { color: '#14141f', fontSize: 16, fontWeight: '700' },
+  tarjetaCumpleBox: { backgroundColor: '#3a2a12', borderRadius: 14, padding: 14, marginHorizontal: 16, marginTop: 12 },
+  tarjetaCumpleTitulo: { color: '#f2f2f2', fontSize: 15, fontWeight: '800', marginBottom: 8 },
+  tarjetaCumpleFila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  tarjetaCumpleNombre: { color: '#e0c48a', fontSize: 13, flex: 1, marginRight: 8 },
+  tarjetaCumpleBoton: { backgroundColor: '#d4a338', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10 },
+  tarjetaCumpleBotonTexto: { color: '#14141f', fontSize: 12, fontWeight: '800' },
   botonCancelarPedido: { borderWidth: 1, borderColor: '#e05c5c', borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 10 },
   botonCancelarPedidoTexto: { color: '#e05c5c', fontSize: 14, fontWeight: '700' },
   pagoBox: { backgroundColor: '#26263a', borderRadius: 14, padding: 14, marginTop: 14 },
