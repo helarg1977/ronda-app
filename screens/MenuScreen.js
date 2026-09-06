@@ -46,13 +46,17 @@ export default function MenuScreen({ usuario, onVolver }) {
   const [nombreProducto, setNombreProducto] = useState('')
   const [precioProducto, setPrecioProducto] = useState('')
   const [fotoProducto, setFotoProducto] = useState('')
+  const [stockProducto, setStockProducto] = useState('')
+  const [alertaStockProducto, setAlertaStockProducto] = useState('')
+  const [reabasteciendoId, setReabasteciendoId] = useState(null)
+  const [cantidadReabastecer, setCantidadReabastecer] = useState('')
   const [subiendoFoto, setSubiendoFoto] = useState(false)
   const [fotoAmpliada, setFotoAmpliada] = useState(null)
   const [editandoProducto, setEditandoProducto] = useState(null)
 
   const cargar = useCallback(async () => {
     const { data: cats } = await supabase.from('categorias').select('id, nombre, icono').eq('bar_id', usuario.bar_id).order('orden')
-    const { data: prods } = await supabase.from('productos').select('id, categoria_id, nombre, precio, disponible, foto_url').eq('bar_id', usuario.bar_id).order('orden')
+    const { data: prods } = await supabase.from('productos').select('id, categoria_id, nombre, precio, disponible, foto_url, stock_actual, alerta_stock_bajo').eq('bar_id', usuario.bar_id).order('orden')
     setCategorias(cats || [])
     setProductos(prods || [])
     if (cats && cats.length && !categoriaSeleccionada) setCategoriaSeleccionada(cats[0].id)
@@ -138,12 +142,16 @@ export default function MenuScreen({ usuario, onVolver }) {
       Alert.alert('Falta información', 'Elige una categoría, escribe el nombre y el precio.')
       return
     }
+    const stockValor = stockProducto.trim() === '' ? null : Number(stockProducto)
+    const alertaValor = alertaStockProducto.trim() === '' ? 10 : Number(alertaStockProducto)
     if (editandoProducto) {
       const { error } = await supabase.from('productos').update({
         categoria_id: categoriaSeleccionada,
         nombre: nombreProducto.trim(),
         precio: Number(precioProducto),
         foto_url: fotoProducto.trim() || null,
+        stock_actual: stockValor,
+        alerta_stock_bajo: alertaValor,
       }).eq('id', editandoProducto)
       if (error) { Alert.alert('Error', mensajeAmigable(error, 'No se pudo guardar el cambio.')); return }
       setEditandoProducto(null)
@@ -154,6 +162,8 @@ export default function MenuScreen({ usuario, onVolver }) {
         nombre: nombreProducto.trim(),
         precio: Number(precioProducto),
         foto_url: fotoProducto.trim() || null,
+        stock_actual: stockValor,
+        alerta_stock_bajo: alertaValor,
         disponible: true,
         orden: productos.length,
       })
@@ -162,6 +172,8 @@ export default function MenuScreen({ usuario, onVolver }) {
     setNombreProducto('')
     setPrecioProducto('')
     setFotoProducto('')
+    setStockProducto('')
+    setAlertaStockProducto('')
     cargar()
   }
 
@@ -184,6 +196,8 @@ export default function MenuScreen({ usuario, onVolver }) {
     setNombreProducto(producto.nombre)
     setPrecioProducto(String(producto.precio))
     setFotoProducto(producto.foto_url || '')
+    setStockProducto(producto.stock_actual === null || producto.stock_actual === undefined ? '' : String(producto.stock_actual))
+    setAlertaStockProducto(producto.alerta_stock_bajo === null || producto.alerta_stock_bajo === undefined ? '' : String(producto.alerta_stock_bajo))
   }
 
   function cancelarEdicionProducto() {
@@ -191,6 +205,8 @@ export default function MenuScreen({ usuario, onVolver }) {
     setNombreProducto('')
     setPrecioProducto('')
     setFotoProducto('')
+    setStockProducto('')
+    setAlertaStockProducto('')
   }
 
   async function borrarProducto(producto) {
@@ -214,6 +230,23 @@ export default function MenuScreen({ usuario, onVolver }) {
 
   async function toggleDisponible(producto) {
     await supabase.from('productos').update({ disponible: !producto.disponible }).eq('id', producto.id)
+    cargar()
+  }
+
+  function reabastecerProducto(producto) {
+    setReabasteciendoId(producto.id)
+    setCantidadReabastecer('')
+  }
+
+  async function confirmarReabastecer(producto) {
+    const cantidad = parseInt(cantidadReabastecer, 10)
+    if (!cantidad || cantidad <= 0) {
+      Alert.alert('Cantidad inválida', 'Escribe cuántas unidades vas a agregar.')
+      return
+    }
+    const { error } = await supabase.rpc('ajustar_stock_producto', { p_producto_id: producto.id, p_cantidad: cantidad, p_tipo: 'entrada' })
+    if (error) { Alert.alert('No se pudo actualizar', mensajeAmigable(error, 'Intenta de nuevo.')); return }
+    setReabasteciendoId(null)
     cargar()
   }
 
@@ -311,6 +344,26 @@ export default function MenuScreen({ usuario, onVolver }) {
               placeholderTextColor="#6a6a80"
             />
 
+            <Text style={styles.label}>Inventario (opcional — déjalo vacío si no quieres controlarlo)</Text>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                value={stockProducto}
+                onChangeText={(txt) => setStockProducto(txt.replace(/[^0-9]/g, ''))}
+                placeholder="Unidades disponibles"
+                keyboardType="numeric"
+                placeholderTextColor="#6a6a80"
+              />
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                value={alertaStockProducto}
+                onChangeText={(txt) => setAlertaStockProducto(txt.replace(/[^0-9]/g, ''))}
+                placeholder="Avisar si quedan menos de"
+                keyboardType="numeric"
+                placeholderTextColor="#6a6a80"
+              />
+            </View>
+
             <Text style={styles.label}>Foto del producto (opcional — puedes agregarla después)</Text>
             {fotoProducto ? (
               <View style={styles.previewFotoBox}>
@@ -357,12 +410,37 @@ export default function MenuScreen({ usuario, onVolver }) {
             <TouchableOpacity style={{ flex: 1 }} onPress={() => toggleDisponible(p)}>
               <Text style={[styles.productoNombre, !p.disponible && styles.productoOculto]}>{p.nombre} — {formatearPrecio(String(p.precio))}</Text>
               <Text style={styles.productoEstado}>{p.disponible ? 'Disponible (toca para ocultar)' : 'Oculto (toca para activar)'}</Text>
+              {p.stock_actual !== null && p.stock_actual !== undefined && (
+                <Text style={[
+                  styles.productoStockTexto,
+                  p.stock_actual <= 0 ? styles.productoStockRojo : p.stock_actual <= (p.alerta_stock_bajo || 10) ? styles.productoStockAmarillo : styles.productoStockVerde,
+                ]}>
+                  📦 {p.stock_actual} en inventario{p.stock_actual <= (p.alerta_stock_bajo || 10) ? ' — ¡se está agotando!' : ''}
+                </Text>
+              )}
             </TouchableOpacity>
+            {p.stock_actual !== null && p.stock_actual !== undefined && (
+              <TouchableOpacity style={styles.botonAccionProducto} onPress={() => reabastecerProducto(p)}><Text style={styles.borrarTexto}>➕</Text></TouchableOpacity>
+            )}
             <TouchableOpacity style={styles.botonAccionProducto} onPress={() => duplicarProducto(p)}><Text style={styles.borrarTexto}>📋</Text></TouchableOpacity>
             <TouchableOpacity style={styles.botonAccionProducto} onPress={() => abrirEdicionProducto(p)}><Text style={styles.borrarTexto}>✏️</Text></TouchableOpacity>
             <TouchableOpacity style={[styles.botonAccionProducto, { marginLeft: 6 }]} onPress={() => borrarProducto(p)}><Text style={styles.borrarTexto}>🗑️</Text></TouchableOpacity>
           </View>
         ))}
+        {productos.filter((p) => p.categoria_id === categoriaSeleccionada).map((p) => reabasteciendoId === p.id ? (
+          <View key={`reabastecer-${p.id}`} style={styles.filaReabastecer}>
+            <Text style={styles.filaReabastecerTexto}>Agregar unidades a {p.nombre}:</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                value={cantidadReabastecer} onChangeText={(txt) => setCantidadReabastecer(txt.replace(/[^0-9]/g, ''))}
+                placeholder="Cantidad" keyboardType="numeric" placeholderTextColor="#6a6a80" autoFocus
+              />
+              <TouchableOpacity style={styles.botonGuardarChico} onPress={() => confirmarReabastecer(p)}><Text style={styles.botonGuardarChicoTexto}>Agregar</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.botonCancelarChico} onPress={() => setReabasteciendoId(null)}><Text style={styles.botonCancelarChicoTexto}>X</Text></TouchableOpacity>
+            </View>
+          </View>
+        ) : null)}
       </ScrollView>
 
       <Modal visible={!!fotoAmpliada} transparent animationType="fade" onRequestClose={() => setFotoAmpliada(null)}>
@@ -410,6 +488,16 @@ const styles = StyleSheet.create({
   productoItem: { backgroundColor: '#1e1e2e', borderRadius: 12, padding: 14, marginBottom: 8, flexDirection: 'row', alignItems: 'center' },
   productoFotoChica: { width: 44, height: 44, borderRadius: 10, marginRight: 12 },
   productoIconoChico: { width: 44, height: 44, borderRadius: 10, marginRight: 12, backgroundColor: '#1e1e2e', alignItems: 'center', justifyContent: 'center' },
+  productoStockTexto: { fontSize: 12, marginTop: 2, fontWeight: '600' },
+  productoStockVerde: { color: '#3ecf8e' },
+  productoStockAmarillo: { color: '#e0954c' },
+  productoStockRojo: { color: '#e05c5c' },
+  filaReabastecer: { backgroundColor: '#1e1e2e', borderRadius: 12, padding: 12, marginBottom: 8, marginTop: -6 },
+  filaReabastecerTexto: { color: '#c9c9d4', fontSize: 13, marginBottom: 8 },
+  botonGuardarChico: { backgroundColor: '#d4a338', borderRadius: 10, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
+  botonGuardarChicoTexto: { color: '#14141f', fontWeight: '800', fontSize: 13 },
+  botonCancelarChico: { borderWidth: 1, borderColor: '#3a3a4a', borderRadius: 10, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  botonCancelarChicoTexto: { color: '#c9c9d4', fontWeight: '700' },
   productoNombre: { color: '#f2f2f2', fontSize: 16, fontWeight: '600' },
   productoOculto: { color: '#9494a8', textDecorationLine: 'line-through' },
   productoEstado: { color: '#9494a8', fontSize: 13, marginTop: 4 },

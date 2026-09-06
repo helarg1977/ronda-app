@@ -121,6 +121,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
   const [sinConexion, setSinConexion] = useState(false)
   const [tieneProductos, setTieneProductos] = useState(true)
   const [cumpleanosHoy, setCumpleanosHoy] = useState([])
+  const [stockBajo, setStockBajo] = useState([])
   const [ocultarPrimerosPasos, setOcultarPrimerosPasos] = useState(true)
   const [comparativoAyer, setComparativoAyer] = useState(null)
   const [ventasHoyDetalle, setVentasHoyDetalle] = useState([])
@@ -172,6 +173,10 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
       .eq('cumpleanos_dia', hoy.getDate())
       .eq('cumpleanos_mes', hoy.getMonth() + 1)
     setCumpleanosHoy(cumpleData || [])
+    const { data: stockData } = await supabase
+      .from('productos').select('nombre, stock_actual, alerta_stock_bajo')
+      .eq('bar_id', usuario.bar_id).not('stock_actual', 'is', null)
+    setStockBajo((stockData || []).filter((p) => p.stock_actual <= (p.alerta_stock_bajo ?? 10)))
     const { count: totalProductos } = await supabase.from('productos').select('id', { count: 'exact', head: true }).eq('bar_id', usuario.bar_id)
     setTieneProductos((totalProductos || 0) > 0)
     setBar(barData)
@@ -692,6 +697,17 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                   <Text style={styles.tarjetaCumpleBotonTexto}>💬 Enviar</Text>
                 </TouchableOpacity>
               </View>
+            ))}
+          </View>
+        )}
+
+        {usuario.rol === 'dueno' && stockBajo.length > 0 && (
+          <View style={styles.tarjetaStockBox}>
+            <Text style={styles.tarjetaStockTitulo}>📦 Se está agotando</Text>
+            {stockBajo.map((p, i) => (
+              <Text key={i} style={styles.tarjetaStockFila}>
+                {p.nombre} — <Text style={{ fontWeight: '800', color: p.stock_actual <= 0 ? '#e05c5c' : '#e0954c' }}>{p.stock_actual} unidades</Text>
+              </Text>
             ))}
           </View>
         )}
@@ -1753,6 +1769,9 @@ const styles = StyleSheet.create({
   chatEnviarBoton: { backgroundColor: '#d4a338', borderRadius: 12, paddingHorizontal: 18, justifyContent: 'center' },
   botonTexto: { color: '#14141f', fontSize: 16, fontWeight: '700' },
   tarjetaCumpleBox: { backgroundColor: '#3a2a12', borderRadius: 14, padding: 14, marginHorizontal: 16, marginTop: 12 },
+  tarjetaStockBox: { backgroundColor: '#3a1a1a', borderRadius: 14, padding: 14, marginHorizontal: 16, marginTop: 12 },
+  tarjetaStockTitulo: { color: '#f2f2f2', fontSize: 15, fontWeight: '800', marginBottom: 8 },
+  tarjetaStockFila: { color: '#e0c48a', fontSize: 13, marginBottom: 4 },
   tarjetaCumpleTitulo: { color: '#f2f2f2', fontSize: 15, fontWeight: '800', marginBottom: 8 },
   tarjetaCumpleFila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   tarjetaCumpleNombre: { color: '#e0c48a', fontSize: 13, flex: 1, marginRight: 8 },
