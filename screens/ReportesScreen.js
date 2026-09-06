@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, Image } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, Image, Alert } from 'react-native'
+import * as Print from 'expo-print'
+import * as Sharing from 'expo-sharing'
 import { supabase } from '../lib/supabase'
 import GuiaPantalla from '../components/GuiaPantalla'
 import { money, costoRonda } from '../lib/formato'
@@ -43,11 +45,17 @@ export default function ReportesScreen({ usuario, onVolver }) {
   const [pagosHistorial, setPagosHistorial] = useState([])
   const [mostrarHistorialPagos, setMostrarHistorialPagos] = useState(false)
   const [comprobanteVer, setComprobanteVer] = useState(null)
+  const [movimientosInventario, setMovimientosInventario] = useState([])
+  const [generandoPdf, setGenerandoPdf] = useState(false)
+  const [nombreBar, setNombreBar] = useState('')
 
   const cargar = useCallback(async () => {
     setCargando(true)
 
     const desde = inicioDe(periodo).toISOString()
+
+    const { data: barData } = await supabase.from('bares').select('nombre').eq('id', usuario.bar_id).maybeSingle()
+    setNombreBar(barData?.nombre || 'Ronda')
 
     const { data: pedidos } = await supabase
       .from('pedidos')
@@ -91,10 +99,104 @@ export default function ReportesScreen({ usuario, onVolver }) {
       .order('created_at', { ascending: false })
     setPagosHistorial(pagosConfirmados || [])
 
+    const { data: movInv } = await supabase
+      .from('movimientos_inventario')
+      .select('tipo, cantidad, created_at, productos(nombre)')
+      .eq('bar_id', usuario.bar_id).gte('created_at', desde)
+      .order('created_at', { ascending: false })
+    setMovimientosInventario(movInv || [])
+
     setCargando(false)
   }, [usuario.bar_id, periodo])
 
   useEffect(() => { cargar() }, [cargar])
+
+  async function generarPdf() {
+    setGenerandoPdf(true)
+    try {
+      const periodoLabel = PERIODOS.find((p) => p.id === periodo)?.label || 'Hoy'
+      const fechaGeneracion = new Date().toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' })
+
+      const filasPedidos = pedidosLista.map((p) => `
+        <tr>
+          <td>${new Date(p.created_at).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })}</td>
+          <td>Mesa ${p.mesas?.numero || '—'}</td>
+          <td>${p.pedido_items.map((it) => `${it.cantidad}x ${it.productos?.nombre || '—'}`).join(', ')}</td>
+          <td style="text-align:right">${money(p.total)}</td>
+        </tr>
+      `).join('')
+
+      const filasInventario = movimientosInventario.map((m) => {
+        const etiquetas = { venta: 'Venta', cancelacion: 'Repuesto (cancelación)', entrada: 'Reabastecimiento', ajuste_manual: 'Ajuste' }
+        return `
+        <tr>
+          <td>${new Date(m.created_at).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })}</td>
+          <td>${m.productos?.nombre || '—'}</td>
+          <td>${etiquetas[m.tipo] || m.tipo}</td>
+          <td style="text-align:right; color:${m.cantidad < 0 ? '#c0392b' : '#1a7a4c'}">${m.cantidad > 0 ? '+' : ''}${m.cantidad}</td>
+        </tr>
+      `}).join('')
+
+      const html = `
+        <html>
+        <head>
+          <meta charset="utf-8" />
+          <style>
+            body { font-family: -apple-system, Helvetica, Arial, sans-serif; color: #222; padding: 24px; }
+            h1 { font-size: 22px; margin-bottom: 2px; }
+            .sub { color: #777; font-size: 12px; margin-bottom: 20px; }
+            .resumen { display: flex; gap: 14px; margin-bottom: 24px; flex-wrap: wrap; }
+            .tarjeta { background: #f4f1ea; border-radius: 10px; padding: 12px 16px; min-width: 140px; }
+            .tarjeta .valor { font-size: 20px; font-weight: 700; color: #8a6a1f; }
+            .tarjeta .label { font-size: 11px; color: #666; }
+            h2 { font-size: 15px; margin-top: 28px; border-bottom: 2px solid #d4a338; padding-bottom: 4px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+            th { text-align: left; background: #f4f1ea; padding: 6px 8px; font-size: 11px; }
+            td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+            .vacio { color: #999; font-size: 12px; padding: 10px 0; }
+          </style>
+        </head>
+        <body>
+          <h1>${nombreBar} — Reporte de ${periodoLabel.toLowerCase()}</h1>
+          <div class="sub">Generado el ${fechaGeneracion}</div>
+
+          <div class="resumen">
+            <div class="tarjeta"><div class="valor">${money(ventasTotal)}</div><div class="label">Ventas totales</div></div>
+            <div class="tarjeta"><div class="valor">${numPedidos}</div><div class="label">Pedidos entregados</div></div>
+            <div class="tarjeta"><div class="valor">${money(propinasTotal)}</div><div class="label">Propinas</div></div>
+            <div class="tarjeta"><div class="valor">${money(pedidosLista.reduce((s, p) => s + costoRonda(Number(p.total)), 0))}</div><div class="label">Costo por pedido (Ronda)</div></div>
+            ${productoTop ? `<div class="tarjeta"><div class="valor">${productoTop.nombre}</div><div class="label">Producto más vendido (${productoTop.unidades} uds)</div></div>` : ''}
+          </div>
+
+          <h2>Pedidos entregados</h2>
+          ${pedidosLista.length === 0 ? '<p class="vacio">No hubo pedidos entregados en este período.</p>' : `
+          <table>
+            <tr><th>Fecha y hora</th><th>Mesa</th><th>Productos</th><th style="text-align:right">Total</th></tr>
+            ${filasPedidos}
+          </table>`}
+
+          <h2>Movimientos de inventario</h2>
+          ${movimientosInventario.length === 0 ? '<p class="vacio">No hubo movimientos de inventario en este período.</p>' : `
+          <table>
+            <tr><th>Fecha y hora</th><th>Producto</th><th>Tipo</th><th style="text-align:right">Cambio</th></tr>
+            ${filasInventario}
+          </table>`}
+        </body>
+        </html>
+      `
+
+      const { uri } = await Print.printToFileAsync({ html })
+      const disponible = await Sharing.isAvailableAsync()
+      if (disponible) {
+        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: `Reporte ${periodoLabel} — ${nombreBar}` })
+      } else {
+        Alert.alert('PDF generado', 'No se pudo abrir para compartir, pero el archivo se generó correctamente.')
+      }
+    } catch (e) {
+      Alert.alert('No se pudo generar el PDF', e.message)
+    }
+    setGenerandoPdf(false)
+  }
 
   return (
     <>
@@ -118,6 +220,10 @@ export default function ReportesScreen({ usuario, onVolver }) {
           </TouchableOpacity>
         ))}
       </View>
+
+      <TouchableOpacity style={styles.botonPdf} onPress={generarPdf} disabled={generandoPdf || cargando}>
+        <Text style={styles.botonPdfTexto}>{generandoPdf ? 'Generando…' : '📄 Descargar / compartir reporte en PDF'}</Text>
+      </TouchableOpacity>
 
       {cargando ? (
         <Text style={styles.ayuda}>Cargando…</Text>
@@ -281,6 +387,8 @@ const styles = StyleSheet.create({
   ayuda: { color: '#9494a8', fontSize: 13, marginBottom: 16 },
   filaPeriodos: { flexDirection: 'row', gap: 8, marginBottom: 18 },
   periodoChip: { flex: 1, backgroundColor: '#1e1e2e', borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#2a2a3a' },
+  botonPdf: { backgroundColor: '#d4a338', borderRadius: 12, padding: 14, alignItems: 'center', marginTop: 14, marginBottom: 6 },
+  botonPdfTexto: { color: '#14141f', fontSize: 14, fontWeight: '800' },
   periodoChipActivo: { backgroundColor: '#d4a338', borderColor: '#d4a338' },
   periodoChipTexto: { color: '#f2f2f2', fontSize: 13, fontWeight: '600' },
   periodoChipTextoActivo: { color: '#14141f', fontWeight: '800' },
