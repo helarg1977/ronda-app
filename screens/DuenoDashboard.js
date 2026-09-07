@@ -1580,7 +1580,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#14141f' },
-  sinConexionBanner: { backgroundColor: '#3a2a12', paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center' },
+  sinConexionBanner: { backgroundColor: '#3a2a12', paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center', marginTop: 46 },
   sinConexionTexto: { color: '#e0954c', fontSize: 12, fontWeight: '700' },
   primerosPasosBox: { backgroundColor: '#1a2e26', borderRadius: 18, padding: 16, marginHorizontal: 14, marginTop: 14, borderWidth: 1, borderColor: '#3ecf8e' },
   primerosPasosHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
