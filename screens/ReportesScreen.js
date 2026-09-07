@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, Image, Alert } from 'react-native'
 import * as Print from 'expo-print'
 import * as Sharing from 'expo-sharing'
+import { File, Paths } from 'expo-file-system'
 import { supabase } from '../lib/supabase'
 import GuiaPantalla from '../components/GuiaPantalla'
 import { money, costoRonda } from '../lib/formato'
@@ -110,6 +111,66 @@ export default function ReportesScreen({ usuario, onVolver }) {
   }, [usuario.bar_id, periodo])
 
   useEffect(() => { cargar() }, [cargar])
+
+  async function exportarCSV() {
+    setGenerandoPdf(true)
+    try {
+      const periodoLabel = PERIODOS.find((p) => p.id === periodo)?.label || 'Hoy'
+      const escapar = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
+
+      const filasVentas = [
+        ['Fecha', 'Hora', 'Mesa', 'Productos', 'Total'].map(escapar).join(','),
+        ...pedidosLista.map((p) => {
+          const fecha = new Date(p.created_at)
+          return [
+            fecha.toLocaleDateString('es-CO'),
+            fecha.toLocaleTimeString('es-CO'),
+            `Mesa ${p.mesas?.numero || '—'}`,
+            p.pedido_items.map((it) => `${it.cantidad}x ${it.productos?.nombre || '—'}`).join(' / '),
+            p.total,
+          ].map(escapar).join(',')
+        }),
+      ].join('\n')
+
+      const etiquetasInv = { venta: 'Venta', cancelacion: 'Repuesto (cancelación)', entrada: 'Reabastecimiento', ajuste_manual: 'Ajuste' }
+      const filasInv = [
+        ['Fecha', 'Hora', 'Producto', 'Tipo', 'Cambio'].map(escapar).join(','),
+        ...movimientosInventario.map((m) => {
+          const fecha = new Date(m.created_at)
+          return [
+            fecha.toLocaleDateString('es-CO'),
+            fecha.toLocaleTimeString('es-CO'),
+            m.productos?.nombre || '—',
+            etiquetasInv[m.tipo] || m.tipo,
+            m.cantidad,
+          ].map(escapar).join(',')
+        }),
+      ].join('\n')
+
+      const bom = '\ufeff' // para que Excel reconozca bien las tildes
+
+      const archivoVentas = new File(Paths.cache, `ventas-${periodo}.csv`)
+      if (archivoVentas.exists) archivoVentas.delete()
+      archivoVentas.create()
+      archivoVentas.write(bom + filasVentas)
+
+      const archivoInv = new File(Paths.cache, `inventario-${periodo}.csv`)
+      if (archivoInv.exists) archivoInv.delete()
+      archivoInv.create()
+      archivoInv.write(bom + filasInv)
+
+      const disponible = await Sharing.isAvailableAsync()
+      if (disponible) {
+        await Sharing.shareAsync(archivoVentas.uri, { mimeType: 'text/csv', dialogTitle: `Ventas ${periodoLabel} — Excel/CSV` })
+        await Sharing.shareAsync(archivoInv.uri, { mimeType: 'text/csv', dialogTitle: `Inventario ${periodoLabel} — Excel/CSV` })
+      } else {
+        Alert.alert('Archivos generados', 'No se pudo abrir para compartir, pero los archivos se generaron correctamente.')
+      }
+    } catch (e) {
+      Alert.alert('No se pudo exportar', e.message)
+    }
+    setGenerandoPdf(false)
+  }
 
   async function generarPdf() {
     setGenerandoPdf(true)
@@ -223,6 +284,10 @@ export default function ReportesScreen({ usuario, onVolver }) {
 
       <TouchableOpacity style={styles.botonPdf} onPress={generarPdf} disabled={generandoPdf || cargando}>
         <Text style={styles.botonPdfTexto}>{generandoPdf ? 'Generando…' : '📄 Descargar / compartir reporte en PDF'}</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.botonExcel} onPress={exportarCSV} disabled={generandoPdf || cargando}>
+        <Text style={styles.botonExcelTexto}>{generandoPdf ? 'Generando…' : '📊 Exportar a Excel/CSV (contabilidad)'}</Text>
       </TouchableOpacity>
 
       {cargando ? (
@@ -389,6 +454,8 @@ const styles = StyleSheet.create({
   periodoChip: { flex: 1, backgroundColor: '#1e1e2e', borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#2a2a3a' },
   botonPdf: { backgroundColor: '#d4a338', borderRadius: 12, padding: 14, alignItems: 'center', marginTop: 14, marginBottom: 6 },
   botonPdfTexto: { color: '#14141f', fontSize: 14, fontWeight: '800' },
+  botonExcel: { borderWidth: 1, borderColor: '#3ecf8e', borderRadius: 12, padding: 14, alignItems: 'center', marginBottom: 6 },
+  botonExcelTexto: { color: '#3ecf8e', fontSize: 14, fontWeight: '800' },
   periodoChipActivo: { backgroundColor: '#d4a338', borderColor: '#d4a338' },
   periodoChipTexto: { color: '#f2f2f2', fontSize: 13, fontWeight: '600' },
   periodoChipTextoActivo: { color: '#14141f', fontWeight: '800' },
