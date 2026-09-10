@@ -229,7 +229,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     // --- Pagos por confirmar ---
     const { data: pagosData } = await supabase
       .from('pagos')
-      .select('id, metodo, monto, comprobante_url, pedido_id, created_at, monto_efectivo, monto_transferencia, pedidos!inner(bar_id, mesa_id, mesas(numero))')
+      .select('id, metodo, monto, comprobante_url, posible_duplicado, pedido_id, created_at, monto_efectivo, monto_transferencia, pedidos!inner(bar_id, mesa_id, mesas(numero))')
       .eq('pedidos.bar_id', usuario.bar_id).eq('confirmado', false)
     setPagosPendientes(pagosData || [])
 
@@ -477,7 +477,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
     if (mesa.pedido) {
       const { data: itemsData } = await supabase.from('pedido_items').select('id, cantidad, precio_unitario, productos(nombre)').eq('pedido_id', mesa.pedido.id)
       items = itemsData || []
-      const { data: pagoData } = await supabase.from('pagos').select('id, metodo, monto, comprobante_url, confirmado, monto_efectivo, monto_transferencia').eq('pedido_id', mesa.pedido.id).maybeSingle()
+      const { data: pagoData } = await supabase.from('pagos').select('id, metodo, monto, comprobante_url, confirmado, posible_duplicado, monto_efectivo, monto_transferencia').eq('pedido_id', mesa.pedido.id).maybeSingle()
       pago = pagoData || null
       const { data: eventosData } = await supabase.from('pedido_eventos').select('estado, created_at').eq('pedido_id', mesa.pedido.id).order('created_at', { ascending: true })
       eventos = eventosData || []
@@ -864,6 +864,9 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                   <Text style={styles.pagoEsperandoTexto}>💵 {money(p.monto_efectivo || 0)} + 📱 {money(p.monto_transferencia || 0)}</Text>
                 )}
                 <Text style={styles.pagoEsperandoTexto}>Reportado {minutosTexto(p.created_at)}</Text>
+                {p.posible_duplicado && (
+                  <Text style={styles.pagoDuplicadoTexto}>⚠️ Este comprobante ya se usó antes — revísalo con cuidado</Text>
+                )}
                 {p.comprobante_url ? (
                   <TouchableOpacity onPress={() => setComprobanteAmpliado(p.comprobante_url)}>
                     <Text style={styles.pagoRevisarTexto}>🔍 Ver comprobante para verificar</Text>
@@ -1148,6 +1151,9 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
                     {detalle.pago && (
                       <View style={styles.pagoBox}>
                         <Text style={styles.subtitulo}>Pago — {detalle.pago.metodo === 'mixto' ? 'Mixto' : detalle.pago.metodo}</Text>
+                        {detalle.pago.posible_duplicado && (
+                          <Text style={styles.pagoDuplicadoTexto}>⚠️ Este comprobante ya se usó antes — revísalo con cuidado</Text>
+                        )}
                         {detalle.pago.metodo === 'mixto' && (
                           <View style={styles.desgloseMixtoBox}>
                             <Text style={styles.desgloseMixtoTexto}>💵 Efectivo: {money(detalle.pago.monto_efectivo || 0)}</Text>
@@ -1656,6 +1662,7 @@ const styles = StyleSheet.create({
   rankingNombre: { color: '#f2f2f2', fontSize: 14, flex: 1, paddingRight: 8 },
   rankingValor: { color: '#a0a0b0', fontSize: 13, fontWeight: '600' },
   pagoEsperandoTexto: { color: '#e0954c', fontSize: 11, fontWeight: '700', marginTop: 2 },
+  pagoDuplicadoTexto: { color: '#e05c5c', fontSize: 12, fontWeight: '800', marginTop: 4 },
   pagoRevisarTexto: { color: '#4a90d9', fontSize: 12, fontWeight: '700', marginTop: 4 },
   vacioTexto: { color: '#9494a8', fontSize: 14 },
   ayudaChica: { color: '#9494a8', fontSize: 12, paddingHorizontal: 16, marginTop: -4, marginBottom: 10 },
