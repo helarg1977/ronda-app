@@ -88,6 +88,7 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
   const [comprobanteVer, setComprobanteVer] = useState(null)
   const [misMesas, setMisMesas] = useState([])
   const [mostrarMotivoApoyo, setMostrarMotivoApoyo] = useState(false)
+  const [mostrarMotivoAviso, setMostrarMotivoAviso] = useState(false)
 
   const cargar = useCallback(async () => {
     const { data: barData } = await supabase.from('bares').select('nombre, logo_url').eq('id', usuario.bar_id).maybeSingle()
@@ -250,6 +251,18 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
     }
     setMostrarMotivoApoyo(false)
     Alert.alert('Enviado', 'Ya le avisamos al dueño que necesitas apoyo.')
+  }
+
+  async function avisarDuenoConMotivo(motivo) {
+    setMostrarMotivoAviso(false)
+    const canal = `dueno-${usuario.id}`
+    if (motivo) {
+      await supabase.from('mensajes_chat').insert({
+        bar_id: usuario.bar_id, canal, de: 'mesero', nombre: usuario.nombre,
+        texto: `📣 ${motivo}`,
+      })
+    }
+    abrirChat(canal, '🗨️ Chat con el dueño')
   }
 
   async function abrirChat(canal, titulo) {
@@ -474,7 +487,7 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
         </View>
 
         <View style={styles.filaDueno}>
-          <TouchableOpacity style={[styles.botonHablarDueno, { flex: 1 }]} onPress={() => abrirChat(`dueno-${usuario.id}`, '🗨️ Chat con el dueño')}>
+          <TouchableOpacity style={[styles.botonHablarDueno, { flex: 1 }]} onPress={() => setMostrarMotivoAviso(true)}>
             <Text style={styles.botonHablarDuenoTexto}>
               📣 Avisar al dueño{canalesConNuevos[`dueno-${usuario.id}`] ? ' 🔴' : ''}
             </Text>
@@ -689,6 +702,22 @@ export default function MeseroDashboard({ usuario, onCerrarSesion }) {
               </TouchableOpacity>
             ))}
             <TouchableOpacity style={styles.cerrarModal} onPress={() => setMostrarMotivoApoyo(false)}>
+              <Text style={styles.cerrarModalTexto}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={mostrarMotivoAviso} transparent animationType="slide" onRequestClose={() => setMostrarMotivoAviso(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalDetalle}>
+            <Text style={styles.modalTitulo}>📣 Avisar al dueño sobre...</Text>
+            {['Problema con un pedido', 'Problema con un pago', 'Producto agotado', 'Necesito autorización', 'Otro'].map((motivo) => (
+              <TouchableOpacity key={motivo} style={styles.opcionMotivoApoyo} onPress={() => avisarDuenoConMotivo(motivo === 'Otro' ? null : motivo)}>
+                <Text style={styles.opcionMotivoApoyoTexto}>{motivo}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.cerrarModal} onPress={() => setMostrarMotivoAviso(false)}>
               <Text style={styles.cerrarModalTexto}>Cancelar</Text>
             </TouchableOpacity>
           </View>

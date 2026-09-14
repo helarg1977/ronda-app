@@ -41,6 +41,7 @@ export default function ReportesScreen({ usuario, onVolver }) {
   const [productoTop, setProductoTop] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [pedidosLista, setPedidosLista] = useState([])
+  const [porMesero, setPorMesero] = useState([])
   const [propinasLista, setPropinasLista] = useState([])
   const [detalleStat, setDetalleStat] = useState(null)
   const [pagosHistorial, setPagosHistorial] = useState([])
@@ -60,7 +61,7 @@ export default function ReportesScreen({ usuario, onVolver }) {
 
     const { data: pedidos } = await supabase
       .from('pedidos')
-      .select('id, total, created_at, mesas(numero), pedido_items(cantidad, productos(nombre))')
+      .select('id, total, created_at, mesero_id, usuarios_bar(nombre), mesas(numero), pedido_items(cantidad, productos(nombre))')
       .eq('bar_id', usuario.bar_id).eq('estado', 'entregado').gte('created_at', desde)
       .order('created_at', { ascending: false })
 
@@ -68,6 +69,16 @@ export default function ReportesScreen({ usuario, onVolver }) {
     setVentasTotal(lista.reduce((s, p) => s + Number(p.total), 0))
     setNumPedidos(lista.length)
     setPedidosLista(lista)
+
+    const conteoMeseros = {}
+    lista.forEach((p) => {
+      const clave = p.mesero_id || 'sin_asignar'
+      const nombre = p.usuarios_bar?.nombre || 'Sin asignar'
+      if (!conteoMeseros[clave]) conteoMeseros[clave] = { nombre, pedidos: 0, total: 0 }
+      conteoMeseros[clave].pedidos += 1
+      conteoMeseros[clave].total += Number(p.total)
+    })
+    setPorMesero(Object.values(conteoMeseros).sort((a, b) => b.total - a.total))
 
     const { data: propinas } = await supabase
       .from('propinas').select('monto, calificacion, pedidos!inner(bar_id, created_at, mesas(numero))').eq('pedidos.bar_id', usuario.bar_id)
@@ -149,10 +160,20 @@ export default function ReportesScreen({ usuario, onVolver }) {
 
       const bom = '\ufeff' // para que Excel reconozca bien las tildes
 
+      const filasMesero = [
+        ['Mesero', 'Pedidos', 'Total vendido'].map(escapar).join(','),
+        ...porMesero.map((m) => [m.nombre, m.pedidos, m.total].map(escapar).join(',')),
+      ].join('\n')
+
       const archivoVentas = new File(Paths.cache, `ventas-${periodo}.csv`)
       if (archivoVentas.exists) archivoVentas.delete()
       archivoVentas.create()
       archivoVentas.write(bom + filasVentas)
+
+      const archivoMesero = new File(Paths.cache, `por-mesero-${periodo}.csv`)
+      if (archivoMesero.exists) archivoMesero.delete()
+      archivoMesero.create()
+      archivoMesero.write(bom + filasMesero)
 
       const archivoInv = new File(Paths.cache, `inventario-${periodo}.csv`)
       if (archivoInv.exists) archivoInv.delete()
@@ -162,6 +183,7 @@ export default function ReportesScreen({ usuario, onVolver }) {
       const disponible = await Sharing.isAvailableAsync()
       if (disponible) {
         await Sharing.shareAsync(archivoVentas.uri, { mimeType: 'text/csv', dialogTitle: `Ventas ${periodoLabel} — Excel/CSV` })
+        await Sharing.shareAsync(archivoMesero.uri, { mimeType: 'text/csv', dialogTitle: `Por mesero ${periodoLabel} — Excel/CSV` })
         await Sharing.shareAsync(archivoInv.uri, { mimeType: 'text/csv', dialogTitle: `Inventario ${periodoLabel} — Excel/CSV` })
       } else {
         Alert.alert('Archivos generados', 'No se pudo abrir para compartir, pero los archivos se generaron correctamente.')
@@ -234,6 +256,13 @@ export default function ReportesScreen({ usuario, onVolver }) {
           <table>
             <tr><th>Fecha y hora</th><th>Mesa</th><th>Productos</th><th style="text-align:right">Total</th></tr>
             ${filasPedidos}
+          </table>`}
+
+          <h2>Por mesero</h2>
+          ${porMesero.length === 0 ? '<p class="vacio">Sin datos de mesero en este período.</p>' : `
+          <table>
+            <tr><th>Mesero</th><th>Pedidos</th><th style="text-align:right">Total vendido</th></tr>
+            ${porMesero.map((m) => `<tr><td>${m.nombre}</td><td>${m.pedidos}</td><td style="text-align:right">${money(m.total)}</td></tr>`).join('')}
           </table>`}
 
           <h2>Movimientos de inventario</h2>
@@ -326,6 +355,18 @@ export default function ReportesScreen({ usuario, onVolver }) {
             <View style={styles.card}>
               <Text style={styles.cardLabel}>🍺 Producto estrella del periodo</Text>
               <Text style={styles.cardValor}>{productoTop.nombre} — {productoTop.unidades} unidades</Text>
+            </View>
+          )}
+
+          {porMesero.length > 0 && (
+            <View style={styles.card}>
+              <Text style={styles.cardLabel}>👥 Por mesero</Text>
+              {porMesero.map((m, i) => (
+                <View key={i} style={styles.filaPorMesero}>
+                  <Text style={styles.filaPorMeseroNombre}>{m.nombre}</Text>
+                  <Text style={styles.filaPorMeseroDato}>{m.pedidos} pedido{m.pedidos !== 1 ? 's' : ''} — {money(m.total)}</Text>
+                </View>
+              ))}
             </View>
           )}
 
@@ -469,6 +510,9 @@ const styles = StyleSheet.create({
   card: { backgroundColor: '#1e1e2e', borderRadius: 14, padding: 14, marginBottom: 16 },
   cardLabel: { color: '#a0a0b0', fontSize: 12, textTransform: 'uppercase', marginBottom: 4 },
   cardValor: { color: '#f2f2f2', fontSize: 15, fontWeight: '700' },
+  filaPorMesero: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 },
+  filaPorMeseroNombre: { color: '#c9c9d4', fontSize: 13, fontWeight: '600' },
+  filaPorMeseroDato: { color: '#d4a338', fontSize: 13, fontWeight: '700' },
   seccion: { color: '#d4a338', fontSize: 15, fontWeight: '800', marginBottom: 10 },
   diaFila: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#1e1e2e', borderRadius: 12, padding: 14, marginBottom: 8 },
   diaFecha: { color: '#f2f2f2', fontSize: 14, fontWeight: '600', flex: 1.4, textTransform: 'capitalize' },
