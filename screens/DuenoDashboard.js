@@ -96,7 +96,7 @@ const AYUDA_SECCIONES = [
   { titulo: '🪑 ¿Cómo agrego mesas?', texto: 'Dentro de "Menú", baja hasta la sección "Mesas" y toca "+ Agregar mesa". Cada mesa genera su propio código QR — ese código es el que debes imprimir o pegar físicamente en cada mesa del bar.' },
   { titulo: '👥 ¿Cómo agrego a mis meseros?', texto: 'Tienes dos formas: en "⚙️ Config → Empleados" le compartes tu código de negocio (6 letras/números) y tu empleado se une solo desde el login tocando "¿Eres empleado? Tengo un código" — o si prefieres, lo agregas tú mismo con su nombre, celular y un PIN.' },
   { titulo: '💳 ¿Cómo configuro mis pagos?', texto: 'En "⚙️ Config" guarda tu Nequi, Daviplata o Bre-B. Ronda nunca cobra por adelantado ni maneja tu plata — el cliente te paga directo a ti.' },
-  { titulo: '✅ ¿Cómo confirmo que me llegó un pago?', texto: 'Toca la mesa correspondiente, toca el comprobante para ampliarlo y verificarlo bien, y toca "Confirmar que recibí el pago". También puedes hacerlo desde "💰 Hay dinero esperando" en el panel principal.' },
+  { titulo: '✅ ¿Cómo confirmo que me llegó un pago?', texto: 'Toca la mesa correspondiente, toca el comprobante para ampliarlo y verificarlo bien, y toca "Confirmar que recibí el pago". También puedes hacerlo desde "💰 Pagos pendientes" en el panel principal.' },
   { titulo: '🧾 ¿Cómo cierro una mesa cuando el grupo se va?', texto: 'Toca la mesa (debe estar sin pedido activo) y toca "Cerrar mesa (cuenta pagada)". Eso deja la mesa lista y limpia para el siguiente grupo, sin mezclar cuentas.' },
   { titulo: '🔗 ¿Llegó un grupo grande y unieron mesas?', texto: 'Toca cualquiera de las mesas físicas que unieron y busca la sección "🔀 Grupo grande o cambio de mesa" — toca "Unir otra mesa a esta cuenta" y elige cuál. Todo lo que pidan desde cualquiera de esas mesas se junta en una sola cuenta. Cuando se vayan, toca "Separar esta mesa" en la que uniste.' },
   { titulo: '🔀 ¿Un cliente se cambió de mesa?', texto: 'Toca la mesa donde estaba sentado y busca "Mover esta cuenta a otra mesa" — elige la mesa nueva (debe estar libre) y toda su cuenta se pasa completa, sin perder nada.' },
@@ -669,80 +669,35 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           </View>
         )}
 
-        {bar?.created_at && (() => {
-          const diasTranscurridos = Math.floor((Date.now() - new Date(bar.created_at).getTime()) / (1000 * 60 * 60 * 24))
-          const diasRestantes = 30 - diasTranscurridos
-          if (diasRestantes > 7) return null
-          return (
-            <View style={[styles.sinConexionBanner, { backgroundColor: diasRestantes >= 0 ? '#3a2a12' : '#3a1a1a' }]}>
-              <Text style={styles.sinConexionTexto}>
-                {diasRestantes >= 0
-                  ? `⏳ Tu prueba gratis vence en ${diasRestantes} día${diasRestantes !== 1 ? 's' : ''} — escríbenos si tienes dudas`
-                  : `⚠️ Tu prueba gratis venció hace ${Math.abs(diasRestantes)} día${Math.abs(diasRestantes) !== 1 ? 's' : ''} — sigues con acceso completo, escríbenos cuando puedas`}
-              </Text>
-            </View>
-          )
-        })()}
-
-        {usuario.rol === 'dueno' && cumpleanosHoy.length > 0 && (
-          <View style={styles.tarjetaCumpleBox}>
-            <Text style={styles.tarjetaCumpleTitulo}>🎂 Hoy cumplen años</Text>
-            {cumpleanosHoy.map((c, i) => (
-              <View key={i} style={styles.tarjetaCumpleFila}>
-                <Text style={styles.tarjetaCumpleNombre}>{c.nombre || 'Cliente'} — {c.telefono}</Text>
-                <TouchableOpacity
-                  style={styles.tarjetaCumpleBoton}
-                  onPress={() => Linking.openURL(`https://wa.me/57${c.telefono}?text=${encodeURIComponent(`¡Feliz cumpleaños${c.nombre ? ', ' + c.nombre : ''}! 🎉 Hoy en ${bar?.nombre || 'nuestro bar'} tenemos una sorpresa para ti y tus amigos. ¡Te esperamos para celebrar! 🍻`)}`)}
-                >
-                  <Text style={styles.tarjetaCumpleBotonTexto}>💬 Enviar</Text>
-                </TouchableOpacity>
+        {usuario.rol === 'dueno' && (cumpleanosHoy.length > 0 || stockBajo.length > 0) && (
+          <View style={styles.tarjetaAtencionBox}>
+            <Text style={styles.tarjetaAtencionTitulo}>🎯 Requiere tu atención</Text>
+            {cumpleanosHoy.length > 0 && (
+              <View style={styles.tarjetaAtencionGrupo}>
+                <Text style={styles.tarjetaAtencionSubtitulo}>🎂 Hoy cumplen años</Text>
+                {cumpleanosHoy.map((c, i) => (
+                  <View key={i} style={styles.tarjetaCumpleFila}>
+                    <Text style={styles.tarjetaCumpleNombre}>{c.nombre || 'Cliente'} — {c.telefono}</Text>
+                    <TouchableOpacity
+                      style={styles.tarjetaCumpleBoton}
+                      onPress={() => Linking.openURL(`https://wa.me/57${c.telefono}?text=${encodeURIComponent(`¡Feliz cumpleaños${c.nombre ? ', ' + c.nombre : ''}! 🎉 Hoy en ${bar?.nombre || 'nuestro bar'} tenemos una sorpresa para ti y tus amigos. ¡Te esperamos para celebrar! 🍻`)}`)}
+                    >
+                      <Text style={styles.tarjetaCumpleBotonTexto}>💬 Enviar</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
-        )}
-
-        {usuario.rol === 'dueno' && stockBajo.length > 0 && (
-          <View style={styles.tarjetaStockBox}>
-            <Text style={styles.tarjetaStockTitulo}>📦 Se está agotando</Text>
-            {stockBajo.map((p, i) => (
-              <Text key={i} style={styles.tarjetaStockFila}>
-                {p.nombre} — <Text style={{ fontWeight: '800', color: p.stock_actual <= 0 ? '#e05c5c' : '#e0954c' }}>{p.stock_actual} unidades</Text>
-              </Text>
-            ))}
-          </View>
-        )}
-
-        {!ocultarPrimerosPasos && (!tieneProductos || !(bar?.llave_nequi || bar?.llave_daviplata || bar?.llave_bre_b)) && (
-          <View style={styles.primerosPasosBox}>
-            <View style={styles.primerosPasosHeader}>
-              <Text style={styles.primerosPasosTitulo}>👋 Bienvenido a Ronda — te falta poco</Text>
-              <TouchableOpacity onPress={cerrarPrimerosPasos}><Text style={styles.primerosPasosCerrar}>✕</Text></TouchableOpacity>
-            </View>
-            <Text style={styles.primerosPasosAyuda}>Completa esto y tu bar queda listo para recibir pedidos de verdad:</Text>
-
-            <TouchableOpacity style={styles.primerosPasosItem} onPress={onIrMenu}>
-              <Text style={styles.primerosPasosItemIcono}>{tieneProductos ? '✅' : '⬜'}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.primerosPasosItemTitulo}>Sube tu menú</Text>
-                <Text style={styles.primerosPasosItemTexto}>Agrega tus productos con precio — toca aquí para ir</Text>
+            )}
+            {stockBajo.length > 0 && (
+              <View style={styles.tarjetaAtencionGrupo}>
+                <Text style={styles.tarjetaAtencionSubtitulo}>📦 Se está agotando</Text>
+                {stockBajo.map((p, i) => (
+                  <Text key={i} style={styles.tarjetaStockFila}>
+                    {p.nombre} — <Text style={{ fontWeight: '800', color: p.stock_actual <= 0 ? '#e05c5c' : '#e0954c' }}>{p.stock_actual} unidades</Text>
+                  </Text>
+                ))}
               </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.primerosPasosItem} onPress={onIrConfiguracion}>
-              <Text style={styles.primerosPasosItemIcono}>{(bar?.llave_nequi || bar?.llave_daviplata || bar?.llave_bre_b) ? '✅' : '⬜'}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.primerosPasosItemTitulo}>Configura cómo te pagan</Text>
-                <Text style={styles.primerosPasosItemTexto}>Guarda tu Nequi, Daviplata o Bre-B</Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.primerosPasosItem} onPress={onIrMenu}>
-              <Text style={styles.primerosPasosItemIcono}>🖨️</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.primerosPasosItemTitulo}>Imprime tus códigos QR</Text>
-                <Text style={styles.primerosPasosItemTexto}>Ya se crearon automáticamente — descárgalos e imprímelos para cada mesa</Text>
-              </View>
-            </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -829,7 +784,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           )}
           <TouchableOpacity style={styles.statCardChico} onPress={() => setDetalleStat('pagos')}>
             <Text style={styles.statValorChico}>{pagosPendientes.length}</Text>
-            <Text style={styles.statLabelChico}>Dinero esperando</Text>
+            <Text style={styles.statLabelChico}>Pagos pendientes</Text>
           </TouchableOpacity>
         </View>
 
@@ -852,7 +807,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
           )
         })()}
 
-        <Text style={styles.seccionTitulo}>💰 Hay dinero esperando</Text>
+        <Text style={styles.seccionTitulo}>💰 Pagos pendientes</Text>
         <View style={styles.card}>
           {pagosPendientes.length === 0 && <Text style={styles.vacioTexto}>Todos los pagos están confirmados ✅</Text>}
           {pagosPendientes.map((p) => (
@@ -906,6 +861,55 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
             </View>
           )
         })()}
+
+        {bar?.created_at && (() => {
+          const diasTranscurridos = Math.floor((Date.now() - new Date(bar.created_at).getTime()) / (1000 * 60 * 60 * 24))
+          const diasRestantes = 30 - diasTranscurridos
+          if (diasRestantes > 7) return null
+          return (
+            <View style={[styles.sinConexionBanner, { backgroundColor: diasRestantes >= 0 ? '#3a2a12' : '#3a1a1a' }]}>
+              <Text style={styles.sinConexionTexto}>
+                {diasRestantes >= 0
+                  ? `⏳ Tu prueba gratis vence en ${diasRestantes} día${diasRestantes !== 1 ? 's' : ''} — escríbenos si tienes dudas`
+                  : `⚠️ Tu prueba gratis venció hace ${Math.abs(diasRestantes)} día${Math.abs(diasRestantes) !== 1 ? 's' : ''} — sigues con acceso completo, escríbenos cuando puedas`}
+              </Text>
+            </View>
+          )
+        })()}
+
+        {!ocultarPrimerosPasos && (!tieneProductos || !(bar?.llave_nequi || bar?.llave_daviplata || bar?.llave_bre_b)) && (
+          <View style={styles.primerosPasosBox}>
+            <View style={styles.primerosPasosHeader}>
+              <Text style={styles.primerosPasosTitulo}>👋 Bienvenido a Ronda — te falta poco</Text>
+              <TouchableOpacity onPress={cerrarPrimerosPasos}><Text style={styles.primerosPasosCerrar}>✕</Text></TouchableOpacity>
+            </View>
+            <Text style={styles.primerosPasosAyuda}>Completa esto y tu bar queda listo para recibir pedidos de verdad:</Text>
+
+            <TouchableOpacity style={styles.primerosPasosItem} onPress={onIrMenu}>
+              <Text style={styles.primerosPasosItemIcono}>{tieneProductos ? '✅' : '⬜'}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.primerosPasosItemTitulo}>Sube tu menú</Text>
+                <Text style={styles.primerosPasosItemTexto}>Agrega tus productos con precio — toca aquí para ir</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.primerosPasosItem} onPress={onIrConfiguracion}>
+              <Text style={styles.primerosPasosItemIcono}>{(bar?.llave_nequi || bar?.llave_daviplata || bar?.llave_bre_b) ? '✅' : '⬜'}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.primerosPasosItemTitulo}>Configura cómo te pagan</Text>
+                <Text style={styles.primerosPasosItemTexto}>Guarda tu Nequi, Daviplata o Bre-B</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.primerosPasosItem} onPress={onIrMenu}>
+              <Text style={styles.primerosPasosItemIcono}>🖨️</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.primerosPasosItemTitulo}>Imprime tus códigos QR</Text>
+                <Text style={styles.primerosPasosItemTexto}>Ya se crearon automáticamente — descárgalos e imprímelos para cada mesa</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={styles.seccionHeaderFila}>
           <Text style={[styles.seccionTitulo, { marginTop: 0, marginBottom: 0, paddingHorizontal: 0 }]}>Mapa del bar</Text>
@@ -1443,7 +1447,7 @@ export default function DuenoDashboard({ usuario, onCerrarSesion, onIrComision, 
             )}
             {detalleStat === 'pagos' && (
               <>
-                <Text style={styles.modalTitulo}>💰 Hay dinero esperando</Text>
+                <Text style={styles.modalTitulo}>💰 Pagos pendientes</Text>
                 <ScrollView style={{ maxHeight: 400, marginTop: 10 }}>
                   {pagosPendientes.length === 0 && <Text style={styles.itemTexto}>Todos los pagos están confirmados ✅</Text>}
                   {pagosPendientes.map((p) => (
@@ -1775,6 +1779,10 @@ const styles = StyleSheet.create({
   chatInput: { flex: 1, backgroundColor: '#26263a', color: '#f2f2f2', borderRadius: 12, padding: 12, fontSize: 15 },
   chatEnviarBoton: { backgroundColor: '#d4a338', borderRadius: 12, paddingHorizontal: 18, justifyContent: 'center' },
   botonTexto: { color: '#14141f', fontSize: 16, fontWeight: '700' },
+  tarjetaAtencionBox: { backgroundColor: '#2a1a3a', borderWidth: 1, borderColor: '#8a5cd4', borderRadius: 14, padding: 14, marginHorizontal: 16, marginTop: 12 },
+  tarjetaAtencionTitulo: { color: '#f2f2f2', fontSize: 16, fontWeight: '800', marginBottom: 10 },
+  tarjetaAtencionGrupo: { marginBottom: 8 },
+  tarjetaAtencionSubtitulo: { color: '#c9a8f0', fontSize: 13, fontWeight: '700', marginBottom: 6 },
   tarjetaCumpleBox: { backgroundColor: '#3a2a12', borderRadius: 14, padding: 14, marginHorizontal: 16, marginTop: 12 },
   tarjetaStockBox: { backgroundColor: '#3a1a1a', borderRadius: 14, padding: 14, marginHorizontal: 16, marginTop: 12 },
   tarjetaStockTitulo: { color: '#f2f2f2', fontSize: 15, fontWeight: '800', marginBottom: 8 },
