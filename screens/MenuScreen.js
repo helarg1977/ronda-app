@@ -252,6 +252,9 @@ export default function MenuScreen({ usuario, onVolver }) {
 
   const categoriaActivaNombre = categorias.find((c) => c.id === categoriaSeleccionada)?.nombre || ''
   const sugerencias = sugerenciasProducto(categoriaActivaNombre)
+  const sugerenciasFiltradas = nombreProducto.trim()
+    ? sugerencias.filter((s) => s.toLowerCase().includes(nombreProducto.trim().toLowerCase()))
+    : sugerencias
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={40}>
@@ -320,14 +323,18 @@ export default function MenuScreen({ usuario, onVolver }) {
 
         {sugerencias.length > 0 && (
           <>
-            <Text style={styles.subseccion}>Sugerencias para {categoriaActivaNombre}</Text>
-            <View style={styles.filaCategorias}>
-              {sugerencias.map((s) => (
-                <TouchableOpacity key={s} style={styles.chipSugerida} onPress={() => setNombreProducto(s)}>
-                  <Text style={styles.chipTexto}>{s}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Text style={styles.subseccion}>{nombreProducto.trim() ? 'Coincidencias' : `Sugerencias para ${categoriaActivaNombre}`}</Text>
+            {sugerenciasFiltradas.length === 0 ? (
+              <Text style={styles.ayuda}>Sin coincidencias — puedes escribir el nombre completo tú mismo.</Text>
+            ) : (
+              <View style={styles.filaCategorias}>
+                {sugerenciasFiltradas.map((s) => (
+                  <TouchableOpacity key={s} style={styles.chipSugerida} onPress={() => setNombreProducto(s)}>
+                    <Text style={styles.chipTexto}>{s}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </>
         )}
 

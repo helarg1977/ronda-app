@@ -42,6 +42,7 @@ export default function ReportesScreen({ usuario, onVolver }) {
   const [cargando, setCargando] = useState(true)
   const [pedidosLista, setPedidosLista] = useState([])
   const [porMesero, setPorMesero] = useState([])
+  const [descuadre, setDescuadre] = useState({ total: 0, productos: [] })
   const [propinasLista, setPropinasLista] = useState([])
   const [detalleStat, setDetalleStat] = useState(null)
   const [pagosHistorial, setPagosHistorial] = useState([])
@@ -117,6 +118,16 @@ export default function ReportesScreen({ usuario, onVolver }) {
       .eq('bar_id', usuario.bar_id).gte('created_at', desde)
       .order('created_at', { ascending: false })
     setMovimientosInventario(movInv || [])
+
+    const { data: productosNegativos } = await supabase
+      .from('productos').select('nombre, precio, stock_actual')
+      .eq('bar_id', usuario.bar_id).lt('stock_actual', 0)
+    const listaDescuadre = (productosNegativos || []).map((p) => ({
+      nombre: p.nombre,
+      faltante: Math.abs(p.stock_actual),
+      valor: Math.abs(p.stock_actual) * Number(p.precio),
+    }))
+    setDescuadre({ total: listaDescuadre.reduce((s, p) => s + p.valor, 0), productos: listaDescuadre })
 
     setCargando(false)
   }, [usuario.bar_id, periodo])
@@ -258,6 +269,14 @@ export default function ReportesScreen({ usuario, onVolver }) {
             ${filasPedidos}
           </table>`}
 
+          <h2>Posible descuadre (inventario actual, no depende del período)</h2>
+          ${descuadre.productos.length === 0 ? '<p class="vacio">Sin inventario en negativo en este momento.</p>' : `
+          <table>
+            <tr><th>Producto</th><th>Unidades faltantes</th><th style="text-align:right">Valor estimado</th></tr>
+            ${descuadre.productos.map((p) => `<tr><td>${p.nombre}</td><td>${p.faltante}</td><td style="text-align:right">${money(p.valor)}</td></tr>`).join('')}
+            <tr><td colspan="2"><strong>Total</strong></td><td style="text-align:right"><strong>${money(descuadre.total)}</strong></td></tr>
+          </table>`}
+
           <h2>Por mesero</h2>
           ${porMesero.length === 0 ? '<p class="vacio">Sin datos de mesero en este período.</p>' : `
           <table>
@@ -355,6 +374,20 @@ export default function ReportesScreen({ usuario, onVolver }) {
             <View style={styles.card}>
               <Text style={styles.cardLabel}>🍺 Producto estrella del periodo</Text>
               <Text style={styles.cardValor}>{productoTop.nombre} — {productoTop.unidades} unidades</Text>
+            </View>
+          )}
+
+          {descuadre.productos.length > 0 && (
+            <View style={[styles.card, { borderWidth: 1, borderColor: '#e05c5c' }]}>
+              <Text style={styles.cardLabel}>💸 Posible descuadre</Text>
+              <Text style={[styles.cardValor, { color: '#e05c5c', fontSize: 20 }]}>{money(descuadre.total)}</Text>
+              <Text style={styles.ayuda}>Basado en el inventario que quedó en negativo ahora mismo — no depende del período elegido arriba.</Text>
+              {descuadre.productos.map((p, i) => (
+                <View key={i} style={styles.filaPorMesero}>
+                  <Text style={styles.filaPorMeseroNombre}>{p.nombre} — {p.faltante} unidades</Text>
+                  <Text style={[styles.filaPorMeseroDato, { color: '#e05c5c' }]}>{money(p.valor)}</Text>
+                </View>
+              ))}
             </View>
           )}
 
